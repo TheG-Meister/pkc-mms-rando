@@ -22,20 +22,20 @@ public class Map
 	private int xCapacity;
 	private int yCapacity;
 	private Block[][] blocks;
-
+	
 	public Map(int xCapacity, int yCapacity)
 	{
 		this.xCapacity = xCapacity;
 		this.yCapacity = yCapacity;
 		this.blocks = new Block[yCapacity][xCapacity];
 	}
-
+	
 	public int getXCapacity()
 	{ return this.xCapacity; }
-
+	
 	public int getYCapacity()
 	{ return this.yCapacity; }
-
+	
 	public Block[][] getBlocks()
 	{ return this.blocks; }
 	
@@ -44,7 +44,7 @@ public class Map
 	 * filling null elements in this map's {@link Block}s with a path block. Not all
 	 * paths are equally likely, as the path is built one block at a time using the
 	 * previous built coordinate.
-	 * 
+	 *
 	 * @param start  the point which is built from
 	 * @param end    the point which is built to
 	 * @param path   the path block to fill with
@@ -68,13 +68,13 @@ public class Map
 			for (int i = 0; i < adjacentOffsets.length; i++)
 			{
 				ReferencePoint r = current.add(adjacentOffsets[i]);
-				if (used.isWithinBoundsAt(r.getX(), r.getY())
-						&& (this.blocks[r.getY()][r.getX()] == null || (r.getX() == end.getX() && r.getY() == end.getY())))
+				if (used.isWithinBoundsAt(r.getX(), r.getY()) && (this.blocks[r.getY()][r.getX()] == null
+						|| (r.getX() == end.getX() && r.getY() == end.getY())))
 					candidates.add(r);
 			}
 			
-			if (candidates.size() == 0) throw new IllegalStateException(
-						"Fatal logic error - no candidate map coordinates were found");
+			if (candidates.size() == 0)
+				throw new IllegalStateException("Fatal logic error - no candidate map coordinates were found");
 			//else if (candidates.size() > 1)
 			{
 				BooleanMap freeFromEnd = new BooleanMap(used.getXCapacity(), used.getYCapacity(), false);
@@ -113,18 +113,20 @@ public class Map
 					for (int i = 0; i < candidates.size(); i++)
 						allFound = allFound && freeFromEnd.getAt(candidates.get(i).getX(), candidates.get(i).getY());
 					
-					if (++iterations2 > 10000) throw new IllegalStateException("Fatal logic error - inner loop could not exit");
+					if (++iterations2 > 10000)
+						throw new IllegalStateException("Fatal logic error - inner loop could not exit");
 				}
 				while (buildingMap && !allFound);
 				
-				for (int i = 0; i < candidates.size(); i++)if (!freeFromEnd.getAt(candidates.get(i).getX(), candidates.get(i).getY()))
+				for (int i = 0; i < candidates.size(); i++)
+					if (!freeFromEnd.getAt(candidates.get(i).getX(), candidates.get(i).getY()))
 				{
 					candidates.remove(i);
 					i--;
 				}
 				
-				if (candidates.size() == 0) throw new IllegalStateException(
-							"Fatal logic error - no candidate can reach the end");
+				if (candidates.size() == 0)
+					throw new IllegalStateException("Fatal logic error - no candidate can reach the end");
 			}
 			
 			if (candidates.size() == 1) current = candidates.get(0);
@@ -137,7 +139,8 @@ public class Map
 		
 	}
 	
-	public static void debugPathGenerator(int xCapacity, int yCapacity, ReferencePoint start, ReferencePoint end, Block path, Block filler, long seed)
+	public static void debugPathGenerator(int xCapacity, int yCapacity, ReferencePoint start, ReferencePoint end,
+			Block path, Block filler, long seed)
 	{
 		Map map = new Map(xCapacity, yCapacity);
 		
