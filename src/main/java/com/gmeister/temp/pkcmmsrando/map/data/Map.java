@@ -75,7 +75,7 @@ public class Map
 			
 			if (candidates.size() == 0)
 				throw new IllegalStateException("Fatal logic error - no candidate map coordinates were found");
-			//else if (candidates.size() > 1)
+			else if (candidates.size() > 1)
 			{
 				BooleanMap freeFromEnd = new BooleanMap(used.getXCapacity(), used.getYCapacity(), false);
 				BooleanMap toCheck = new BooleanMap(used.getXCapacity(), used.getYCapacity(), false);
@@ -139,6 +139,73 @@ public class Map
 		
 	}
 	
+	public static BooleanMap makeBlob(int size, Random random)
+	{
+		int radius = (int) Math.round(Math.sqrt(size / Math.PI));
+		ReferencePoint centre = new ReferencePoint(radius + 2, radius + 2);
+		ReferencePoint[] adjacentOffsets = {new ReferencePoint(1, 0), new ReferencePoint(-1, 0),
+				new ReferencePoint(0, 1), new ReferencePoint(0, -1)};
+		BooleanMap blob = new BooleanMap(2 * radius + 5, 2 * radius + 5, false);
+		BooleanMap elected = new BooleanMap(2 * radius + 5, 2 * radius + 5, false);
+		
+		ArrayList<ReferencePoint> candidates = new ArrayList<>();
+		ArrayList<Double> candidateProb = new ArrayList<>();
+		
+		candidates.add(centre);
+		elected.setAt(centre.getX(), centre.getY(), true);
+		
+		for (; size > 0; size--)
+		{
+			double totalProb = 0d;
+			for (int i = 0; i < candidates.size(); i++)
+			{
+				if (i >= candidateProb.size())
+				{
+					ReferencePoint candidate = candidates.get(i);
+					int dx = candidate.getX() - centre.getX();
+					int dy = candidate.getY() - centre.getY();
+					double r = Math.sqrt(dx * dx + dy * dy);
+					if (r < 0.1) r = 0.1;
+					candidateProb.add(1 / (r * r));
+				}
+				totalProb += candidateProb.get(i);
+			}
+			
+			double nextDouble = random.nextDouble() * totalProb;
+			
+			for (int i = 0; i < candidates.size(); i++)
+			{
+				nextDouble -= candidateProb.get(i);
+				if (nextDouble <= 0)
+				{
+					ReferencePoint next = candidates.get(i);
+					blob.setAt(next.getX(), next.getY(), true);
+					
+					candidates.remove(i);
+					candidateProb.remove(i);
+					
+					for (int j = 0; j < adjacentOffsets.length; j++)
+					{
+						ReferencePoint candidate = next.add(adjacentOffsets[j]);
+						if (blob.isWithinMapAt(candidate.getX(), candidate.getY())
+								&& !blob.getAt(candidate.getX(), candidate.getY())
+								&& !elected.getAt(candidate.getX(), candidate.getY()))
+						{
+							candidates.add(candidate);
+							elected.setAt(candidate.getX(), candidate.getY(), true);
+						}
+					}
+					break;
+				}
+			}
+			
+			//System.out.println(blob.toCleanGridString());
+			//System.out.println();
+		}
+		
+		return blob;
+	}
+	
 	public static void debugPathGenerator(int xCapacity, int yCapacity, ReferencePoint start, ReferencePoint end,
 			Block path, Block filler, long seed)
 	{
@@ -169,7 +236,7 @@ public class Map
 	
 	public static void main(String... args)
 	{
-		Random r = new Random(0);
+		/*Random r = new Random(0);
 		ReferencePoint start = new ReferencePoint(0, 3);
 		ReferencePoint end = new ReferencePoint(31, 4);
 		Block[] sampleBlocks = Block.makeSampleBlockset();
@@ -178,7 +245,10 @@ public class Map
 		{
 			if (i % 100 == 0) System.out.println("Running iteration " + i + "...");
 			Map.debugPathGenerator(32, 8, start, end, sampleBlocks[0], sampleBlocks[15], r.nextLong());
-		}
+		}*/
+		
+		Random r = new Random();
+		System.out.println(Map.makeBlob(50, r).toCleanGridString());
 	}
 	
 }
