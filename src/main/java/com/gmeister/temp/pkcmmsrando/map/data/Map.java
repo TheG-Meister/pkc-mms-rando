@@ -1,5 +1,9 @@
 package com.gmeister.temp.pkcmmsrando.map.data;
 
+import java.util.Arrays;
+
+import com.gmeister.temp.maps.MapOutOfBoundsException;
+
 public class Map
 {
 	
@@ -30,7 +34,27 @@ public class Map
 	public int getYCapacity()
 	{ return this.yCapacity; }
 	
+	public void fill(Block b)
+	{ for (int y = 0; y < this.yCapacity; y++) Arrays.fill(this.blocks[y], b); }
+	
 	public Block[][] getBlocks()
 	{ return this.blocks; }
+	
+	public Block getAt(int x, int y)
+	{
+		if (this.isWithinBlocksAt(x, y)) return this.blocks[y][x];
+		else throw new MapOutOfBoundsException("Map does not contain coordinates " + x + ", " + y);
+	}
+	
+	public boolean isWithinBlocksAt(int x, int y)
+	{
+		return !(x < 0 || x >= this.xCapacity || y < 0 || y >= this.yCapacity);
+	}
+	
+	public void setAt(int x, int y, Block b)
+	{
+		if (this.isWithinBlocksAt(x, y)) this.blocks[y][x] = b;
+		else throw new MapOutOfBoundsException("BooleanMap does not contain coordinates " + x + ", " + y);
+	}
 	
 }
