@@ -17,6 +17,7 @@ public class Map
 	//time of day: a PALETTE_* constant
 	//fishing group: a FISHGROUP_* constant
 	
+	private String name;
 	private int xCapacity;
 	private int yCapacity;
 	private Block[][] blocks;
@@ -56,5 +57,11 @@ public class Map
 		if (this.isWithinBlocksAt(x, y)) this.blocks[y][x] = b;
 		else throw new MapOutOfBoundsException("BooleanMap does not contain coordinates " + x + ", " + y);
 	}
+
+	public String getName()
+	{ return this.name; }
+
+	public void setName(String name)
+	{ this.name = name; }
 	
 }
