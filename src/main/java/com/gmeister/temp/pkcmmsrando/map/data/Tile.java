@@ -16,16 +16,16 @@ public class Tile
 		this.name = name;
 		this.building = building;
 	}
-
+	
 	public String getName()
 	{ return this.name; }
-
+	
 	public void setName(String name)
 	{ this.name = name; }
-
+	
 	public boolean getBuilding()
 	{ return this.building; }
-
+	
 	public void setBuilding(boolean building)
 	{ this.building = building; }
 	

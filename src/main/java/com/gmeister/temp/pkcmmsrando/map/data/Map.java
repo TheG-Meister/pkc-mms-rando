@@ -1,8 +1,6 @@
 package com.gmeister.temp.pkcmmsrando.map.data;
 
-import java.util.Arrays;
-
-import com.gmeister.temp.maps.MapOutOfBoundsException;
+import java.util.ArrayList;
 
 public class Map
 {
@@ -18,44 +16,16 @@ public class Map
 	//fishing group: a FISHGROUP_* constant
 	
 	private String name;
+	private ArrayList<String> script;
 	private int xCapacity;
 	private int yCapacity;
-	private Block[][] blocks;
+	private MapBlocks blocks;
+	private ArrayList<Warp> warps;
 	
-	public Map(int xCapacity, int yCapacity)
+	public Map()
 	{
-		this.xCapacity = xCapacity;
-		this.yCapacity = yCapacity;
-		this.blocks = new Block[yCapacity][xCapacity];
-	}
-	
-	public int getXCapacity()
-	{ return this.xCapacity; }
-	
-	public int getYCapacity()
-	{ return this.yCapacity; }
-	
-	public void fill(Block b)
-	{ for (int y = 0; y < this.yCapacity; y++) Arrays.fill(this.blocks[y], b); }
-	
-	public Block[][] getBlocks()
-	{ return this.blocks; }
-	
-	public Block getAt(int x, int y)
-	{
-		if (this.isWithinBlocksAt(x, y)) return this.blocks[y][x];
-		else throw new MapOutOfBoundsException("Map does not contain coordinates " + x + ", " + y);
-	}
-	
-	public boolean isWithinBlocksAt(int x, int y)
-	{
-		return !(x < 0 || x >= this.xCapacity || y < 0 || y >= this.yCapacity);
-	}
-	
-	public void setAt(int x, int y, Block b)
-	{
-		if (this.isWithinBlocksAt(x, y)) this.blocks[y][x] = b;
-		else throw new MapOutOfBoundsException("BooleanMap does not contain coordinates " + x + ", " + y);
+		this.script = new ArrayList<>();
+		this.warps = new ArrayList<>();
 	}
 
 	public String getName()
@@ -63,5 +33,35 @@ public class Map
 
 	public void setName(String name)
 	{ this.name = name; }
+
+	public int getXCapacity()
+	{ return this.xCapacity; }
+
+	public void setXCapacity(int xCapacity)
+	{ this.xCapacity = xCapacity; }
+
+	public int getYCapacity()
+	{ return this.yCapacity; }
+
+	public void setYCapacity(int yCapacity)
+	{ this.yCapacity = yCapacity; }
+
+	public ArrayList<String> getScript()
+	{ return this.script; }
+
+	public void setScript(ArrayList<String> script)
+	{ this.script = script; }
+
+	public ArrayList<Warp> getWarps()
+	{ return this.warps; }
+
+	public void setWarps(ArrayList<Warp> warps)
+	{ this.warps = warps; }
+
+	public MapBlocks getBlocks()
+	{ return this.blocks; }
+
+	public void setBlocks(MapBlocks blocks)
+	{ this.blocks = blocks; }
 	
 }

@@ -12,16 +12,16 @@ public class Constant
 		this.name = name;
 		this.value = value;
 	}
-
+	
 	public String getName()
 	{ return this.name; }
-
+	
 	public void setName(String name)
 	{ this.name = name; }
-
+	
 	public byte getValue()
 	{ return this.value; }
-
+	
 	public void setValue(byte value)
 	{ this.value = value; }
 	

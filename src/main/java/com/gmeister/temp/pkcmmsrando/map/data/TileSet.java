@@ -13,13 +13,13 @@ public class TileSet
 		this.name = name;
 		this.tiles = new ArrayList<>();
 	}
-
+	
 	public String getName()
 	{ return this.name; }
-
+	
 	public void setName(String name)
 	{ this.name = name; }
-
+	
 	public ArrayList<Tile> getTiles()
 	{ return this.tiles; }
 	

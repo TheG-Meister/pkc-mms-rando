@@ -17,7 +17,8 @@ import com.gmeister.temp.pkcmmsrando.map.data.TileSet;
 public class BlockSetImporter
 {
 	
-	public static BlockSet importBlockset(File collisionFile, ArrayList<Constant> collisionConstants, File tileFile, TileSet tileSet) throws FileNotFoundException, IOException
+	public static BlockSet importBlockset(File collisionFile, ArrayList<Constant> collisionConstants, File tileFile,
+			TileSet tileSet) throws FileNotFoundException, IOException
 	{
 		BlockSet blockSet = new BlockSet();
 		Pattern whitespace = Pattern.compile("\\s*", Pattern.DOTALL | Pattern.CASE_INSENSITIVE);
@@ -36,7 +37,8 @@ public class BlockSetImporter
 				{
 					code = tilecoll.matcher(code).replaceFirst("");
 					String[] args = comma.split(code, 4);
-					if (args.length != 4) throw new IllegalArgumentException("The line \"" + line + "\" is not a valid collision instantiation");
+					if (args.length != 4) throw new IllegalArgumentException(
+							"The line \"" + line + "\" is not a valid collision instantiation");
 					
 					for (int i = 0; i < args.length; i++) args[i] = whitespace.matcher(args[i]).replaceAll("");
 					
@@ -45,7 +47,8 @@ public class BlockSetImporter
 					for (int y = 0, i = 0; y < 2; y++) for (int x = 0; x < 2; x++, i++)
 					{
 						args[i] = whitespace.matcher(args[i]).replaceAll("");
-						if (args[i].startsWith("$")) block.getCollision()[y][x] = new Constant(null, (byte) Integer.parseInt(args[i].substring(1), 16));
+						if (args[i].startsWith("$")) block.getCollision()[y][x] = new Constant(null,
+								(byte) Integer.parseInt(args[i].substring(1), 16));
 						else try
 						{
 							block.getCollision()[y][x] = new Constant(null, (byte) (byte) Integer.parseInt(args[i]));
@@ -81,10 +84,12 @@ public class BlockSetImporter
 			for (int i = 0; i < blockNum; i++)
 			{
 				Block block = blockSet.getBlocks().get(i);
-				for (int y = 0, j = 0; y < 4; y++) for (int x = 0; x < 4; x++, j++) block.getTiles()[y][x] = tileSet.getTiles().get(j);
+				for (int y = 0, j = 0; y < 4; y++)
+					for (int x = 0; x < 4; x++, j++) block.getTiles()[y][x] = tileSet.getTiles().get(j);
 			}
 		}
 		
+		blockSet.updateCollGroups();
 		return blockSet;
 	}
 	
