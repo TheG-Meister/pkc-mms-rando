@@ -7,11 +7,11 @@ public class TileSet
 	
 	private String name;
 	private ArrayList<Tile> tiles;
+	private BlockSet blockSet;
 	
 	public TileSet(String name)
 	{
 		this.name = name;
-		this.tiles = new ArrayList<>();
 	}
 	
 	public String getName()
@@ -22,5 +22,14 @@ public class TileSet
 	
 	public ArrayList<Tile> getTiles()
 	{ return this.tiles; }
+
+	public void setTiles(ArrayList<Tile> tiles)
+	{ this.tiles = tiles; }
+
+	public BlockSet getBlockSet()
+	{ return this.blockSet; }
+
+	public void setBlockSet(BlockSet blockSet)
+	{ this.blockSet = blockSet; }
 	
 }

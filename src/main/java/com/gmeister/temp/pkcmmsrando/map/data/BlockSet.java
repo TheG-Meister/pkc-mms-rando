@@ -1,7 +1,6 @@
 package com.gmeister.temp.pkcmmsrando.map.data;
 
 import java.util.ArrayList;
-import java.util.Random;
 
 public class BlockSet
 {
@@ -54,26 +53,15 @@ public class BlockSet
 			}
 			collGroup.add(block);
 		}
-
+		
 		return this.collGroups;
-	}
-	
-	public void randomiseBlocksByCollision(Block[] blocks, Random random)
-	{
-		for (int i = 0; i < blocks.length; i++) if (this.getBlocks().indexOf(blocks[i]) != 0)
-		{
-			ArrayList<Block> blockGroup = null;
-			for (ArrayList<Block> group : this.getCollGroups()) if (group.contains(blocks[i]))
-			{
-				blockGroup = group;
-				break;
-			}
-			blocks[i] = blockGroup.get(random.nextInt(blockGroup.size()));
-		}
 	}
 
 	public ArrayList<Block> getBlocks()
 	{ return this.blocks; }
+
+	public void setBlocks(ArrayList<Block> blocks)
+	{ this.blocks = blocks; }
 
 	public String getName()
 	{ return this.name; }

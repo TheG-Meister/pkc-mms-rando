@@ -21,6 +21,7 @@ public class Map
 	private int yCapacity;
 	private MapBlocks blocks;
 	private ArrayList<Warp> warps;
+	private TileSet tileSet;
 	
 	public Map()
 	{
@@ -63,5 +64,11 @@ public class Map
 
 	public void setBlocks(MapBlocks blocks)
 	{ this.blocks = blocks; }
+
+	public TileSet getTileSet()
+	{ return this.tileSet; }
+
+	public void setTileSet(TileSet tileSet)
+	{ this.tileSet = tileSet; }
 	
 }

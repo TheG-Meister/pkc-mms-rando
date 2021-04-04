@@ -16,10 +16,12 @@ import java.util.regex.Pattern;
 
 import com.gmeister.temp.maps.BooleanMap;
 import com.gmeister.temp.maps.ReferencePoint;
+import com.gmeister.temp.pkcmmsrando.map.BooleanMapGenerators;
 import com.gmeister.temp.pkcmmsrando.map.data.Block;
 import com.gmeister.temp.pkcmmsrando.map.data.BlockSet;
 import com.gmeister.temp.pkcmmsrando.map.data.Constant;
 import com.gmeister.temp.pkcmmsrando.map.data.Map;
+import com.gmeister.temp.pkcmmsrando.map.data.TileSet;
 import com.gmeister.temp.pkcmmsrando.map.importer.BlockSetImporter;
 import com.gmeister.temp.pkcmmsrando.map.importer.ConstantImporter;
 
@@ -176,12 +178,25 @@ public class Notes
 		File inFolder = Paths.get(
 				"D:/Users/The_G_Meister/Documents/_MY SHIT/Pokecrystal/pokecrystal-speedchoice-master/").toFile();
 		File outFolder = Paths.get(
-				"D:/Users/The_G_Meister/Documents/_MY SHIT/Pokecrystal/pkc-mms-rando/patches/23-3-21/pokecrystal-speedchoice/").toFile();
+				"D:/Users/The_G_Meister/Documents/_MY SHIT/Pokecrystal/pkc-mms-rando/patches/share-block/pokecrystal-speedchoice/").toFile();
 		
-		DisassemblyIO rando = new DisassemblyIO(inFolder, outFolder);
+		DisassemblyIO io = new DisassemblyIO(inFolder, outFolder);
+		Randomiser rando = new Randomiser();
 		
-		rando.randomiseBlocksAndCollision();
-		rando.shuffleMusicPointers();
+		//ArrayList<String> musicScript = io.readMusicPointers();
+		//ArrayList<String> shuffledScript = rando.shuffleMusicPointers(musicScript);
+		//io.writeMusicPointers(shuffledScript);
+		
+		ArrayList<Constant> collisionConstants = io.readCollisionConstants();
+		ArrayList<TileSet> tileSets = io.readTileSets(collisionConstants);
+		for (TileSet tileSet : tileSets) tileSet.getBlockSet().updateCollGroups();
+		ArrayList<Map> maps = io.readMaps(tileSets);
+		
+		for (Map map : maps)
+		{
+			map.getBlocks().setBlocks(rando.randomiseBlocksByCollision(map.getTileSet().getBlockSet(), map.getBlocks().getBlocks()));
+			io.writeMapBlocks(map.getBlocks(), map.getTileSet().getBlockSet());
+		}
 	}
 	
 }

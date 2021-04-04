@@ -10,9 +10,9 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Random;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -21,15 +21,21 @@ import com.gmeister.temp.pkcmmsrando.map.data.BlockSet;
 import com.gmeister.temp.pkcmmsrando.map.data.Constant;
 import com.gmeister.temp.pkcmmsrando.map.data.Map;
 import com.gmeister.temp.pkcmmsrando.map.data.MapBlocks;
+import com.gmeister.temp.pkcmmsrando.map.data.Tile;
+import com.gmeister.temp.pkcmmsrando.map.data.TileSet;
 import com.gmeister.temp.pkcmmsrando.map.data.Warp;
-import com.gmeister.temp.pkcmmsrando.map.importer.BlockSetImporter;
-import com.gmeister.temp.pkcmmsrando.map.importer.ConstantImporter;
 
 public class DisassemblyIO
 {
 	
 	private File inputFolder;
 	private File outputFolder;
+	
+	private Pattern commentPattern;
+	private Pattern trailingWhitespacePattern;
+	private Pattern commaSeparatorPattern;
+	private Pattern includePattern;
+	private Pattern incbinPattern;
 	
 	public DisassemblyIO(File inputFolder, File outputFolder) throws IOException
 	{
@@ -38,33 +44,134 @@ public class DisassemblyIO
 		
 		this.outputFolder = outputFolder.getCanonicalFile();
 		this.outputFolder.mkdirs();
+		
+		this.commentPattern = Pattern.compile(";.*");
+		this.trailingWhitespacePattern = Pattern.compile("\\s+$");
+		this.commaSeparatorPattern = Pattern.compile("\\s*,\\s*");
+		this.includePattern = Pattern.compile("^\\s*INCLUDE\\s+");
+		this.incbinPattern = Pattern.compile("^\\s*INCBIN\\s+");
 	}
 	
-	public ArrayList<Constant> importCollisionConstants() throws FileNotFoundException, IOException
+	public ArrayList<Constant> readCollisionConstants() throws FileNotFoundException, IOException
 	{
-		return ConstantImporter.importConstants(inputFolder.toPath().resolve("constants/collision_constants.asm").toFile());
+		return this.importConstants(inputFolder.toPath().resolve("constants/collision_constants.asm").toFile());
 	}
 	
-	public ArrayList<BlockSet> importBlockSets(ArrayList<Constant> collisionConstants) throws FileNotFoundException, IOException
+	public ArrayList<TileSet> readTileSets(ArrayList<Constant> collisionConstants) throws FileNotFoundException, IOException
 	{
-		ArrayList<BlockSet> blockSets = new ArrayList<>();
-		File[] blockSetFiles = inputFolder.toPath().resolve("data/tilesets/").toFile().listFiles();
-		for (File file : blockSetFiles) if (file.getName().endsWith("_collision.asm"))
+		ArrayList<TileSet> tileSets = new ArrayList<>();
+		
+		//https://github.com/pret/pokecrystal/blob/master/data/tilesets.asm - defines lots of tileset pointers
+		//https://github.com/pret/pokecrystal/blob/master/gfx/tilesets.asm - contains the files pointed to by a lot of the tileset pointers
+		/*
+		 * Each map has a:
+		 * GFX pointer, to tile graphics
+		 * Meta pointer, to metatiles (aka Blocks) - CAN READ, BUT HAVEN'T IMPLEMENTED YET
+		 * Coll pointer, to metatile collision - DONE
+		 * Anim pointer, to tile animations
+		 * PalMap pointer, to tile palettes
+		 * 
+		 * Read in all names from data/tilesets.asm
+		 * Follow the meta and coll pointers to gfx/tilesets.asm and import the relevant files.
+		 * 
+		 */
+		
+		Pattern tilesetMacroPattern = Pattern.compile("^\\ttileset\\s*");
+		File dataScriptFile = this.inputFolder.toPath().resolve("data/tilesets.asm").toFile();
+		ArrayList<String> dataScript = this.readScript(dataScriptFile);
+		for (String line : dataScript)
 		{
-			BlockSet blockSet = BlockSetImporter.importBlockset(file, collisionConstants, null, null);
-			blockSet.setName(file.getName().replace("_collision.asm", ""));
-			blockSets.add(blockSet);
+			Matcher tilesetMacroMatcher = tilesetMacroPattern.matcher(line);
+			if (tilesetMacroMatcher.find())
+			{
+				line = tilesetMacroMatcher.replaceAll("");
+				line = this.commentPattern.matcher(line).replaceAll("");
+				line = this.trailingWhitespacePattern.matcher(line).replaceAll("");
+				tileSets.add(new TileSet(line));
+			}
 		}
-		return blockSets;
+		
+		Pattern collPointerPattern = Pattern.compile("Coll::$");
+		Pattern metaPointerPattern = Pattern.compile("Meta::$");
+		File gfxScriptFile = this.inputFolder.toPath().resolve("gfx/tilesets.asm").toFile();
+		ArrayList<String> gfxScript = this.readScript(gfxScriptFile);
+		String mode = null;
+		ArrayList<TileSet> currentPointers = new ArrayList<>();
+		for (String line : gfxScript)
+		{
+			line = this.commentPattern.matcher(line).replaceFirst("");
+			line = this.trailingWhitespacePattern.matcher(line).replaceFirst("");
+			
+			Matcher collPointerMatcher = collPointerPattern.matcher(line);
+			Matcher metaPointerMatcher = metaPointerPattern.matcher(line);
+			Matcher includeMatcher = this.includePattern.matcher(line);
+			Matcher incbinMatcher = this.incbinPattern.matcher(line);
+			
+			if (collPointerMatcher.find())
+			{
+				if (mode != null && mode != "coll") throw new IllegalStateException("Different data types point to the same file type in " + gfxScriptFile.getAbsolutePath());
+				mode = "coll";
+				String tileSetName = collPointerMatcher.replaceFirst("");
+				for (TileSet tileSet : tileSets) if (tileSet.getName().equals(tileSetName)) currentPointers.add(tileSet);
+			}
+			else if (metaPointerMatcher.find())
+			{
+				if (mode != null && mode != "meta") throw new IllegalStateException("Different data types point to the same file type in " + gfxScriptFile.getAbsolutePath());
+				mode = "meta";
+				String tileSetName = metaPointerMatcher.replaceFirst("");
+				for (TileSet tileSet : tileSets) if (tileSet.getName().equals(tileSetName)) currentPointers.add(tileSet);
+			}
+			else if (includeMatcher.find())
+			{
+				if (mode != null && mode.equals("coll"))
+				{
+					String filePath = includeMatcher.replaceFirst("");
+					filePath = filePath.replace("\"", "");
+					File file = this.inputFolder.toPath().resolve(filePath).toFile();
+					if (!file.exists()) throw new IllegalStateException("Could not find file " + file.getAbsolutePath());
+					ArrayList<String> collisionScript = this.readScript(file);
+					BlockSet blockSet = new BlockSet();
+					blockSet.setName(file.getName().replace("_collision.asm", ""));
+					ArrayList<Block> blocks = this.readBlockCollision(collisionScript, collisionConstants);
+					blockSet.setBlocks(blocks);
+					for (TileSet tileSet : currentPointers) tileSet.setBlockSet(blockSet);
+				}
+				currentPointers.clear();
+				mode = null;
+			}
+			else if (incbinMatcher.find())
+			{
+				if (mode != null && mode.equals("meta"))
+				{
+					
+				}
+				mode = null;
+			}
+		}
+		
+		return tileSets;
 	}
 	
-	public ArrayList<Map> importMaps(ArrayList<BlockSet> blockSets) throws IOException
+	public ArrayList<Map> readMaps(ArrayList<TileSet> tileSets) throws IOException
 	{
 		/*
 		 * Plan:
+		 * -Read in the map attributes file for tilesets (and therefore blocksets)
 		 * -Read in the map constants file for sizes
 		 * -Read in each block file for MapBlocks objects
 		 * -Read in each map script, and translate warps
+		 * 
+		 * in RGBDS, CamelCase usually means a pointer and SNAKE_CASE means a constant
+		 * 
+		 * https://github.com/pret/pokecrystal/blob/master/data/maps/maps.asm - has tables of a lot of map data (one map pointer to lots of constants)
+		 * https://github.com/pret/pokecrystal/blob/master/constants/tileset_constants.asm - has the numbers corresponding to the tileset constants
+		 * https://github.com/pret/pokecrystal/blob/master/data/tilesets.asm - defines lots of tileset pointers
+		 * https://github.com/pret/pokecrystal/blob/master/gfx/tilesets.asm - contains the files pointed to by a lot of the tileset pointers
+		 * 
+		 * To get from a tileset constant to a blockset the full process is
+		 * -Get the value of the constant
+		 * -Get the pointer with the same index
+		 * -Find the pointer's blocks
 		 */
 		
 		/*File mapMeta = Paths.get(
@@ -79,101 +186,129 @@ public class DisassemblyIO
 			}
 		}*/
 		
-		//Get map sizes from constants/map_constants.asm
-		Pattern commentsPattern = Pattern.compile("\\s*;.*");
-		Pattern mapConstPattern = Pattern.compile("\\tmap_const\\s+");
-		Pattern commaWhitespacePattern = Pattern.compile("\\s*,\\s*");
-		ArrayList<Map> maps = new ArrayList<>();
-		File mapConstantsFile = inputFolder.toPath().resolve("constants/map_constants.asm").toFile();
-		try (BufferedReader reader = new BufferedReader(new FileReader(mapConstantsFile)))
-		{
-			while (reader.ready())
-			{
-				String line = reader.readLine();
-				if (mapConstPattern.matcher(line).find())
-				{
-					line = commentsPattern.matcher(line).replaceFirst("");
-					line = mapConstPattern.matcher(line).replaceFirst("");
-					String[] args = commaWhitespacePattern.split(line);
-					
-					Map map = new Map();
-					map.setXCapacity(Integer.parseInt(args[1]));
-					map.setXCapacity(Integer.parseInt(args[2]));
-					map.setName(args[0]);
-					maps.add(map);
-				}
-			}
-		}
-		
 		//Create a mapping of map file names to map constant names
 		Pattern mapAttributesPattern = Pattern.compile("\\tmap_attributes\\s+");
-		HashMap<String, String> mapNameToConst = new HashMap<>();
+		ArrayList<Map> maps = new ArrayList<>();
+		HashMap<String, Map> mapConstToMap = new HashMap<>();
 		File mapAttributesFile = inputFolder.toPath().resolve("data/maps/attributes.asm").toFile();
-		try (BufferedReader reader = new BufferedReader(new FileReader(mapAttributesFile)))
+		ArrayList<String> mapAttributesScript = this.readScript(mapAttributesFile);
+		for (String line : mapAttributesScript) if (mapAttributesPattern.matcher(line).find())
 		{
-			while (reader.ready())
+			line = this.commentPattern.matcher(line).replaceFirst("");
+			line = this.trailingWhitespacePattern.matcher(line).replaceFirst("");
+			line = mapAttributesPattern.matcher(line).replaceFirst("");
+			String[] args = this.commaSeparatorPattern.split(line);
+			Map map = new Map();
+			map.setName(args[0]);
+			mapConstToMap.put(args[1], map);
+			maps.add(map);
+		}
+		
+		//Get map sizes from constants/map_constants.asm
+		Pattern mapConstPattern = Pattern.compile("^\\tmap_const\\s+");
+		File mapConstantsFile = inputFolder.toPath().resolve("constants/map_constants.asm").toFile();
+		ArrayList<String> mapConstantsScript = this.readScript(mapConstantsFile);
+		for (String line : mapConstantsScript) if (mapConstPattern.matcher(line).find())
+		{
+			line = this.commentPattern.matcher(line).replaceFirst("");
+			line = this.trailingWhitespacePattern.matcher(line).replaceFirst("");
+			line = mapConstPattern.matcher(line).replaceFirst("");
+			String[] args = this.commaSeparatorPattern.split(line);
+			
+			Map map = mapConstToMap.get(args[0]);
+			if (map != null)
 			{
-				String line = reader.readLine();
-				if (mapAttributesPattern.matcher(line).find())
-				{
-					line = commentsPattern.matcher(line).replaceFirst("");
-					line = mapAttributesPattern.matcher(line).replaceFirst("");
-					String[] args = commaWhitespacePattern.split(line);
-					mapNameToConst.put(args[0], args[1]);
-				}
+				map.setXCapacity(Integer.parseInt(args[1]));
+				map.setYCapacity(Integer.parseInt(args[2]));
 			}
 		}
 		
-		File mapsFolderIn = inputFolder.toPath().resolve("maps/").toFile();
-		File mapsFolderOut = outputFolder.toPath().resolve("maps/").toFile();
-		mapsFolderOut.mkdirs();
-		File[] mapsFiles = mapsFolderIn.listFiles();
-		for (File file : mapsFiles) if (file.getName().endsWith(".blk"))
-		{
-			byte[] b = Files.readAllBytes(file.toPath());
-			String blockSetName = mapTileSets.get(file.getName().replace(".blk", ""));
-			BlockSet blockSet = null;
-			ArrayList<ArrayList<Block>> blockGroups = null;
-			for (int i = 0; i < blockSets.size(); i++)
-			{
-				//System.out.println(blockSetName + " == " + blockSets.get(i).getName());
-				if (blockSets.get(i).getName().equals(blockSetName))
-				{
-					blockSet = blockSets.get(i);
-					blockGroups = blockGroupss.get(i);
-					break;
-				}
-			}
-			
-			if (blockSet != null)
-			{
-				//read map blocks to the map object
-			}
-			
-			//data/maps/blocks.asm
-		}
+		ArrayList<Constant> tileSetConstants = this.importConstants(this.inputFolder.toPath().resolve("constants/tileset_constants.asm").toFile());
 		
-		Pattern warpEventPattern = Pattern.compile("\\twarp_event\\s+");
-		for (File file : mapsFiles) if (file.getName().endsWith(".asm"))
+		Pattern mapPattern = Pattern.compile("^\\tmap\\s+");
+		File mapDataFile = this.inputFolder.toPath().resolve("data/maps/maps.asm").toFile();
+		ArrayList<String> mapDataScript = this.readScript(mapDataFile);
+		for (String line : mapDataScript) if (mapPattern.matcher(line).find())
 		{
-			String mapConst = mapNameToConst.get(file.getName().replaceAll(".asm", ""));
-			for (Map map : maps) if (map.getName().equals(mapConst))
+			line = this.commentPattern.matcher(line).replaceFirst("");
+			line = this.trailingWhitespacePattern.matcher(line).replaceFirst("");
+			line = mapPattern.matcher(line).replaceFirst("");
+			String[] args = this.commaSeparatorPattern.split(line);
+			
+			for (Map map : maps) if (map.getName().equals(args[0]))
 			{
-				try (BufferedReader reader = new BufferedReader(new FileReader(file, Charset.forName("UTF-8"))))
+				String tileSetConstName = args[1];
+				for (int i = 0; i < tileSetConstants.size(); i++)
 				{
-					ArrayList<String> script = new ArrayList<>();
-					while (reader.ready()) script.add(reader.readLine());
-					map.setScript(script);
+					Constant tileSetConstant = tileSetConstants.get(i);
+					if (tileSetConstant.getName().equals(tileSetConstName))
+					{
+						map.setTileSet(tileSets.get(tileSetConstant.getValue()));
+						break;
+					}
 				}
 				break;
 			}
 		}
 		
+		Pattern blocksLabelPattern = Pattern.compile("_Blocks:");
+		File blocksScriptFile = this.inputFolder.toPath().resolve("data/maps/blocks.asm").toFile();
+		ArrayList<String> blocksScript = this.readScript(blocksScriptFile);
+		ArrayList<Map> currentLabels = new ArrayList<>();
+		for (String line : blocksScript)
+		{
+			line = this.commentPattern.matcher(line).replaceFirst("");
+			line = this.trailingWhitespacePattern.matcher(line).replaceFirst("");
+			
+			Matcher blocksLabelMatcher = blocksLabelPattern.matcher(line);
+			Matcher incbinMatcher = this.incbinPattern.matcher(line);
+			
+			if (blocksLabelMatcher.find())
+			{
+				String mapName = blocksLabelMatcher.replaceFirst("");
+				for (Map map : maps) if (map.getName().equals(mapName)) currentLabels.add(map);
+			}
+			else if (incbinMatcher.find())
+			{
+				if (currentLabels.size() == 0) continue;
+				String filePath = incbinMatcher.replaceFirst("");
+				filePath = filePath.replace("\"", "");
+				File file = this.inputFolder.toPath().resolve(filePath).toFile();
+				if (!file.exists()) throw new IllegalStateException("Could not find file " + file.getAbsolutePath());
+				byte[] blockIndices = Files.readAllBytes(file.toPath());
+				for (Map map : currentLabels) if (!map.getTileSet().equals(currentLabels.get(0).getTileSet())) throw new IllegalStateException("Maps using the same blocks use different tile sets");
+				ArrayList<Block> blockSetBlocks = currentLabels.get(0).getTileSet().getBlockSet().getBlocks();
+				MapBlocks mapBlocksObject = new MapBlocks();
+				mapBlocksObject.setXCapacity(currentLabels.get(0).getXCapacity());
+				mapBlocksObject.setYCapacity(currentLabels.get(0).getYCapacity());
+				Block[] mapBlocks = new Block[blockIndices.length];
+				for (int i = 0; i < blockIndices.length; i++) mapBlocks[i] = blockSetBlocks.get(blockIndices[i]);
+				mapBlocksObject.setBlocks(mapBlocks);
+				mapBlocksObject.setName(file.getName().replace(".blk", ""));
+				for (Map map : currentLabels) map.setBlocks(mapBlocksObject);
+				currentLabels.clear();
+			}
+		}
+		
+		File mapsFolderIn = inputFolder.toPath().resolve("maps/").toFile();
+		File[] mapsFiles = mapsFolderIn.listFiles();
+		for (File file : mapsFiles) if (file.getName().endsWith(".asm"))
+		{
+			String mapName = file.getName().replaceAll(".asm", "");
+			for (Map map : maps) if (map.getName().equals(mapName))
+			{
+				map.setScript(this.readScript(file));
+				break;
+			}
+		}
+		
+		Pattern warpEventPattern = Pattern.compile("\\twarp_event\\s+");
 		for (Map map : maps) if (map.getScript() != null) for (String line : map.getScript()) if (warpEventPattern.matcher(line).find())
 		{
-			String argsLine = commentsPattern.matcher(line).replaceFirst("");
-			argsLine = warpEventPattern.matcher(argsLine).replaceFirst("");
-			String[] args = commaWhitespacePattern.split(argsLine);
+			line = this.commentPattern.matcher(line).replaceFirst("");
+			line = this.trailingWhitespacePattern.matcher(line).replaceFirst("");
+			line = warpEventPattern.matcher(line).replaceFirst("");
+			String[] args = this.commaSeparatorPattern.split(line);
 			
 			Warp warp = new Warp();
 			warp.setX(Integer.parseInt(args[0]));
@@ -193,9 +328,22 @@ public class DisassemblyIO
 		return maps;
 	}
 	
+	public void writeAllMapBlocks(ArrayList<Map> maps) throws IOException
+	{
+		ArrayList<MapBlocks> mapBlockss = new ArrayList<>();
+		ArrayList<TileSet> tileSets = new ArrayList<>();
+		for (Map map : maps) if (!mapBlockss.contains(map.getBlocks()))
+		{
+			mapBlockss.add(map.getBlocks());
+			tileSets.add(map.getTileSet());
+		}
+		
+		for (int i = 0; i < mapBlockss.size(); i++) this.writeMapBlocks(mapBlockss.get(i), tileSets.get(i).getBlockSet());
+	}
+	
 	public void writeMapBlocks(MapBlocks blocks, BlockSet blockSet) throws IOException
 	{
-		File outputFile = this.outputFolder.toPath().resolve("maps/" + blocks.getName() + ".blk").toFile();
+		File outputFile = this.getOutputFolder("maps/").toPath().resolve(blocks.getName() + ".blk").toFile();
 		byte[] outputArray = new byte[blocks.getBlocks().length];
 		for (int i = 0; i < blocks.getBlocks().length; i++)
 		{
@@ -207,10 +355,53 @@ public class DisassemblyIO
 	
 	public void writeMapScript(Map map) throws IOException
 	{
-		File outputFile = this.getOutputFolder("maps/").toPath().resolve(map.getName() + ".asm").toFile();
-		try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile)))
+		File file = this.getOutputFolder("maps/").toPath().resolve(map.getName() + ".asm").toFile();
+		this.writeScript(map.getScript(), file);
+	}
+	
+	public ArrayList<String> readMusicPointers() throws FileNotFoundException, IOException
+	{
+		File file = inputFolder.toPath().resolve("audio/music_pointers.asm").toFile();
+		if (!file.exists()) throw new FileNotFoundException(file.getAbsolutePath() + " could not be found.");
+		return this.readScript(file);
+	}
+	
+	public void writeMusicPointers(ArrayList<String> script) throws IOException
+	{
+		File file = this.getOutputFolder("audio/").toPath().resolve("music_pointers.asm").toFile();
+		this.writeScript(script, file);
+	}
+	
+	public ArrayList<String> readSFXPointers() throws FileNotFoundException, IOException
+	{
+		File file = inputFolder.toPath().resolve("audio/sfx_pointers.asm").toFile();
+		if (!file.exists()) throw new FileNotFoundException(file.getAbsolutePath() + " could not be found.");
+		return this.readScript(file);
+	}
+	
+	public void writeSFXPointers(ArrayList<String> script) throws IOException
+	{
+		File file = this.getOutputFolder("audio/").toPath().resolve("sfx_pointers.asm").toFile();
+		this.writeScript(script, file);
+	}
+	
+	private ArrayList<String> readScript(File file) throws FileNotFoundException, IOException
+	{
+		ArrayList<String> script = new ArrayList<>();
+		
+		try (BufferedReader reader = new BufferedReader(new FileReader(file, Charset.forName("UTF-8"))))
 		{
-			for (String line : map.getScript())
+			while (reader.ready()) script.add(reader.readLine());
+		}
+		
+		return script;
+	}
+	
+	private void writeScript(ArrayList<String> script, File file) throws IOException
+	{
+		try (BufferedWriter writer = new BufferedWriter(new FileWriter(file, Charset.forName("UTF-8"))))
+		{
+			for (String line : script)
 			{
 				writer.write(line);
 				writer.newLine();
@@ -219,163 +410,154 @@ public class DisassemblyIO
 		}
 	}
 	
-	public void shuffleWarps(ArrayList<Map> maps, Random random)
+	private File getOutputFolder(String path)
 	{
-		Pattern warpEventPattern = Pattern.compile("\\twarp_event\\s+");
+		File outputFolder = this.outputFolder.toPath().resolve(path).toFile();
+		if (!outputFolder.exists()) outputFolder.mkdirs();
+		return outputFolder;
+	}
+	
+	private TileSet importTileSet(String name, File metadata) throws FileNotFoundException, IOException
+	{
+		//check if files exist yada yada yada
 		
-		ArrayList<Warp> warps = new ArrayList<>();
-		for (Map map : maps) warps.addAll(map.getWarps());
-		Collections.shuffle(warps, random);
-		for (Map map : maps) for (int i = 0; i < map.getWarps().size(); i++) 
+		TileSet output = new TileSet(name);
+		Pattern tab = Pattern.compile("\t");
+		
+		try (BufferedReader reader = new BufferedReader(new FileReader(metadata)))
 		{
-			Warp oldWarp = map.getWarps().get(i); 
-			Warp newWarp = warps.remove(0);
-			oldWarp.setMapTo(newWarp.getMapTo());
-			oldWarp.setDestinationIndex(newWarp.getDestinationIndex());
+			if (!reader.ready()) throw new IOException("File contains no data");
+			ArrayList<String> headers = new ArrayList<>(Arrays.asList(tab.split(reader.readLine())));
+			
+			while (reader.ready())
+			{
+				Tile tile = new Tile();
+				String[] tileData = tab.split(reader.readLine());
+				if (tileData.length < headers.size()) throw new IOException("Not all lines have the same length");
+				
+				tile.setName(tileData[headers.indexOf("Name")]);
+				tile.setBuilding(!tileData[headers.indexOf("Building")].equals("0"));
+				int id = Integer.parseInt(tileData[headers.indexOf("Tile ID Decimal")]);
+				while (id < output.getTiles().size() - 1) output.getTiles().add(null);
+				output.getTiles().set(id, tile);
+			}
 		}
 		
-		for (Map map : maps)
+		return output;
+	}
+	
+	/**
+	 * Imports {@linkplain Constant}s from a {@linkplain File}.
+	 * 
+	 * @param f the file to read from
+	 * @return an {@linkplain ArrayList} of {@linkplain Constant}s in the order they
+	 *         are imported
+	 * @throws FileNotFoundException when the input file canot be found
+	 * @throws IOException           when an IO exception occurs
+	 */
+	private ArrayList<Constant> importConstants(File f) throws FileNotFoundException, IOException
+	{
+		ArrayList<Constant> constants = new ArrayList<>();
+		Pattern equPattern = Pattern.compile("\\s+EQU\\s+");
+		Pattern constdefPattern = Pattern.compile("^\\tconst_def\\s+");
+		Pattern constPattern = Pattern.compile("^\\tconst\\s+");
+		
+		int count = -1;
+		try (BufferedReader reader = new BufferedReader(new FileReader(f)))
 		{
-			int count = 0;
-			for (int i = 0; i < map.getScript().size(); i++)
+			while (reader.ready())
 			{
-				String line = map.getScript().get(i);
+				String line = reader.readLine();
+				line = this.commentPattern.matcher(line).replaceFirst("");
+				line = this.trailingWhitespacePattern.matcher(line).replaceFirst("");
 				
-				if (warpEventPattern.matcher(line).find())
+				if (equPattern.matcher(line).find())
 				{
-					Warp warp = map.getWarps().get(count);
-					StringBuilder builder = new StringBuilder();
-					builder.append("\twarp_event ");
-					builder.append(warp.getX()).append(", ");
-					builder.append(warp.getY()).append(", ");
-					builder.append(warp.getMapTo().getName()).append(", ");
-					builder.append(warp.getDestinationIndex());
+					String[] args = equPattern.split(line, 2);
+					if (args.length != 2) continue; //throw new IllegalArgumentException("The line \"" + line + "\" does not compile");
 					
-					map.getScript().set(i, builder.toString());
+					byte value = args[1].startsWith("$") ? (byte) Integer.parseInt(args[1].substring(1), 16)
+							: (byte) Integer.parseInt(args[1]);
+					constants.add(new Constant(args[0], value));
+				}
+				else if (constdefPattern.matcher(line).find())
+				{
+					line = constdefPattern.matcher(line).replaceFirst("");
+					if (line.equals("")) count = 0;
+					else count = Integer.parseInt(line);
+				}
+				else if (constPattern.matcher(line).find())
+				{
+					if (count == -1) throw new IllegalStateException("");
+					line = constPattern.matcher(line).replaceFirst("");
+					constants.add(new Constant(line, (byte) (count & 0xFF)));
 					count++;
 				}
 			}
 		}
 		
-		//Advanced warp code in development
-//		HashMap<Warp, ArrayList<Warp>> warpLinks = new HashMap<>();
-//		for (Map map : maps) for (Warp warp : map.getWarps())
-//		{
-//			Warp dest = warp.getMapTo().getWarps().get(warp.getDestinationIndex());
-//			if (!warpLinks.containsKey(dest)) warpLinks.put(dest, new ArrayList<>());
-//			warpLinks.get(dest).add(warp);
-//		}
-//		
-//		ArrayList<Integer> newOrder = new ArrayList<>();
-//		for (int i = 0; i < warpLinks.keySet().size(); i++) newOrder.add(i);
-//		Collections.shuffle(newOrder);
-//		ArrayList<Warp> warps = new ArrayList<>(warpLinks.keySet());
-//		HashMap<Map, ArrayList<Warp>> newWarps = new HashMap<>();
-//		for (int i = 0; i < warps.size(); i++)
-//		{
-//			Warp warpFrom = warps.get(i);
-//			Warp newWarpFrom = warps.get(newOrder.get(i));
-//			//Change the destination of all warps in warpLinks.get(warp)
-//		}
+		return constants;
 	}
 	
-	public void randomiseTrainerLocation(Map map, Random random)
+	private ArrayList<Block> readBlockCollision(List<String> collisionScript, List<Constant> collisionConstants) throws FileNotFoundException, IOException
 	{
-		Pattern commentsPattern = Pattern.compile("\\s*;.*");
-		Pattern mapConstPattern = Pattern.compile("\\tmap_const\\s+");
-		Pattern commaWhitespacePattern = Pattern.compile("\\s*,\\s*");
-		Pattern objectEventPattern = Pattern.compile("\\tobject_event\\s+");
-		Pattern numberPattern = Pattern.compile("\\d+");
+		ArrayList<Block> blocks = new ArrayList<>();
+		Pattern tilecoll = Pattern.compile("\\s*tilecoll\\s*", Pattern.DOTALL);
 		
-		for (int i = 0; i < map.getScript().size(); i++)
+		for (String line : collisionScript)
 		{
-			String line = map.getScript().get(i);
-			if (objectEventPattern.matcher(line).find())
+			line = this.commentPattern.matcher(line).replaceFirst("");
+			line = this.trailingWhitespacePattern.matcher(line).replaceFirst("");
+			
+			if (tilecoll.matcher(line).find())
 			{
-				String argsLine = commentsPattern.matcher(line).replaceFirst("");
-				argsLine = mapConstPattern.matcher(line).replaceFirst("");
-				String[] args = commaWhitespacePattern.split(argsLine);
+				line = tilecoll.matcher(line).replaceFirst("");
+				String[] args = this.commaSeparatorPattern.split(line);
+				if (args.length != 4) throw new IllegalArgumentException(
+						"The line \"" + line + "\" is not a valid collision instantiation");
 				
-				if (args[9].equals("OBJECTTYPE_TRAINER"))
+				Block block = new Block();
+				
+				for (int y = 0, i = 0; y < 2; y++) for (int x = 0; x < 2; x++, i++)
 				{
-					int newX = random.nextInt(map.getXCapacity());
-					int newY = random.nextInt(map.getYCapacity());
-					
-					StringBuffer buffer = new StringBuffer();
-					Matcher numbers = numberPattern.matcher(line);
-					numbers.find();
-					numbers.appendReplacement(buffer, String.valueOf(newX));
-					numbers.find();
-					numbers.appendReplacement(buffer, String.valueOf(newY));
-					numbers.appendTail(buffer);
-					
-					map.getScript().set(i, buffer.toString());
+					if (args[i].startsWith("$")) block.getCollision()[y][x] = new Constant(null,
+							(byte) Integer.parseInt(args[i].substring(1), 16));
+					else try
+					{
+						block.getCollision()[y][x] = new Constant(null, (byte) (byte) Integer.parseInt(args[i]));
+					}
+					catch (NumberFormatException e)
+					{
+						String coll = "COLL_" + args[i];
+						for (int j = 0; j < collisionConstants.size(); j++)
+						{
+							Constant constant = collisionConstants.get(j);
+							if (constant.getName().equals(coll))
+							{
+								block.getCollision()[y][x] = constant;
+								break;
+							}
+						}
+					}
 				}
+				
+				blocks.add(block);
 			}
 		}
+		
+		return blocks;
 	}
 	
-	private void importShuffleAndWrite(File in, File out, int startIndex) throws IOException
+	private void readBlockTiles(ArrayList<Block> blocks, File tileFile, ArrayList<Tile> tiles) throws IOException
 	{
-		ArrayList<String> unchanged = new ArrayList<>();
-		ArrayList<String> shuffle = new ArrayList<>();
-		try (BufferedReader reader = new BufferedReader(new FileReader(in)))
+		byte[] tileIndices = Files.readAllBytes(tileFile.toPath());
+		int blockNum = Math.floorDiv(tileIndices.length, 16);
+		for (int i = 0; i < blockNum; i++)
 		{
-			int i = 0;
-			while (reader.ready())
-			{
-				String line = reader.readLine();
-				if (i >= startIndex) shuffle.add(line);
-				else unchanged.add(line);
-				i++;
-			}
+			Block block = blocks.get(i);
+			for (int y = 0, j = 0; y < 4; y++)
+				for (int x = 0; x < 4; x++, j++) block.getTiles()[y][x] = tiles.get(j);
 		}
-		
-		Collections.shuffle(shuffle);
-		
-		try (BufferedWriter writer = new BufferedWriter(new FileWriter(out)))
-		{
-			for (int i = 0; i < unchanged.size(); i++)
-			{
-				writer.write(unchanged.get(i));
-				writer.newLine();
-			}
-			for (int i = 0; i < shuffle.size(); i++)
-			{
-				writer.write(shuffle.get(i));
-				writer.newLine();
-			}
-			writer.flush();
-		}
-	}
-	
-	public void shuffleMusicPointers() throws FileNotFoundException, IOException
-	{
-		File outAudioFolder = outputFolder.toPath().resolve("audio/").toFile();
-		outAudioFolder.mkdirs();
-		
-		File musicFile = inputFolder.toPath().resolve("audio/music_pointers.asm").toFile();
-		if (!musicFile.exists()) throw new FileNotFoundException(musicFile.getAbsolutePath() + " could not be found.");
-		
-		this.importShuffleAndWrite(musicFile, outAudioFolder.toPath().resolve(musicFile.getName()).toFile(), 5);
-	}
-	
-	public void shuffleSFXPointers() throws FileNotFoundException, IOException
-	{
-		File outAudioFolder = outputFolder.toPath().resolve("audio/").toFile();
-		outAudioFolder.mkdirs();
-		
-		File sfxFile = inputFolder.toPath().resolve("audio/sfx_pointers.asm").toFile();
-		if (!sfxFile.exists()) throw new FileNotFoundException(sfxFile.getAbsolutePath() + " could not be found.");
-		
-		this.importShuffleAndWrite(sfxFile, outAudioFolder.toPath().resolve(sfxFile.getName()).toFile(), 2);
-	}
-	
-	public File getOutputFolder(String path)
-	{
-		File outputFolder = this.outputFolder.toPath().resolve(path).toFile();
-		if (!outputFolder.exists()) outputFolder.mkdirs();
-		return outputFolder;
 	}
 	
 }
