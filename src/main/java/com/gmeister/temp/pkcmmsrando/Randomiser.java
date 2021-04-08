@@ -129,17 +129,41 @@ public class Randomiser
 			Warp oldWarp = map.getWarps().get(i); 
 			Warp newWarp = warps.remove(0);
 			oldWarp.setMapTo(newWarp.getMapTo());
-			oldWarp.setDestinationIndex(newWarp.getDestinationIndex());
+			oldWarp.setDestination(newWarp);
+		}
+		
+		/*
+		 * A warp is one way if the tile of the warp it leads to is not a tile with warp permissions
+		 * A warp group consists of a selection of warps where each warp in the group leads to any other warp in the group
+		 * 
+		 * Maps to ban:
+		 * All beta maps
+		 * All Pokecentre 1F rooms
+		 * All E4 rooms and HOF
+		 * Battle tower rooms
+		 * 
+		 * Warps to fix:
+		 * 
+		 * What is gonna happen to elevators?
+		 */
+		
+		ArrayList<ArrayList<Warp>> warpLinks = new ArrayList<>();
+		for (Map map : maps) 
+		{
+			toNextWarp:
+			for (Warp warp : map.getWarps())
+			{
+				for (ArrayList<Warp> warpLink : warpLinks)
+				{
+					if (warpLink.contains(warp)) continue toNextWarp;
+					else if (warpLink.contains(warp.getDestination())) warpLink.add(warp);
+				}
+			}
 		}
 		
 		//Advanced warp code in development
 //		HashMap<Warp, ArrayList<Warp>> warpLinks = new HashMap<>();
-//		for (Map map : maps) for (Warp warp : map.getWarps())
-//		{
-//			Warp dest = warp.getMapTo().getWarps().get(warp.getDestinationIndex());
-//			if (!warpLinks.containsKey(dest)) warpLinks.put(dest, new ArrayList<>());
-//			warpLinks.get(dest).add(warp);
-//		}
+
 //		
 //		ArrayList<Integer> newOrder = new ArrayList<>();
 //		for (int i = 0; i < warpLinks.keySet().size(); i++) newOrder.add(i);

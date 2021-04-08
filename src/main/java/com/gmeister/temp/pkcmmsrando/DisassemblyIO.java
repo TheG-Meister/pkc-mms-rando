@@ -309,11 +309,12 @@ public class DisassemblyIO
 			Warp warp = new Warp();
 			warp.setX(Integer.parseInt(args[0]));
 			warp.setY(Integer.parseInt(args[1]));
-			warp.setDestinationIndex(Integer.parseInt(args[3]));
+			int destinationIndex = Integer.parseInt(args[3]);
 			
 			for (Map mapTo : maps) if (mapTo.getConstName().equals(args[2]))
 			{
 				warp.setMapTo(mapTo);
+				if (destinationIndex < mapTo.getWarps().size() && destinationIndex >= 0) warp.setDestination(map.getWarps().get(destinationIndex));
 				map.getWarps().add(warp);
 			}
 		}
