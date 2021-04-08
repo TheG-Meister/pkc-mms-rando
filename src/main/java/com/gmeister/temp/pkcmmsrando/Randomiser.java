@@ -120,7 +120,6 @@ public class Randomiser
 	public void shuffleWarps(ArrayList<Map> maps)
 	{
 		Random random = new Random(this.random.nextLong());
-		Pattern warpEventPattern = Pattern.compile("\\twarp_event\\s+");
 		
 		ArrayList<Warp> warps = new ArrayList<>();
 		for (Map map : maps) warps.addAll(map.getWarps());
@@ -131,29 +130,6 @@ public class Randomiser
 			Warp newWarp = warps.remove(0);
 			oldWarp.setMapTo(newWarp.getMapTo());
 			oldWarp.setDestinationIndex(newWarp.getDestinationIndex());
-		}
-		
-		for (Map map : maps)
-		{
-			int count = 0;
-			for (int i = 0; i < map.getScript().size(); i++)
-			{
-				String line = map.getScript().get(i);
-				
-				if (warpEventPattern.matcher(line).find())
-				{
-					Warp warp = map.getWarps().get(count);
-					StringBuilder builder = new StringBuilder();
-					builder.append("\twarp_event ");
-					builder.append(warp.getX()).append(", ");
-					builder.append(warp.getY()).append(", ");
-					builder.append(warp.getMapTo().getName()).append(", ");
-					builder.append(warp.getDestinationIndex());
-					
-					map.getScript().set(i, builder.toString());
-					count++;
-				}
-			}
 		}
 		
 		//Advanced warp code in development
@@ -176,6 +152,8 @@ public class Randomiser
 //			Warp newWarpFrom = warps.get(newOrder.get(i));
 //			//Change the destination of all warps in warpLinks.get(warp)
 //		}
+		
+		for (Map map : maps) map.writeWarpsToScript();
 	}
 	
 }

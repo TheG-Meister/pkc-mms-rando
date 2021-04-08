@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -188,7 +187,6 @@ public class DisassemblyIO
 		//Create a mapping of map file names to map constant names
 		Pattern mapAttributesPattern = Pattern.compile("\\tmap_attributes\\s+");
 		ArrayList<Map> maps = new ArrayList<>();
-		HashMap<String, Map> mapConstToMap = new HashMap<>();
 		File mapAttributesFile = inputFolder.toPath().resolve("data/maps/attributes.asm").toFile();
 		ArrayList<String> mapAttributesScript = this.readScript(mapAttributesFile);
 		for (String line : mapAttributesScript) if (mapAttributesPattern.matcher(line).find())
@@ -199,7 +197,7 @@ public class DisassemblyIO
 			String[] args = this.commaSeparatorPattern.split(line);
 			Map map = new Map();
 			map.setName(args[0]);
-			mapConstToMap.put(args[1], map);
+			map.setConstName(args[1]);
 			maps.add(map);
 		}
 		
@@ -214,8 +212,7 @@ public class DisassemblyIO
 			line = mapConstPattern.matcher(line).replaceFirst("");
 			String[] args = this.commaSeparatorPattern.split(line);
 			
-			Map map = mapConstToMap.get(args[0]);
-			if (map != null)
+			for (Map map : maps) if (args[0].equals(map.getConstName()))
 			{
 				map.setXCapacity(Integer.parseInt(args[1]));
 				map.setYCapacity(Integer.parseInt(args[2]));
@@ -313,18 +310,35 @@ public class DisassemblyIO
 			warp.setX(Integer.parseInt(args[0]));
 			warp.setY(Integer.parseInt(args[1]));
 			warp.setDestinationIndex(Integer.parseInt(args[3]));
-			for (Map mapTo : maps) if (mapTo.getName().equals(args[2]))
+			
+			for (Map mapTo : maps) if (mapTo.getConstName().equals(args[2]))
 			{
 				warp.setMapTo(mapTo);
-				break;
-			}
-			if (warp.getMapTo() != null)
-			{
 				map.getWarps().add(warp);
 			}
 		}
 		
 		return maps;
+	}
+	
+	public ArrayList<String> readMapConstants(ArrayList<Map> maps) throws FileNotFoundException, IOException
+	{
+		Pattern mapAttributesPattern = Pattern.compile("\\tmap_attributes\\s+");
+		ArrayList<String> mapConsts = new ArrayList<>();
+		File mapAttributesFile = inputFolder.toPath().resolve("data/maps/attributes.asm").toFile();
+		ArrayList<String> mapAttributesScript = this.readScript(mapAttributesFile);
+		for (int i = 0; i < maps.size(); i++) mapConsts.add(null);
+		
+		for (String line : mapAttributesScript) if (mapAttributesPattern.matcher(line).find())
+		{
+			line = this.commentPattern.matcher(line).replaceFirst("");
+			line = this.trailingWhitespacePattern.matcher(line).replaceFirst("");
+			line = mapAttributesPattern.matcher(line).replaceFirst("");
+			String[] args = this.commaSeparatorPattern.split(line);
+			for (Map map : maps) if (map.getName().equals(args[0])) mapConsts.set(maps.indexOf(map), args[1]);
+		}
+		
+		return mapConsts;
 	}
 	
 	public void writeAllMapBlocks(ArrayList<Map> maps) throws IOException

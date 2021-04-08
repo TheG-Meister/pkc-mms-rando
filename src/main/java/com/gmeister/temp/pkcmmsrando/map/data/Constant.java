@@ -6,9 +6,11 @@ public class Constant
 	private String name;
 	private byte value;
 	
+	public Constant()
+	{}
+	
 	public Constant(String name, byte value)
 	{
-		super();
 		this.name = name;
 		this.value = value;
 	}
