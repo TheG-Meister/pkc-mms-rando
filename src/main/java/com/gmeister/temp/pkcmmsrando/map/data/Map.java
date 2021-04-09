@@ -97,7 +97,8 @@ public class Map
 				builder.append(warp.getX()).append(", ");
 				builder.append(warp.getY()).append(", ");
 				builder.append(warp.getMapTo().getConstName()).append(", ");
-				builder.append(warp.getDestinationIndex());
+				if (warp.getDestination() == null) builder.append("-1");
+				else builder.append(warp.getMapTo().getWarps().indexOf(warp.getDestination()));
 				
 				this.getScript().set(i, builder.toString());
 				count++;
