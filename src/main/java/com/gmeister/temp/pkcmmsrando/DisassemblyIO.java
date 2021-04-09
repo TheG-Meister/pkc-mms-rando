@@ -299,23 +299,30 @@ public class DisassemblyIO
 		}
 		
 		Pattern warpEventPattern = Pattern.compile("\\twarp_event\\s+");
-		for (Map map : maps) if (map.getScript() != null) for (String line : map.getScript()) if (warpEventPattern.matcher(line).find())
+		for (Map map : maps) if (map.getScript() != null) for (String line : map.getScript()) if (warpEventPattern.matcher(line).find()) map.getWarps().add(new Warp());
+		
+		for (Map map : maps)
 		{
-			line = this.commentPattern.matcher(line).replaceFirst("");
-			line = this.trailingWhitespacePattern.matcher(line).replaceFirst("");
-			line = warpEventPattern.matcher(line).replaceFirst("");
-			String[] args = this.commaSeparatorPattern.split(line);
-			
-			Warp warp = new Warp();
-			warp.setX(Integer.parseInt(args[0]));
-			warp.setY(Integer.parseInt(args[1]));
-			int destinationIndex = Integer.parseInt(args[3]);
-			
-			for (Map mapTo : maps) if (mapTo.getConstName().equals(args[2]))
+			int count = 0;
+			if (map.getScript() != null) for (String line : map.getScript()) if (warpEventPattern.matcher(line).find())
 			{
-				warp.setMapTo(mapTo);
-				if (destinationIndex < mapTo.getWarps().size() && destinationIndex >= 0) warp.setDestination(map.getWarps().get(destinationIndex));
-				map.getWarps().add(warp);
+				line = this.commentPattern.matcher(line).replaceFirst("");
+				line = this.trailingWhitespacePattern.matcher(line).replaceFirst("");
+				line = warpEventPattern.matcher(line).replaceFirst("");
+				String[] args = this.commaSeparatorPattern.split(line);
+				
+				Warp warp = map.getWarps().get(count);
+				warp.setX(Integer.parseInt(args[0]));
+				warp.setY(Integer.parseInt(args[1]));
+				int destinationIndex = Integer.parseInt(args[3]);
+				
+				for (Map mapTo : maps) if (mapTo.getConstName().equals(args[2]))
+				{
+					warp.setMapTo(mapTo);
+					if (destinationIndex < mapTo.getWarps().size() && destinationIndex >= 0) warp.setDestination(mapTo.getWarps().get(destinationIndex));
+				}
+				
+				count++;
 			}
 		}
 		
