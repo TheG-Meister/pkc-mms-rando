@@ -108,7 +108,7 @@ public class Notes
 		File inFolder = Paths.get(
 				"D:/Users/The_G_Meister/Documents/_MY SHIT/Pokecrystal/pokecrystal-speedchoice-master/").toFile();
 		File outFolder = Paths.get(
-				"D:/Users/The_G_Meister/Documents/_MY SHIT/Pokecrystal/pkc-mms-rando/patches/share-warp/pokecrystal-speedchoice/").toFile();
+				"D:/Users/The_G_Meister/Documents/_MY SHIT/Pokecrystal/pkc-mms-rando/patches/10-4-21/pokecrystal-speedchoice/").toFile();
 		
 		DisassemblyIO io = new DisassemblyIO(inFolder, outFolder);
 		Randomiser rando = new Randomiser();
@@ -123,8 +123,13 @@ public class Notes
 		ArrayList<Map> maps = io.readMaps(tileSets);
 		
 		rando.shuffleWarps(maps);
-		for (Map map : maps) io.writeMapScript(map);
 		
+		for (Map map : maps)
+		{
+			map.writeWarpsToScript();
+			io.writeMapScript(map);
+		}
+		//360 is players house
 		/*for (Map map : maps)
 		{
 			map.getBlocks().setBlocks(rando.randomiseBlocksByCollision(map.getTileSet().getBlockSet(), map.getBlocks().getBlocks()));
