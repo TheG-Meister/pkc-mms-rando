@@ -98,7 +98,11 @@ public class Map
 				builder.append(warp.getY()).append(", ");
 				builder.append(warp.getMapTo().getConstName()).append(", ");
 				if (warp.getDestination() == null) builder.append("-1");
-				else builder.append(warp.getMapTo().getWarps().indexOf(warp.getDestination()));
+				else
+				{
+					if (!warp.getMapTo().getWarps().contains(warp.getDestination())) throw new IllegalStateException();
+					builder.append(warp.getMapTo().getWarps().indexOf(warp.getDestination()) + 1);
+				}
 				
 				this.getScript().set(i, builder.toString());
 				count++;
