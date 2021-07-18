@@ -107,9 +107,9 @@ public class Notes
 	public static void main(String... args) throws IOException
 	{
 		File inFolder = Paths.get(
-				"D:/Users/The_G_Meister/Documents/_MY SHIT/Pokecrystal/pokecrystal-speedchoice-7.2/").toFile();
+				"E:/grant/documents/.my-stuff/Pokecrystal/pokecrystal-speedchoice-7.2/").toFile();
 		File outFolder = Paths.get(
-				"D:/Users/The_G_Meister/Documents/_MY SHIT/Pokecrystal/pkc-mms-rando/patches/21-07-14-10/pokecrystal-speedchoice/").toFile();
+				"E:/grant/documents/.my-stuff/Pokecrystal/pkc-mms-rando/patches/21-07-18-3/pokecrystal-speedchoice/").toFile();
 		
 		DisassemblyIO io = new DisassemblyIO(inFolder, outFolder);
 		Randomiser rando = new Randomiser();
@@ -129,64 +129,49 @@ public class Notes
 			//Force the badge checks before E4 and Red by linking certain warps
 			if (map.getConstName().equals("VICTORY_ROAD_GATE"))
 			{
-				Map route22 = map.getWarps().get(0).getMapTo();
+				Map route22 = map.getWarps().get(0).getDestination().getMap();
 				
 				//Link the warps to Route 22 to each other
 				map.getWarps().get(0).setDestination(map.getWarps().get(1));
-				map.getWarps().get(0).setMapTo(map);
 				map.getWarps().get(1).setDestination(map.getWarps().get(0));
-				map.getWarps().get(1).setMapTo(map);
 				
 				//Link route 22 to itself
 				route22.getWarps().get(0).setDestination(route22.getWarps().get(0));
-				route22.getWarps().get(0).setMapTo(route22);
 				
 				for (Map indigoPlateau : maps) if (indigoPlateau.getConstName() == "INDIGO_PLATEAU_POKECENTER_1F")
 				{
-					Map victoryRoad = map.getWarps().get(4).getMapTo();
-					Map route23 = indigoPlateau.getWarps().get(0).getMapTo();
+					Map victoryRoad = map.getWarps().get(4).getDestination().getMap();
+					Map route23 = indigoPlateau.getWarps().get(0).getDestination().getMap();
 					
 					//Link victory road and indigo plateau
 					map.getWarps().get(4).setDestination(indigoPlateau.getWarps().get(0));
-					map.getWarps().get(4).setMapTo(indigoPlateau);
 					map.getWarps().get(5).setDestination(indigoPlateau.getWarps().get(1));
-					map.getWarps().get(5).setMapTo(indigoPlateau);
 					
 					indigoPlateau.getWarps().get(0).setDestination(map.getWarps().get(4));
-					indigoPlateau.getWarps().get(0).setMapTo(map);
 					indigoPlateau.getWarps().get(1).setDestination(map.getWarps().get(5));
-					indigoPlateau.getWarps().get(1).setMapTo(map);
 					
 					//Link route 23 and victory road (creates a cycle that should get un-done by the randomiser)
 					victoryRoad.getWarps().get(0).setDestination(route23.getWarps().get(0));
-					victoryRoad.getWarps().get(0).setMapTo(route23);
 					
 					route23.getWarps().get(0).setDestination(victoryRoad.getWarps().get(0));
-					route23.getWarps().get(0).setMapTo(victoryRoad);
 					route23.getWarps().get(1).setDestination(victoryRoad.getWarps().get(0));
-					route23.getWarps().get(1).setMapTo(victoryRoad);
 				}
 				
 				for (Map redsRoom : maps) if (redsRoom.getConstName() == "SILVER_CAVE_ROOM_3")
 				{
-					Map route28 = map.getWarps().get(6).getMapTo();
-					Map silverCaveRoom2 = redsRoom.getWarps().get(0).getMapTo();
+					Map route28 = map.getWarps().get(6).getDestination().getMap();
+					Map silverCaveRoom2 = redsRoom.getWarps().get(0).getDestination().getMap();
 					
 					//Link victory road gate and Red's room
 					map.getWarps().get(6).setDestination(redsRoom.getWarps().get(0));
-					map.getWarps().get(6).setMapTo(redsRoom);
 					map.getWarps().get(7).setDestination(redsRoom.getWarps().get(0));
-					map.getWarps().get(7).setMapTo(redsRoom);
 					
 					redsRoom.getWarps().get(0).setDestination(map.getWarps().get(6));
-					redsRoom.getWarps().get(0).setMapTo(map);
 					
 					//Link silver cave room 2 and route 28 (creates a cycle that should get un-done by the randomiser)
 					route28.getWarps().get(1).setDestination(silverCaveRoom2.getWarps().get(1));
-					route28.getWarps().get(1).setMapTo(silverCaveRoom2);
 					
 					silverCaveRoom2.getWarps().get(1).setDestination(route28.getWarps().get(1));
-					silverCaveRoom2.getWarps().get(1).setMapTo(route28);
 				}
 			}
 			
@@ -232,17 +217,20 @@ public class Notes
 			
 			for (Warp warp : map.getWarps())
 			{
-				//Remove warps that lead to some of the above maps
-				if (warp.getMapTo().getConstName().contains("BETA")) continue;
-				//if (map.getConstName().equals("VICTORY_ROAD_GATE") && warp.getMapTo().getConstName().equals("VICTORY_ROAD_GATE")) continue;
-				
-				switch (warp.getMapTo().getConstName())
+				if (warp.getDestination() != null)
 				{
-					case "BATTLE_TOWER_ELEVATOR":
-					case "POKECENTER_2F":
-					case "INDIGO_PLATEAU_POKECENTER_1F":
-					case "SILVER_CAVE_ROOM_3":
-						continue;
+					//Remove warps that lead to some of the above maps
+					if (warp.getDestination().getMap().getConstName().contains("BETA")) continue;
+					//if (map.getConstName().equals("VICTORY_ROAD_GATE") && warp.getMapTo().getConstName().equals("VICTORY_ROAD_GATE")) continue;
+					
+					switch (warp.getDestination().getMap().getConstName())
+					{
+						case "BATTLE_TOWER_ELEVATOR":
+						case "POKECENTER_2F":
+						case "INDIGO_PLATEAU_POKECENTER_1F":
+						case "SILVER_CAVE_ROOM_3":
+							continue;
+					}
 				}
 				
 				warps.add(warp);

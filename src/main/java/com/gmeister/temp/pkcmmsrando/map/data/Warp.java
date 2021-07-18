@@ -5,7 +5,7 @@ public class Warp
 	
 	private int x;
 	private int y;
-	private Map mapTo;
+	private Map map;
 	private Warp destination;
 	
 	public Warp()
@@ -23,11 +23,11 @@ public class Warp
 	public void setY(int y)
 	{ this.y = y; }
 	
-	public Map getMapTo()
-	{ return this.mapTo; }
+	public Map getMap()
+	{ return this.map; }
 	
-	public void setMapTo(Map mapTo)
-	{ this.mapTo = mapTo; }
+	public void setMap(Map map)
+	{ this.map = map; }
 
 	public Warp getDestination()
 	{ return this.destination; }

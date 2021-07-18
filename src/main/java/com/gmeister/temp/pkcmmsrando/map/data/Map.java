@@ -96,12 +96,12 @@ public class Map
 				builder.append("\twarp_event ");
 				builder.append(warp.getX()).append(", ");
 				builder.append(warp.getY()).append(", ");
-				builder.append(warp.getMapTo().getConstName()).append(", ");
-				if (warp.getDestination() == null) builder.append("-1");
+				if (warp.getDestination() == null) builder.append(warp.getMap().getConstName()).append(", ").append(-1);
 				else
 				{
-					if (!warp.getMapTo().getWarps().contains(warp.getDestination())) throw new IllegalStateException();
-					builder.append(warp.getMapTo().getWarps().indexOf(warp.getDestination()) + 1);
+					if (warp.getDestination().getMap() == null) throw new IllegalStateException();
+					builder.append(warp.getDestination().getMap().getConstName()).append(", ");
+					builder.append(warp.getDestination().getMap().getWarps().indexOf(warp.getDestination()) + 1);
 				}
 				
 				this.getScript().set(i, builder.toString());

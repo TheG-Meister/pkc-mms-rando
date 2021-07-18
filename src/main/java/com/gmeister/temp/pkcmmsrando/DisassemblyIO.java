@@ -314,11 +314,11 @@ public class DisassemblyIO
 				Warp warp = map.getWarps().get(count);
 				warp.setX(Integer.parseInt(args[0]));
 				warp.setY(Integer.parseInt(args[1]));
+				warp.setMap(map);
 				int destinationIndex = Integer.parseInt(args[3]) - 1;
 				
 				for (Map mapTo : maps) if (mapTo.getConstName().equals(args[2]))
 				{
-					warp.setMapTo(mapTo);
 					if (destinationIndex >= mapTo.getWarps().size()) throw new IllegalStateException();
 					if (destinationIndex >= 0) warp.setDestination(mapTo.getWarps().get(destinationIndex));
 				}

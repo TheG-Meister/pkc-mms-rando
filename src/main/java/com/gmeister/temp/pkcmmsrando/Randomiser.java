@@ -117,6 +117,20 @@ public class Randomiser
 		}
 	}
 	
+	//Change this function such that, for every warp, it accepts a list of potential candidates it can randomise to?
+	//Other methods can then run this one by filling up the groups
+	//Won't this be a fuck tonne of array lists if there's like 600 warps?
+	//Aren't we doing that anyway with the warps sources?
+	
+	/*
+	 * Chunks of code we have here:
+	 * Getting a random
+	 * Getting the warp sources arrays
+	 * Creating the list of old warp to new warp
+	 * Various changes to said array depending on rules
+	 * Actually applying the changes
+	 */
+	
 	public void shuffleWarpDestinations(ArrayList<Warp> warps)
 	{
 		Random random = new Random(this.random.nextLong());
@@ -132,8 +146,6 @@ public class Randomiser
 		ArrayList<Integer> newIndices = new ArrayList<>(oldIndices);
 		Collections.shuffle(newIndices, random);
 		
-		//Need lists where each number can only appear once across both, or twice but at the same position on both
-		
 		//Remove duplicate assignments from both lists
 		ArrayList<Integer> usedIndices = new ArrayList<>();
 		for (int i = 0; i < oldIndices.size(); i++)
@@ -144,50 +156,7 @@ public class Randomiser
 			if (i < newIndices.size()) usedIndices.add(newIndices.get(i));
 		}
 		
-		//Create a list of warps to copy destinations from
-		ArrayList<Warp> newDests = new ArrayList<>();
-		ArrayList<Map> newMaps = new ArrayList<>();
-		for (int i = 0; i < warps.size(); i++)
-		{
-			newDests.add(null);
-			newMaps.add(null);
-		}
-		
-		for (int i = 0; i < oldIndices.size(); i++)
-		{
-			int oldIndex = oldIndices.get(i);
-			int newIndex = newIndices.get(i);
-			
-			//For each warp that leads to the old warp, change their destination to that of the new warp
-			Warp newWarpWithData = warps.get(newIndex);
-			for (Warp warp : warpsSources.get(oldIndex))
-			{
-				int index = warps.indexOf(warp);
-				newDests.set(index, newWarpWithData.getDestination());
-				newMaps.set(index, newWarpWithData.getMapTo());
-			}
-			
-			//For each warp that leads to the new warp, change their destination to that of the old warp
-			Warp oldWarpWithData = warps.get(oldIndex);
-			for (Warp warp : warpsSources.get(newIndex))
-			{
-				int index = warps.indexOf(warp);
-				newDests.set(index, oldWarpWithData.getDestination());
-				newMaps.set(index, oldWarpWithData.getMapTo());
-			}
-		}
-		
-		//Update each warp with its new destination
-		for (int i = 0; i < warps.size(); i++)
-		{
-			Warp toEdit = warps.get(i);
-			//if block to fix goldenrod elevator, something leading to fast ship 1f, something leading to pokecenter 2f and celadon elevator
-			if (newMaps.get(i) != null)
-			{
-				toEdit.setDestination(newDests.get(i));
-				toEdit.setMapTo(newMaps.get(i));
-			}
-		}
+		this.editWarpDestinations(warps, warpsSources, oldIndices, newIndices);
 	}
 	
 	public void shuffleWarpOrders(ArrayList<Warp> warps)
@@ -208,7 +177,7 @@ public class Randomiser
 		//Force warps to link the same maps together as vanilla
 		ArrayList<Integer> newIndices = new ArrayList<>();
 		for (int oldIndex : oldIndices) for (int shuffledIndex : shuffledIndices)
-			if (!newIndices.contains(shuffledIndex) && warpsSources.get(oldIndex).get(0).getMapTo().equals(warps.get(shuffledIndex).getMapTo()))
+			if (!newIndices.contains(shuffledIndex) && warpsSources.get(oldIndex).get(0).getDestination().getMap().equals(warps.get(shuffledIndex).getDestination().getMap()))
 		{
 			newIndices.add(shuffledIndex);
 			break;
@@ -224,14 +193,14 @@ public class Randomiser
 			if (i < newIndices.size()) usedIndices.add(newIndices.get(i));
 		}
 		
+		this.editWarpDestinations(warps, warpsSources, oldIndices, newIndices);
+	}
+	
+	private void editWarpDestinations(ArrayList<Warp> warps, ArrayList<ArrayList<Warp>> warpsSources, ArrayList<Integer> oldIndices, ArrayList<Integer> newIndices)
+	{
 		//Create a list of warps to copy destinations from
 		ArrayList<Warp> newDests = new ArrayList<>();
-		ArrayList<Map> newMaps = new ArrayList<>();
-		for (int i = 0; i < warps.size(); i++)
-		{
-			newDests.add(null);
-			newMaps.add(null);
-		}
+		for (int i = 0; i < warps.size(); i++) newDests.add(null);
 		
 		for (int i = 0; i < oldIndices.size(); i++)
 		{
@@ -240,33 +209,19 @@ public class Randomiser
 			
 			//For each warp that leads to the old warp, change their destination to that of the new warp
 			Warp newWarpWithData = warps.get(newIndex);
-			for (Warp warp : warpsSources.get(oldIndex))
-			{
-				int index = warps.indexOf(warp);
-				newDests.set(index, newWarpWithData.getDestination());
-				newMaps.set(index, newWarpWithData.getMapTo());
-			}
+			for (Warp warp : warpsSources.get(oldIndex)) newDests.set(warps.indexOf(warp), newWarpWithData.getDestination());
 			
 			//For each warp that leads to the new warp, change their destination to that of the old warp
 			Warp oldWarpWithData = warps.get(oldIndex);
-			for (Warp warp : warpsSources.get(newIndex))
-			{
-				int index = warps.indexOf(warp);
-				newDests.set(index, oldWarpWithData.getDestination());
-				newMaps.set(index, oldWarpWithData.getMapTo());
-			}
+			for (Warp warp : warpsSources.get(newIndex)) newDests.set(warps.indexOf(warp), oldWarpWithData.getDestination());
 		}
 		
 		//Update each warp with its new destination
 		for (int i = 0; i < warps.size(); i++)
 		{
 			Warp toEdit = warps.get(i);
-			//if block to fix goldenrod elevator, something leading to fast ship 1f, something leading to pokecenter 2f and celadon elevator
-			if (newMaps.get(i) != null)
-			{
-				toEdit.setDestination(newDests.get(i));
-				toEdit.setMapTo(newMaps.get(i));
-			}
+			//if block to fix all moving rooms (goldenrod and celadon elevators, pokecenter 2F and fast ship 1F
+			if (newDests.get(i) != null) toEdit.setDestination(newDests.get(i));
 		}
 	}
 	
