@@ -35,4 +35,15 @@ public class Warp
 	public void setDestination(Warp destination)
 	{ this.destination = destination; }
 	
+	public boolean hasAccessibleDestination()
+	{
+		//The destination is not accessible if it is null
+		if (this.destination == null) return false;
+		
+		//The destination is not accessible if this warp is not on a map tile with a warp collision value   
+		int collision = this.map.getBlocks().getCollisionAt(this.x, this.y).getValue();
+		if (((collision & 0xf0) == 0x70) || collision == 0x60 || collision == 0x68) return true;
+		else return false;
+	}
+	
 }

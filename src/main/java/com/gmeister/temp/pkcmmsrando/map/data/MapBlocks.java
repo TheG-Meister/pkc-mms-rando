@@ -29,6 +29,28 @@ public class MapBlocks
 		if (this.isWithinBlocksAt(x, y)) this.blocks[(y * this.xCapacity) + x] = b;
 		else throw new MapOutOfBoundsException("BooleanMap does not contain coordinates " + x + ", " + y);
 	}
+	
+	public Constant getCollisionAt(int x, int y)
+	{
+		int blockX = Math.floorDiv(x, 2);
+		int blockY = Math.floorDiv(y, 2);
+		int collisionX = x % 2;
+		int collisionY = y % 2;
+		
+		if (this.isWithinBlocksAt(blockX, blockY)) return this.blocks[(blockY * this.xCapacity) + blockX].getCollision()[collisionY][collisionX];
+		else throw new MapOutOfBoundsException("Map does not contain coordinates " + x + ", " + y);
+	}
+	
+	public Tile getTileAt(int x, int y)
+	{
+		int blockX = Math.floorDiv(x, 4);
+		int blockY = Math.floorDiv(y, 4);
+		int tileX = x % 4;
+		int tileY = y % 4;
+		
+		if (this.isWithinBlocksAt(blockX, blockY)) return this.blocks[(blockY * this.xCapacity) + blockX].getTiles()[tileY][tileX];
+		else throw new MapOutOfBoundsException("Map does not contain coordinates " + x + ", " + y);
+	}
 
 	public String getName()
 	{ return this.name; }

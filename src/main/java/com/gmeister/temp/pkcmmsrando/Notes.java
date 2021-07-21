@@ -109,7 +109,7 @@ public class Notes
 		File inFolder = Paths.get(
 				"E:/grant/documents/.my-stuff/Pokecrystal/pokecrystal-speedchoice-7.2/").toFile();
 		File outFolder = Paths.get(
-				"E:/grant/documents/.my-stuff/Pokecrystal/pkc-mms-rando/patches/21-07-18-3/pokecrystal-speedchoice/").toFile();
+				"E:/grant/documents/.my-stuff/Pokecrystal/pkc-mms-rando/patches/21-07-21-7/pokecrystal-speedchoice/").toFile();
 		
 		DisassemblyIO io = new DisassemblyIO(inFolder, outFolder);
 		Randomiser rando = new Randomiser();
@@ -237,8 +237,17 @@ public class Notes
 			}
 		}
 		
-		//rando.shuffleWarpDestinations(warps);
-		rando.shuffleWarpOrders(warps);
+		/*for (Warp warp : warps) if (!warp.hasAccessibleDestination())
+		{
+			StringBuilder b = new StringBuilder();
+			b.append(warp.getMap().getConstName()).append(" to ");
+			if (warp.getDestination() == null) b.append("NULL");
+			else b.append(warp.getDestination().getMap().getConstName());
+			
+			System.out.println(b.toString());
+		}*/
+		
+		rando.shuffleWarpDestinations(warps, true, true);
 		
 		for (Map map : maps)
 		{
