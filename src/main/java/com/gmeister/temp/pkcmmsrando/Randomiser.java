@@ -149,12 +149,6 @@ public class Randomiser
 			i--;
 		}
 		
-		/*
-		 * Create an array list of maps
-		 * Create an array list of an array list of maps
-		 * Each time a connection is made, add the connecting maps to each map's list
-		 */
-		
 		ArrayList<Map> maps = new ArrayList<>();
 		ArrayList<ArrayList<Map>> mapConnections = new ArrayList<>();
 		ArrayList<ArrayList<Map>> newConnections = new ArrayList<>();
@@ -168,27 +162,6 @@ public class Randomiser
 			}
 			if (warp.getDestination() != null) mapConnections.get(maps.indexOf(warp.getMap())).add(warp.getDestination().getMap());
 		}
-		/*
-		for (int i = 0; i < warps.size(); i++) if (destinations.contains(warps.get(i)))
-		{
-			Warp oldDest = warps.get(i);
-			String output = String.valueOf(i + 1);
-			for (int j = 0; j < warps.size(); j++) 
-			{
-				Warp newDest = warps.get(j);
-				if (oldDest.getDestination().getMap().equals(newDest.getMap()) //homogenous wrt destination
-				|| oldDest.getMap().equals(newDest.getDestination().getMap()) //homogenous wrt source
-				|| false)
-				
-				
-					output += "\t1";
-				else output += "\t";
-			}
-			
-			System.out.println(output);
-		}
-		
-		if (true) return;*/
 		
 		if (destinations.size() % 2 != 0 && twoWay && !allowSelfWarps) throw new IllegalArgumentException("Could not avoid self warps as there are an odd number of destinations");
 		
