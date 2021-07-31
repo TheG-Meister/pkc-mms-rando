@@ -117,34 +117,7 @@ public class Randomiser
 		}
 	}
 	
-	//Change this function such that, for every warp, it accepts a list of potential candidates it can randomise to?
-	//Other methods can then run this one by filling up the groups
-	//Won't this be a fuck tonne of array lists if there's like 600 warps?
-	//Aren't we doing that anyway with the warps sources?
-	
-	/*
-	 * Chunks of code we have here:
-	 * Getting a random
-	 * Getting the warp sources arrays
-	 * Creating the list of old warp to new warp
-	 * Various changes to said array depending on rules
-	 * Actually applying the changes
-	 */
-	
-	/*
-	 * The current basic warp rando shuffles only warps that are destinations, and then makes them two-way
-	 * The most recent warp rando preserves connections between maps, but shuffles the warps that lead there via a similar process to the basic one
-	 * 
-	 * New plan
-	 */
-	
-	/*
-	 * Can we split this up so 1-way warps only reandomise destinations with other 1-way warps?
-	 * Can we split this up so the destination selection criteria/actions are the only included code, without passing an anonymous class into another method?
-	 * (Or at least each line of code runs something simple, or another method that we can modify)
-	 */
-	
-	public void shuffleWarpDestinations(ArrayList<Warp> warps, boolean allowSelfWarps, boolean twoWay)
+	public void shuffleWarpDestinations(ArrayList<Warp> warps, boolean allowSelfWarps, boolean twoWay, boolean preserveMapConnections)
 	{
 		//Get a Random object
 		Random random = new Random(this.random.nextLong());
@@ -156,7 +129,66 @@ public class Randomiser
 		
 		//Create a list of useable destinations
 		ArrayList<Warp> destinations = new ArrayList<>();
-		for (Warp warp : warps) if (warpSourcess.get(warps.indexOf(warp)).size() > 0 && warp.getDestination() != null) destinations.add(warp);
+		for (Warp warp : warps) if (warpSourcess.get(warps.indexOf(warp)).size() > 0 //Destinations must have another warp lead to them
+				&& warp.getDestination() != null //Destinations must not move (SS Aqua, Elevators, Cable Club) 
+				&& warp.hasAccessibleDestination() //Destinations must be able to reach their own destination
+				&& warpSourcess.get(warps.indexOf(warp)).contains(warp.getDestination())) //Destinations lead back to one of their sources
+		{
+			//Destinations have at least one warp that can access it
+			for (Warp source : warpSourcess.get(warps.indexOf(warp))) if (source.hasAccessibleDestination())
+			{
+				destinations.add(warp);
+				break;
+			}
+		}
+		
+		for (int i = 0; i < destinations.size(); i++) if (!destinations.contains(destinations.get(i).getDestination()))
+		{
+			System.out.println("A dest was not included!");
+			destinations.remove(i);
+			i--;
+		}
+		
+		/*
+		 * Create an array list of maps
+		 * Create an array list of an array list of maps
+		 * Each time a connection is made, add the connecting maps to each map's list
+		 */
+		
+		ArrayList<Map> maps = new ArrayList<>();
+		ArrayList<ArrayList<Map>> mapConnections = new ArrayList<>();
+		ArrayList<ArrayList<Map>> newConnections = new ArrayList<>();
+		for (Warp warp : destinations)
+		{
+			if (!maps.contains(warp.getMap()))
+			{
+				maps.add(warp.getMap());
+				mapConnections.add(new ArrayList<>());
+				newConnections.add(new ArrayList<>());
+			}
+			if (warp.getDestination() != null) mapConnections.get(maps.indexOf(warp.getMap())).add(warp.getDestination().getMap());
+		}
+		/*
+		for (int i = 0; i < warps.size(); i++) if (destinations.contains(warps.get(i)))
+		{
+			Warp oldDest = warps.get(i);
+			String output = String.valueOf(i + 1);
+			for (int j = 0; j < warps.size(); j++) 
+			{
+				Warp newDest = warps.get(j);
+				if (oldDest.getDestination().getMap().equals(newDest.getMap()) //homogenous wrt destination
+				|| oldDest.getMap().equals(newDest.getDestination().getMap()) //homogenous wrt source
+				|| false)
+				
+				
+					output += "\t1";
+				else output += "\t";
+			}
+			
+			System.out.println(output);
+		}
+		
+		if (true) return;*/
 		
 		if (destinations.size() % 2 != 0 && twoWay && !allowSelfWarps) throw new IllegalArgumentException("Could not avoid self warps as there are an odd number of destinations");
 		
@@ -168,21 +200,26 @@ public class Randomiser
 		ArrayList<Warp> oldDests = new ArrayList<>();
 		ArrayList<Warp> newDests = new ArrayList<>();
 		
-		boolean testedAllOldDests = false;
-		
 		while (shuffledDestinations.size() > 0)
 		{
-			Warp newDest = shuffledDestinations.remove(0);
-			newDests.add(newDest);
+			Warp newDest = shuffledDestinations.get(0);
+			boolean testedAllOldDestsForThisWarp = false;
 			
-			findAnOldDest:
+			oldDestLoops:
 			while (true)
 			{
-				for (Warp oldDest : destinations) if (allowSelfWarps || (!newDests.contains(oldDest) || testedAllOldDests) && !oldDest.equals(newDest)) 
+				for (Warp oldDest : destinations) if (allowSelfWarps || (!newDests.contains(oldDest) || testedAllOldDestsForThisWarp) && !oldDest.equals(newDest)) 
 				{
-					//if (!newIndices.contains(shuffledIndex) && warpSourcess.get(oldIndex).get(0).getDestination().getMap().equals(warps.get(shuffledIndex).getDestination().getMap()))
+					if (preserveMapConnections &&
+							Collections.frequency(newConnections.get(maps.indexOf(oldDest.getDestination().getMap())), newDest.getDestination().getMap())
+							>= Collections.frequency(mapConnections.get(maps.indexOf(oldDest.getDestination().getMap())), newDest.getDestination().getMap()))
+						continue;
+					
 					destinations.remove(oldDest);
 					oldDests.add(oldDest);
+					shuffledDestinations.remove(newDest);
+					newDests.add(newDest);
+					newConnections.get(maps.indexOf(oldDest.getDestination().getMap())).add(newDest.getDestination().getMap());
 					
 					if (twoWay)
 					{
@@ -190,12 +227,22 @@ public class Randomiser
 						oldDests.add(newDest);
 						shuffledDestinations.remove(oldDest);
 						newDests.add(oldDest);
+						newConnections.get(maps.indexOf(newDest.getDestination().getMap())).add(oldDest.getDestination().getMap());
 					}
 					
-					break findAnOldDest;
+					break oldDestLoops;
 				}
-				testedAllOldDests = true;
+				
+				if (!testedAllOldDestsForThisWarp)
+				{
+					testedAllOldDestsForThisWarp = true;
+				}
+				else
+				{
+					throw new IllegalStateException("Could not find an old destination for the warp that links " + newDest.getMap().getConstName() + " to " + newDest.getDestination().getMap().getConstName());
+				}
 			}
+			//System.out.println(testedAllOldDestsForThisWarp);
 		}
 		
 		if (destinations.size() > 0) throw new IllegalStateException("Logic error: not all destinations were arrigned a new one");

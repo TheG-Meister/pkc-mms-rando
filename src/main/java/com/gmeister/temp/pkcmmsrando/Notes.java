@@ -106,13 +106,42 @@ public class Notes
 	
 	public static void main(String... args) throws IOException
 	{
+		
 		File inFolder = Paths.get(
 				"E:/grant/documents/.my-stuff/Pokecrystal/pokecrystal-speedchoice-7.2/").toFile();
 		File outFolder = Paths.get(
-				"E:/grant/documents/.my-stuff/Pokecrystal/pkc-mms-rando/patches/21-07-21-7/pokecrystal-speedchoice/").toFile();
+				"E:/grant/documents/.my-stuff/Pokecrystal/pkc-mms-rando/patches/21-07-27-1/pokecrystal-speedchoice/").toFile();
 		
 		DisassemblyIO io = new DisassemblyIO(inFolder, outFolder);
 		Randomiser rando = new Randomiser();
+		
+		/*
+		ArrayList<Map> mapss = new ArrayList<>();
+		for (int i = 0; i < 3; i++) mapss.add(new Map());
+		ArrayList<Warp> warpss = new ArrayList<>();
+		for (int i = 0; i < 14; i++) warpss.add(new Warp()
+				{
+			@Override
+			public boolean hasAccessibleDestination()
+			{
+				return true;
+			}
+				});
+		for (int i = 0; i < 14; i++)
+		{
+			if (i < 1) warpss.get(i).setMap(mapss.get(0));
+			else if (i < 7 || i == 8 || i == 10) warpss.get(i).setMap(mapss.get(1));
+			else if (i == 7 || i == 9 || i > 10) warpss.get(i).setMap(mapss.get(2));
+			
+			if (i % 2 == 0) warpss.get(i).setDestination(warpss.get(i + 1));
+			else warpss.get(i).setDestination(warpss.get(i - 1));
+		}
+		for (Warp warp : warpss) warp.getMap().getWarps().add(warp);
+		
+		rando.shuffleWarpDestinations(warpss, false, true, true);
+		for (Warp warp : warpss) System.out.println((warpss.indexOf(warp) + 1) + " to " + (warpss.indexOf(warp.getDestination()) + 1));
+		
+		if (true) return;*/
 		
 		ArrayList<String> musicScript = io.readMusicPointers();
 		ArrayList<String> shuffledScript = rando.shuffleMusicPointers(musicScript);
@@ -126,6 +155,7 @@ public class Notes
 		ArrayList<Warp> warps = new ArrayList<>();
 		for (Map map : maps)
 		{
+			/*
 			//Force the badge checks before E4 and Red by linking certain warps
 			if (map.getConstName().equals("VICTORY_ROAD_GATE"))
 			{
@@ -138,7 +168,7 @@ public class Notes
 				//Link route 22 to itself
 				route22.getWarps().get(0).setDestination(route22.getWarps().get(0));
 				
-				for (Map indigoPlateau : maps) if (indigoPlateau.getConstName() == "INDIGO_PLATEAU_POKECENTER_1F")
+				for (Map indigoPlateau : maps) if (indigoPlateau.getConstName().equals("INDIGO_PLATEAU_POKECENTER_1F"))
 				{
 					Map victoryRoad = map.getWarps().get(4).getDestination().getMap();
 					Map route23 = indigoPlateau.getWarps().get(0).getDestination().getMap();
@@ -157,7 +187,7 @@ public class Notes
 					route23.getWarps().get(1).setDestination(victoryRoad.getWarps().get(0));
 				}
 				
-				for (Map redsRoom : maps) if (redsRoom.getConstName() == "SILVER_CAVE_ROOM_3")
+				for (Map redsRoom : maps) if (redsRoom.getConstName().equals("SILVER_CAVE_ROOM_3"))
 				{
 					Map route28 = map.getWarps().get(6).getDestination().getMap();
 					Map silverCaveRoom2 = redsRoom.getWarps().get(0).getDestination().getMap();
@@ -173,7 +203,7 @@ public class Notes
 					
 					silverCaveRoom2.getWarps().get(1).setDestination(route28.getWarps().get(1));
 				}
-			}
+			}*/
 			
 			//ignore all beta maps
 			if (map.getConstName().contains("BETA")) continue;
@@ -203,9 +233,9 @@ public class Notes
 				case "HALL_OF_FAME":
 				
 				//Unrandomise red's room from the changes above
-				case "SILVER_CAVE_ROOM_3":
+				//case "SILVER_CAVE_ROOM_3":
 				
-				//Unrandomise the cable club rooms, and pokecenter 2F due to it's weird scripting
+				//Unrandomise the cable club and its rooms
 				case "POKECENTER_2F":
 				case "TRADE_CENTER":
 				case "COLOSSEUM":
@@ -219,18 +249,25 @@ public class Notes
 			{
 				if (warp.getDestination() != null)
 				{
+					String mapName = warp.getMap().getConstName();
+					String destMapName = warp.getDestination().getMap().getConstName();
 					//Remove warps that lead to some of the above maps
-					if (warp.getDestination().getMap().getConstName().contains("BETA")) continue;
-					//if (map.getConstName().equals("VICTORY_ROAD_GATE") && warp.getMapTo().getConstName().equals("VICTORY_ROAD_GATE")) continue;
+					if (destMapName.contains("BETA")) continue;
 					
-					switch (warp.getDestination().getMap().getConstName())
+					switch (destMapName)
 					{
 						case "BATTLE_TOWER_ELEVATOR":
 						case "POKECENTER_2F":
 						case "INDIGO_PLATEAU_POKECENTER_1F":
-						case "SILVER_CAVE_ROOM_3":
+						//case "SILVER_CAVE_ROOM_3":
 							continue;
 					}
+					
+					//Unrandomise the changed route22 and Victory Road gate warps
+					//if (mapName.equals("VICTORY_ROAD_GATE") && destMapName.equals("VICTORY_ROAD_GATE")) continue;
+					//if (warp.getMap().getConstName().equals("ROUTE_22") && warp.getDestination().getMap().getConstName().equals("ROUTE_22")) continue;
+					
+					
 				}
 				
 				warps.add(warp);
@@ -247,7 +284,7 @@ public class Notes
 			System.out.println(b.toString());
 		}*/
 		
-		rando.shuffleWarpDestinations(warps, true, true);
+		rando.shuffleWarpDestinations(warps, false, true, true);
 		
 		for (Map map : maps)
 		{
