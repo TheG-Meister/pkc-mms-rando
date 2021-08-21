@@ -16,16 +16,34 @@ public class Randomiser
 	
 	private Random random;
 	
+	/**
+	 * Initialises a Randomiser with a new Random.
+	 */
 	public Randomiser()
 	{
 		this.random = new Random();
 	}
 	
+	/**
+	 * Initialises a Randomiser with the provided Random.
+	 * @param random the Random to initialise with.
+	 */
 	public Randomiser(Random random)
 	{
 		this.random = random;
 	}
 	
+	/**
+	 * Shuffles blocks to other blocks with the same collision.
+	 * <br><br>
+	 * Replaces every block with a block that has the same collision values.
+	 * This creates maps that look like an absolute mess but play exactly like the original maps.
+	 * <br><br>
+	 * This randomiser is race safe.
+	 * @param blockSet the BlockSet from which new Blocks will be drawn
+	 * @param blocks the Blocks to replace
+	 * @return a new array of random blocks
+	 */
 	public Block[] randomiseBlocksByCollision(BlockSet blockSet, Block[] blocks)
 	{
 		Random random = new Random(this.random.nextLong());
@@ -50,6 +68,12 @@ public class Randomiser
 		return randomisedBlocks;
 	}
 	
+	/**
+	 * Shuffles selected lines in a script.
+	 * @param script the script
+	 * @param toShuffle an array of the same length of the script, denoting the lines to shuffle
+	 * @return a shuffled script
+	 */
 	public ArrayList<String> shuffleScriptLines(ArrayList<String> script, boolean[] toShuffle)
 	{
 		Random random = new Random(this.random.nextLong());
@@ -66,6 +90,13 @@ public class Randomiser
 		return shuffledScript;
 	}
 	
+	/**
+	 * Shuffles the pointers of all music tracks, such that every incidence of one track is replaced with a different track.
+	 * <br><br>
+	 * This randomiser is safe for races.
+	 * @param script the music script to shuffle
+	 * @return a shuffled script
+	 */
 	public ArrayList<String> shuffleMusicPointers(ArrayList<String> script)
 	{
 		boolean[] toShuffle = new boolean[script.size()];
@@ -73,6 +104,13 @@ public class Randomiser
 		return this.shuffleScriptLines(script, toShuffle);
 	}
 	
+	/**
+	 * Shuffles the pointers of all sound effects, such that every incidence of one sound effect is replaced with a different sound effect.
+	 * <br><br>
+	 * This randomiser is safe for races, but having quick sound-effects replaced with long ones can greatly slow down pace.
+	 * @param script the SFX script to shuffle
+	 * @return a shuffled version of the provided script
+	 */
 	public ArrayList<String> shuffleSFXPointers(ArrayList<String> script)
 	{
 		boolean[] toShuffle = new boolean[script.size()];
@@ -80,6 +118,14 @@ public class Randomiser
 		return this.shuffleScriptLines(script, toShuffle);
 	}
 	
+	/**
+	 * Move all trainers to a random position on the map.
+	 * <br><br>
+	 * This edits the map script in place and requires it to be written out.
+	 * <br><br>
+	 * This randomiser is not safe for races as trainers may block required paths.
+	 * @param map the map to shuffle trainer locations on
+	 */
 	public void randomiseTrainerLocation(Map map)
 	{
 		Random random = new Random(this.random.nextLong());
@@ -117,6 +163,25 @@ public class Randomiser
 		}
 	}
 	
+	/*
+	 * Currently, this method performs various initial filtering steps which could ideally be moved out to a more relevant class.
+	 * For example, one-way warps are not selected as destinations. While this acts as a good balancing feature, it is not necessary for all warp randomisers.
+	 * 
+	 * Groups of destinations will be considered in the future. This will allow 2-tile warp carpets leading to other 2-tile warp carpets to be considered as a single destination each.
+	 */
+	
+	/**
+	 * Shuffles the destinations of provided warps.
+	 * <br><br>
+	 * Any warp which is accessible from another warp, does not move, and leads back to one of the warps that leads to it is selected as a destination for shuffling.
+	 * All warps leading to a destination which was selected for shuffling are then redirected to a shuffled destination.
+	 * <br><br>
+	 * This randomiser has the potential to be safe for races with enough moderation of the warps provided, but currently this is not present in the code.
+	 * @param warps the list of warps to shuffle the destination of
+	 * @param allowSelfWarps whether a warp can select itself as its destination
+	 * @param twoWay whether to force randomised destinations to lead back to where they came from
+	 * @param preserveMapConnections whether to keep connections between Maps
+	 */
 	public void shuffleWarpDestinations(ArrayList<Warp> warps, boolean allowSelfWarps, boolean twoWay, boolean preserveMapConnections)
 	{
 		//Get a Random object
