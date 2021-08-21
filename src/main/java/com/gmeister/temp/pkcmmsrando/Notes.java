@@ -18,7 +18,7 @@ import com.gmeister.temp.pkcmmsrando.map.data.Warp;
 
 public class Notes
 {
-	
+
 	public static void fillAllRoutesWithGrass() throws IOException
 	{
 		Pattern p = Pattern.compile("^\\D+(\\d+).*");
@@ -104,44 +104,49 @@ public class Notes
 		}
 	}
 	
+	public static void randomiseWarpAreas(ArrayList<Map> maps) throws IOException
+	{
+		ArrayList<Warp> warps = new ArrayList<>();
+		ArrayList<ArrayList<Map>> mapGroups = new ArrayList<>();
+		ArrayList<String[]> mapGroupNamess = Notes.readMapGroups();
+		for (String[] mapGroupNames : mapGroupNamess) mapGroups.add(Notes.getMapsByNames(maps, mapGroupNames));
+		
+		for (ArrayList<Map> mapGroup : mapGroups)
+			for (Map map : mapGroup)
+				for (Warp warp : map.getWarps())
+					for (ArrayList<Map> mapGroup2 : mapGroups)
+						if (!mapGroup.equals(mapGroup2) && mapGroup2.contains(warp.getDestination().getMap()))
+			warps.add(warp);
+		
+		new Randomiser().shuffleWarpDestinations(warps, false, true, false);
+	}
+	
+	public static ArrayList<Map> getMapsByNames(ArrayList<Map> maps, String... constNames)
+	{
+		ArrayList<Map> selectedMaps = new ArrayList<>();
+		ArrayList<String> constNamesList = new ArrayList<>(Arrays.asList(constNames));
+		for (Map map : maps) if (constNamesList.contains(map.getConstName())) selectedMaps.add(map);
+		return selectedMaps;
+	}
+	
+	public static ArrayList<String[]> readMapGroups() throws IOException
+	{
+		ArrayList<String[]> groups = new ArrayList<>();
+		ArrayList<String> lines = new ArrayList<>(Files.readAllLines(Paths.get("E:/grant/documents/.my-stuff/Pokecrystal/pkc-mms-rando/map/vanilla-map-groups.tsv")));
+		for (String line : lines) groups.add(line.split("\t"));
+		return groups;
+	}
+	
 	public static void main(String... args) throws IOException
 	{
 		
 		File inFolder = Paths.get(
 				"E:/grant/documents/.my-stuff/Pokecrystal/pokecrystal-speedchoice-7.2/").toFile();
 		File outFolder = Paths.get(
-				"E:/grant/documents/.my-stuff/Pokecrystal/pkc-mms-rando/patches/21-07-27-1/pokecrystal-speedchoice/").toFile();
+				"E:/grant/documents/.my-stuff/Pokecrystal/pkc-mms-rando/patches/21-08-21-1/pokecrystal-speedchoice/").toFile();
 		
 		DisassemblyIO io = new DisassemblyIO(inFolder, outFolder);
 		Randomiser rando = new Randomiser();
-		
-		/*
-		ArrayList<Map> mapss = new ArrayList<>();
-		for (int i = 0; i < 3; i++) mapss.add(new Map());
-		ArrayList<Warp> warpss = new ArrayList<>();
-		for (int i = 0; i < 14; i++) warpss.add(new Warp()
-				{
-			@Override
-			public boolean hasAccessibleDestination()
-			{
-				return true;
-			}
-				});
-		for (int i = 0; i < 14; i++)
-		{
-			if (i < 1) warpss.get(i).setMap(mapss.get(0));
-			else if (i < 7 || i == 8 || i == 10) warpss.get(i).setMap(mapss.get(1));
-			else if (i == 7 || i == 9 || i > 10) warpss.get(i).setMap(mapss.get(2));
-			
-			if (i % 2 == 0) warpss.get(i).setDestination(warpss.get(i + 1));
-			else warpss.get(i).setDestination(warpss.get(i - 1));
-		}
-		for (Warp warp : warpss) warp.getMap().getWarps().add(warp);
-		
-		rando.shuffleWarpDestinations(warpss, false, true, true);
-		for (Warp warp : warpss) System.out.println((warpss.indexOf(warp) + 1) + " to " + (warpss.indexOf(warp.getDestination()) + 1));
-		
-		if (true) return;*/
 		
 		ArrayList<String> musicScript = io.readMusicPointers();
 		ArrayList<String> shuffledScript = rando.shuffleMusicPointers(musicScript);
@@ -151,6 +156,16 @@ public class Notes
 		ArrayList<TileSet> tileSets = io.readTileSets(collisionConstants);
 		for (TileSet tileSet : tileSets) tileSet.getBlockSet().updateCollGroups();
 		ArrayList<Map> maps = io.readMaps(tileSets);
+		
+		/*Notes.randomiseWarpAreas(maps);
+		
+		for (Map map : maps)
+		{
+			//System.out.println(map.getConstName());
+			map.writeWarpsToScript();
+			io.writeMapScript(map);
+		}
+		if (true) return;*/
 		
 		ArrayList<Warp> warps = new ArrayList<>();
 		for (Map map : maps)
@@ -249,7 +264,7 @@ public class Notes
 			{
 				if (warp.getDestination() != null)
 				{
-					String mapName = warp.getMap().getConstName();
+					//String mapName = warp.getMap().getConstName();
 					String destMapName = warp.getDestination().getMap().getConstName();
 					//Remove warps that lead to some of the above maps
 					if (destMapName.contains("BETA")) continue;
@@ -266,23 +281,11 @@ public class Notes
 					//Unrandomise the changed route22 and Victory Road gate warps
 					//if (mapName.equals("VICTORY_ROAD_GATE") && destMapName.equals("VICTORY_ROAD_GATE")) continue;
 					//if (warp.getMap().getConstName().equals("ROUTE_22") && warp.getDestination().getMap().getConstName().equals("ROUTE_22")) continue;
-					
-					
 				}
 				
 				warps.add(warp);
 			}
 		}
-		
-		/*for (Warp warp : warps) if (!warp.hasAccessibleDestination())
-		{
-			StringBuilder b = new StringBuilder();
-			b.append(warp.getMap().getConstName()).append(" to ");
-			if (warp.getDestination() == null) b.append("NULL");
-			else b.append(warp.getDestination().getMap().getConstName());
-			
-			System.out.println(b.toString());
-		}*/
 		
 		rando.shuffleWarpDestinations(warps, false, true, true);
 		
@@ -291,12 +294,6 @@ public class Notes
 			map.writeWarpsToScript();
 			io.writeMapScript(map);
 		}
-		
-		/*for (Map map : maps)
-		{
-			map.getBlocks().setBlocks(rando.randomiseBlocksByCollision(map.getTileSet().getBlockSet(), map.getBlocks().getBlocks()));
-			io.writeMapBlocks(map.getBlocks(), map.getTileSet().getBlockSet());
-		}*/
 	}
 	
 }

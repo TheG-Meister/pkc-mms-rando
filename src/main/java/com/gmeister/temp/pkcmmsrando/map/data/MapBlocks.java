@@ -7,6 +7,29 @@ import com.gmeister.temp.maps.MapOutOfBoundsException;
 public class MapBlocks
 {
 	
+	public static enum Direction
+	{
+		UP(0, -1),
+		DOWN(0, 1),
+		LEFT(-1, 0),
+		RIGHT(1, 0);
+		
+		private int dx;
+		private int dy;
+		
+		Direction(int dx, int dy)
+		{
+			this.dx = dx;
+			this.dy = dy;
+		}
+
+		public int getDx()
+		{ return this.dx; }
+
+		public int getDy()
+		{ return this.dy; }
+	}
+	
 	private String name;
 	private int xCapacity;
 	private int yCapacity;
@@ -50,6 +73,12 @@ public class MapBlocks
 		
 		if (this.isWithinBlocksAt(blockX, blockY)) return this.blocks[(blockY * this.xCapacity) + blockX].getTiles()[tileY][tileX];
 		else throw new MapOutOfBoundsException("Map does not contain coordinates " + x + ", " + y);
+	}
+	
+	public int moveFrom(int x, int y, Direction direction)
+	{
+		
+		return 0;
 	}
 
 	public String getName()

@@ -125,7 +125,7 @@ public class Randomiser
 		//Create groups of warps which all lead to the same warp
 		ArrayList<ArrayList<Warp>> warpSourcess = new ArrayList<>();
 		for (int i = 0; i < warps.size(); i++) warpSourcess.add(new ArrayList<>());
-		for (Warp warp : warps) if (warp.getDestination() != null) warpSourcess.get(warps.indexOf(warp.getDestination())).add(warp);
+		for (Warp warp : warps) if (warp.getDestination() != null) warpSourcess.get(warps.indexOf(warp.getDestination())).add(warp); 
 		
 		//Create a list of useable destinations
 		ArrayList<Warp> destinations = new ArrayList<>();
@@ -215,7 +215,6 @@ public class Randomiser
 					throw new IllegalStateException("Could not find an old destination for the warp that links " + newDest.getMap().getConstName() + " to " + newDest.getDestination().getMap().getConstName());
 				}
 			}
-			//System.out.println(testedAllOldDestsForThisWarp);
 		}
 		
 		if (destinations.size() > 0) throw new IllegalStateException("Logic error: not all destinations were arrigned a new one");

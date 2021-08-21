@@ -19,7 +19,6 @@ import com.gmeister.temp.pkcmmsrando.map.data.BlockSet;
 import com.gmeister.temp.pkcmmsrando.map.data.Constant;
 import com.gmeister.temp.pkcmmsrando.map.data.Map;
 import com.gmeister.temp.pkcmmsrando.map.data.MapBlocks;
-import com.gmeister.temp.pkcmmsrando.map.data.Tile;
 import com.gmeister.temp.pkcmmsrando.map.data.TileSet;
 import com.gmeister.temp.pkcmmsrando.map.data.Warp;
 
@@ -440,10 +439,10 @@ public class DisassemblyIO
 	}
 	
 	/**
-	 * Imports {@linkplain Constant}s from a {@linkplain File}.
+	 * Imports Constants from a File.
 	 * 
 	 * @param f the file to read from
-	 * @return an {@linkplain ArrayList} of {@linkplain Constant}s in the order they
+	 * @return an ArrayList of Constants in the order they
 	 *         are imported
 	 * @throws FileNotFoundException when the input file canot be found
 	 * @throws IOException           when an IO exception occurs
@@ -539,18 +538,6 @@ public class DisassemblyIO
 		}
 		
 		return blocks;
-	}
-	
-	private void readBlockTiles(ArrayList<Block> blocks, File tileFile, ArrayList<Tile> tiles) throws IOException
-	{
-		byte[] tileIndices = Files.readAllBytes(tileFile.toPath());
-		int blockNum = Math.floorDiv(tileIndices.length, 16);
-		for (int i = 0; i < blockNum; i++)
-		{
-			Block block = blocks.get(i);
-			for (int y = 0, j = 0; y < 4; y++)
-				for (int x = 0; x < 4; x++, j++) block.getTiles()[y][x] = tiles.get(j);
-		}
 	}
 	
 }

@@ -110,4 +110,33 @@ public class Map
 		}
 	}
 	
+	public boolean canMoveFrom(int x1, int y1, int x2, int y2)
+	{
+		boolean[][] tilesToTest = new boolean[this.blocks.getYCapacity() * 2][this.blocks.getXCapacity() * 2];
+		boolean[][] tilesTested = new boolean[this.blocks.getYCapacity() * 2][this.blocks.getXCapacity() * 2];
+		boolean[][] tilesValid = new boolean[this.blocks.getYCapacity() * 2][this.blocks.getXCapacity() * 2];
+		tilesToTest[y1][x1] = true;
+		
+		boolean changed;
+		do
+		{
+			changed = false;
+			
+			for (int y = 0; y < tilesToTest.length; y++) for (int x = 0; x < tilesToTest[y].length; x++) if (tilesToTest[y][x])
+			{
+				/*
+				 * bulk movement code is in here?
+				 */
+				
+				
+				
+				tilesToTest[y][x] = false;
+				tilesTested[y][x] = true;
+			}
+		}
+		while (changed && !tilesValid[y2][x2]);
+		
+		return tilesValid[y2][x2];
+	}
+	
 }
