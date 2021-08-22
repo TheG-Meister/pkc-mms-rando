@@ -16,6 +16,7 @@ import java.util.regex.Pattern;
 
 import com.gmeister.temp.pkcmmsrando.map.data.Block;
 import com.gmeister.temp.pkcmmsrando.map.data.BlockSet;
+import com.gmeister.temp.pkcmmsrando.map.data.CollisionConstant;
 import com.gmeister.temp.pkcmmsrando.map.data.Constant;
 import com.gmeister.temp.pkcmmsrando.map.data.Map;
 import com.gmeister.temp.pkcmmsrando.map.data.MapBlocks;
@@ -49,12 +50,12 @@ public class DisassemblyIO
 		this.incbinPattern = Pattern.compile("^\\s*INCBIN\\s+");
 	}
 	
-	public ArrayList<Constant> readCollisionConstants() throws FileNotFoundException, IOException
+	public ArrayList<CollisionConstant> readCollisionConstants() throws FileNotFoundException, IOException
 	{
 		return this.importConstants(inputFolder.toPath().resolve("constants/collision_constants.asm").toFile());
 	}
 	
-	public ArrayList<TileSet> readTileSets(ArrayList<Constant> collisionConstants) throws FileNotFoundException, IOException
+	public ArrayList<TileSet> readTileSets(ArrayList<CollisionConstant> collisionConstants) throws FileNotFoundException, IOException
 	{
 		ArrayList<TileSet> tileSets = new ArrayList<>();
 		
@@ -218,7 +219,7 @@ public class DisassemblyIO
 			}
 		}
 		
-		ArrayList<Constant> tileSetConstants = this.importConstants(this.inputFolder.toPath().resolve("constants/tileset_constants.asm").toFile());
+		ArrayList<CollisionConstant> tileSetConstants = this.importConstants(this.inputFolder.toPath().resolve("constants/tileset_constants.asm").toFile());
 		
 		Pattern mapPattern = Pattern.compile("^\\tmap\\s+");
 		File mapDataFile = this.inputFolder.toPath().resolve("data/maps/maps.asm").toFile();
@@ -447,9 +448,9 @@ public class DisassemblyIO
 	 * @throws FileNotFoundException when the input file canot be found
 	 * @throws IOException           when an IO exception occurs
 	 */
-	private ArrayList<Constant> importConstants(File f) throws FileNotFoundException, IOException
+	private ArrayList<CollisionConstant> importConstants(File f) throws FileNotFoundException, IOException
 	{
-		ArrayList<Constant> constants = new ArrayList<>();
+		ArrayList<CollisionConstant> constants = new ArrayList<>();
 		Pattern equPattern = Pattern.compile("\\s+EQU\\s+");
 		Pattern constdefPattern = Pattern.compile("^\\tconst_def\\s+");
 		Pattern constPattern = Pattern.compile("^\\tconst\\s+");
@@ -470,7 +471,7 @@ public class DisassemblyIO
 					
 					byte value = args[1].startsWith("$") ? (byte) Integer.parseInt(args[1].substring(1), 16)
 							: (byte) Integer.parseInt(args[1]);
-					constants.add(new Constant(args[0], value));
+					constants.add(new CollisionConstant(args[0], value));
 				}
 				else if (constdefPattern.matcher(line).find())
 				{
@@ -482,7 +483,7 @@ public class DisassemblyIO
 				{
 					if (count == -1) throw new IllegalStateException("");
 					line = constPattern.matcher(line).replaceFirst("");
-					constants.add(new Constant(line, (byte) (count & 0xFF)));
+					constants.add(new CollisionConstant(line, (byte) (count & 0xFF)));
 					count++;
 				}
 			}
@@ -491,7 +492,7 @@ public class DisassemblyIO
 		return constants;
 	}
 	
-	private ArrayList<Block> readBlockCollision(List<String> collisionScript, List<Constant> collisionConstants) throws FileNotFoundException, IOException
+	private ArrayList<Block> readBlockCollision(List<String> collisionScript, List<CollisionConstant> collisionConstants) throws FileNotFoundException, IOException
 	{
 		ArrayList<Block> blocks = new ArrayList<>();
 		Pattern tilecoll = Pattern.compile("\\s*tilecoll\\s*", Pattern.DOTALL);
@@ -512,18 +513,18 @@ public class DisassemblyIO
 				
 				for (int y = 0, i = 0; y < 2; y++) for (int x = 0; x < 2; x++, i++)
 				{
-					if (args[i].startsWith("$")) block.getCollision()[y][x] = new Constant(null,
+					if (args[i].startsWith("$")) block.getCollision()[y][x] = new CollisionConstant(null,
 							(byte) Integer.parseInt(args[i].substring(1), 16));
 					else try
 					{
-						block.getCollision()[y][x] = new Constant(null, (byte) (byte) Integer.parseInt(args[i]));
+						block.getCollision()[y][x] = new CollisionConstant(null, (byte) (byte) Integer.parseInt(args[i]));
 					}
 					catch (NumberFormatException e)
 					{
 						String coll = "COLL_" + args[i];
 						for (int j = 0; j < collisionConstants.size(); j++)
 						{
-							Constant constant = collisionConstants.get(j);
+							CollisionConstant constant = collisionConstants.get(j);
 							if (constant.getName().equals(coll))
 							{
 								block.getCollision()[y][x] = constant;

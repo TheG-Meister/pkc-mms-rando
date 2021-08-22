@@ -4,17 +4,17 @@ public class Block
 {
 	
 	private String name;
-	private Constant[][] collision;
+	private CollisionConstant[][] collision;
 	private Tile[][] tiles;
 	private boolean building;
 	
 	public Block()
 	{
-		this.collision = new Constant[2][2];
+		this.collision = new CollisionConstant[2][2];
 		this.tiles = new Tile[4][4];
 	}
 	
-	public Constant[][] getCollision()
+	public CollisionConstant[][] getCollision()
 	{ return this.collision; }
 	
 	public String getName()
@@ -31,17 +31,5 @@ public class Block
 	
 	public Tile[][] getTiles()
 	{ return this.tiles; }
-	
-	public static Block[] makeSampleBlockset()
-	{
-		Block[] blocks = new Block[16];
-		for (byte i = 0; i < blocks.length; i++)
-		{
-			blocks[i] = new Block();
-			for (int y = 0, j = 0; y < 2; y++) for (int x = 0; x < 2; x++, j++)
-				blocks[i].getCollision()[y][x] = new Constant("Collision", (byte) ((i >>> j) & 0b1));
-		}
-		return blocks;
-	}
 	
 }

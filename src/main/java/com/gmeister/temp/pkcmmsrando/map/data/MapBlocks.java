@@ -53,7 +53,7 @@ public class MapBlocks
 		else throw new MapOutOfBoundsException("BooleanMap does not contain coordinates " + x + ", " + y);
 	}
 	
-	public Constant getCollisionAt(int x, int y)
+	public CollisionConstant getCollisionAt(int x, int y)
 	{
 		int blockX = Math.floorDiv(x, 2);
 		int blockY = Math.floorDiv(y, 2);

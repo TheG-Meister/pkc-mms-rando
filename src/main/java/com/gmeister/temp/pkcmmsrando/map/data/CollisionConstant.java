@@ -1,18 +1,15 @@
 package com.gmeister.temp.pkcmmsrando.map.data;
 
 import java.util.ArrayList;
-import java.util.List;
 
 import com.gmeister.temp.pkcmmsrando.map.data.MapBlocks.Direction;
 
 public class CollisionConstant extends Constant
 {
 	
-	private ArrayList<Direction> movementTableDirectionCol;
-	private ArrayList<Boolean> movementTableStepOnCol;
-	private ArrayList<Boolean> movementTableIsPossibleCol;
-	private ArrayList<ArrayList<Flag>> movementTableFlagsCol;
-	//private ArrayList<Player states>
+	private ArrayList<Direction> movementTableDirections;
+	private ArrayList<CollisionPermission> movementTableStepOnPermissions;
+	private ArrayList<CollisionPermission> movementTableStepOffPermissions;
 	
 	public CollisionConstant()
 	{
@@ -28,38 +25,34 @@ public class CollisionConstant extends Constant
 	
 	private void setUpLists()
 	{
-		this.movementTableDirectionCol = new ArrayList<>();
-		this.movementTableStepOnCol = new ArrayList<>();
-		this.movementTableFlagsCol = new ArrayList<>();
+		this.movementTableDirections = new ArrayList<>();
+		this.movementTableStepOnPermissions = new ArrayList<>();
+		this.movementTableStepOffPermissions = new ArrayList<>();
 		
-		boolean[] booleans = {false, true};
-		
-		for (boolean b : booleans) for (Direction direction : Direction.values())
+		for (Direction direction : Direction.values())
 		{
-			this.movementTableDirectionCol.add(direction);
-			this.movementTableStepOnCol.add(b);
-			this.movementTableFlagsCol.add(new ArrayList<>());
+			this.movementTableDirections.add(direction);
+			this.movementTableStepOnPermissions.add(null);
+			this.movementTableStepOffPermissions.add(null);
 		}
 	}
 	
-	public ArrayList<Flag> getFlagsForMovement(Direction direction, boolean stepOn)
+	public CollisionPermission getPermissionsForStep(Direction direction, boolean stepOn)
 	{
-		ArrayList<Flag> output = null;
+		if (direction == null) throw new NullPointerException();
+		if (!this.movementTableDirections.contains(direction)) throw new IllegalStateException();
 		
-		for (int i = 0; i < this.movementTableDirectionCol.size(); i++) if (this.movementTableDirectionCol.get(i).equals(direction) && this.movementTableStepOnCol.get(i) == stepOn)
-		{
-			output = this.movementTableFlagsCol.get(i);
-			break;
-		}
-		
-		if (output == null) throw new IllegalStateException("Could not find flags for the specified direction and step");
-		
-		return output;
+		if (stepOn) return this.movementTableStepOnPermissions.get(this.movementTableDirections.indexOf(direction));
+		else return this.movementTableStepOffPermissions.get(this.movementTableDirections.indexOf(direction));
 	}
 	
-	public boolean allowsMovement(Direction direction, boolean stepOn, List<Flag> flags)
+	public void setPermissionsForStep(Direction direction, boolean stepOn, CollisionPermission permission)
 	{
-		return flags.containsAll(this.getFlagsForMovement(direction, stepOn));
+		if (direction == null) throw new NullPointerException();
+		if (!this.movementTableDirections.contains(direction)) throw new IllegalStateException();
+		
+		if (stepOn) this.movementTableStepOnPermissions.set(this.movementTableDirections.indexOf(direction), permission);
+		else this.movementTableStepOffPermissions.set(this.movementTableDirections.indexOf(direction), permission);
 	}
 	
 }

@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.gmeister.temp.pkcmmsrando.map.data.Constant;
+import com.gmeister.temp.pkcmmsrando.map.data.CollisionConstant;
 import com.gmeister.temp.pkcmmsrando.map.data.Map;
 import com.gmeister.temp.pkcmmsrando.map.data.TileSet;
 import com.gmeister.temp.pkcmmsrando.map.data.Warp;
@@ -152,7 +152,7 @@ public class Notes
 		ArrayList<String> shuffledScript = rando.shuffleMusicPointers(musicScript);
 		io.writeMusicPointers(shuffledScript);
 		
-		ArrayList<Constant> collisionConstants = io.readCollisionConstants();
+		ArrayList<CollisionConstant> collisionConstants = io.readCollisionConstants();
 		ArrayList<TileSet> tileSets = io.readTileSets(collisionConstants);
 		for (TileSet tileSet : tileSets) tileSet.getBlockSet().updateCollGroups();
 		ArrayList<Map> maps = io.readMaps(tileSets);
