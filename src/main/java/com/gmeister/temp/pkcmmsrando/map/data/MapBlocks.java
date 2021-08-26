@@ -74,12 +74,6 @@ public class MapBlocks
 		if (this.isWithinBlocksAt(blockX, blockY)) return this.blocks[(blockY * this.xCapacity) + blockX].getTiles()[tileY][tileX];
 		else throw new MapOutOfBoundsException("Map does not contain coordinates " + x + ", " + y);
 	}
-	
-	public int moveFrom(int x, int y, Direction direction)
-	{
-		
-		return 0;
-	}
 
 	public String getName()
 	{ return this.name; }

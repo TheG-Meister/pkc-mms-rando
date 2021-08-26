@@ -1,11 +1,9 @@
-package com.gmeister.temp.pkcmmsrando;
+package com.gmeister.temp.pkcmmsrando.io;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -18,16 +16,16 @@ import com.gmeister.temp.pkcmmsrando.map.data.Block;
 import com.gmeister.temp.pkcmmsrando.map.data.BlockSet;
 import com.gmeister.temp.pkcmmsrando.map.data.CollisionConstant;
 import com.gmeister.temp.pkcmmsrando.map.data.Constant;
+import com.gmeister.temp.pkcmmsrando.map.data.Flag;
 import com.gmeister.temp.pkcmmsrando.map.data.Map;
 import com.gmeister.temp.pkcmmsrando.map.data.MapBlocks;
 import com.gmeister.temp.pkcmmsrando.map.data.TileSet;
 import com.gmeister.temp.pkcmmsrando.map.data.Warp;
 
-public class DisassemblyIO
+public class DisassemblyReader
 {
 	
-	private File inputFolder;
-	private File outputFolder;
+	private File dir;
 	
 	private Pattern commentPattern;
 	private Pattern trailingWhitespacePattern;
@@ -35,13 +33,10 @@ public class DisassemblyIO
 	private Pattern includePattern;
 	private Pattern incbinPattern;
 	
-	public DisassemblyIO(File inputFolder, File outputFolder) throws IOException
+	public DisassemblyReader(File dir) throws IOException, FileNotFoundException
 	{
-		this.inputFolder = inputFolder.getCanonicalFile();
-		if (!inputFolder.exists()) throw new FileNotFoundException(inputFolder.getAbsolutePath() + " does not exist");
-		
-		this.outputFolder = outputFolder.getCanonicalFile();
-		this.outputFolder.mkdirs();
+		this.dir = dir.getCanonicalFile();
+		if (!dir.exists()) throw new FileNotFoundException(dir.getAbsolutePath() + " does not exist");
 		
 		this.commentPattern = Pattern.compile(";.*");
 		this.trailingWhitespacePattern = Pattern.compile("\\s+$");
@@ -52,7 +47,32 @@ public class DisassemblyIO
 	
 	public ArrayList<CollisionConstant> readCollisionConstants() throws FileNotFoundException, IOException
 	{
-		return this.importConstants(inputFolder.toPath().resolve("constants/collision_constants.asm").toFile());
+		ArrayList<CollisionConstant> output = new ArrayList<>();
+		
+		ArrayList<Constant> constants = this.importConstants(dir.toPath().resolve("constants/collision_constants.asm").toFile());
+		for (Constant constant : constants) output.add(new CollisionConstant(constant));
+		
+		return output;
+	}
+	
+	public ArrayList<Flag> readEngineFlags() throws FileNotFoundException, IOException
+	{
+		ArrayList<Flag> output = new ArrayList<>();
+		
+		ArrayList<Constant> constants = this.importConstants(dir.toPath().resolve("constants/engine_flags.asm").toFile());
+		for (Constant constant : constants) if (!constant.getName().equals("NUM_ENGINE_FLAGS")) output.add(new Flag(constant));
+		
+		return output;
+	}
+	
+	public ArrayList<Flag> readEventFlags() throws FileNotFoundException, IOException
+	{
+		ArrayList<Flag> output = new ArrayList<>();
+		
+		ArrayList<Constant> constants = this.importConstants(dir.toPath().resolve("constants/event_flags.asm").toFile());
+		for (Constant constant : constants) if (!constant.getName().equals("NUM_EVENTS")) output.add(new Flag(constant));
+		
+		return output;
 	}
 	
 	public ArrayList<TileSet> readTileSets(ArrayList<CollisionConstant> collisionConstants) throws FileNotFoundException, IOException
@@ -75,7 +95,7 @@ public class DisassemblyIO
 		 */
 		
 		Pattern tilesetMacroPattern = Pattern.compile("^\\ttileset\\s*");
-		File dataScriptFile = this.inputFolder.toPath().resolve("data/tilesets.asm").toFile();
+		File dataScriptFile = this.dir.toPath().resolve("data/tilesets.asm").toFile();
 		ArrayList<String> dataScript = this.readScript(dataScriptFile);
 		for (String line : dataScript)
 		{
@@ -91,7 +111,7 @@ public class DisassemblyIO
 		
 		Pattern collPointerPattern = Pattern.compile("Coll::$");
 		Pattern metaPointerPattern = Pattern.compile("Meta::$");
-		File gfxScriptFile = this.inputFolder.toPath().resolve("gfx/tilesets.asm").toFile();
+		File gfxScriptFile = this.dir.toPath().resolve("gfx/tilesets.asm").toFile();
 		ArrayList<String> gfxScript = this.readScript(gfxScriptFile);
 		String mode = null;
 		ArrayList<TileSet> currentPointers = new ArrayList<>();
@@ -125,7 +145,7 @@ public class DisassemblyIO
 				{
 					String filePath = includeMatcher.replaceFirst("");
 					filePath = filePath.replace("\"", "");
-					File file = this.inputFolder.toPath().resolve(filePath).toFile();
+					File file = this.dir.toPath().resolve(filePath).toFile();
 					if (!file.exists()) throw new IllegalStateException("Could not find file " + file.getAbsolutePath());
 					ArrayList<String> collisionScript = this.readScript(file);
 					BlockSet blockSet = new BlockSet();
@@ -187,7 +207,7 @@ public class DisassemblyIO
 		//Create a mapping of map file names to map constant names
 		Pattern mapAttributesPattern = Pattern.compile("\\tmap_attributes\\s+");
 		ArrayList<Map> maps = new ArrayList<>();
-		File mapAttributesFile = inputFolder.toPath().resolve("data/maps/attributes.asm").toFile();
+		File mapAttributesFile = dir.toPath().resolve("data/maps/attributes.asm").toFile();
 		ArrayList<String> mapAttributesScript = this.readScript(mapAttributesFile);
 		for (String line : mapAttributesScript) if (mapAttributesPattern.matcher(line).find())
 		{
@@ -203,7 +223,7 @@ public class DisassemblyIO
 		
 		//Get map sizes from constants/map_constants.asm
 		Pattern mapConstPattern = Pattern.compile("^\\tmap_const\\s+");
-		File mapConstantsFile = inputFolder.toPath().resolve("constants/map_constants.asm").toFile();
+		File mapConstantsFile = dir.toPath().resolve("constants/map_constants.asm").toFile();
 		ArrayList<String> mapConstantsScript = this.readScript(mapConstantsFile);
 		for (String line : mapConstantsScript) if (mapConstPattern.matcher(line).find())
 		{
@@ -219,10 +239,10 @@ public class DisassemblyIO
 			}
 		}
 		
-		ArrayList<CollisionConstant> tileSetConstants = this.importConstants(this.inputFolder.toPath().resolve("constants/tileset_constants.asm").toFile());
+		ArrayList<Constant> tileSetConstants = this.importConstants(this.dir.toPath().resolve("constants/tileset_constants.asm").toFile());
 		
 		Pattern mapPattern = Pattern.compile("^\\tmap\\s+");
-		File mapDataFile = this.inputFolder.toPath().resolve("data/maps/maps.asm").toFile();
+		File mapDataFile = this.dir.toPath().resolve("data/maps/maps.asm").toFile();
 		ArrayList<String> mapDataScript = this.readScript(mapDataFile);
 		for (String line : mapDataScript) if (mapPattern.matcher(line).find())
 		{
@@ -248,7 +268,7 @@ public class DisassemblyIO
 		}
 		
 		Pattern blocksLabelPattern = Pattern.compile("_Blocks:");
-		File blocksScriptFile = this.inputFolder.toPath().resolve("data/maps/blocks.asm").toFile();
+		File blocksScriptFile = this.dir.toPath().resolve("data/maps/blocks.asm").toFile();
 		ArrayList<String> blocksScript = this.readScript(blocksScriptFile);
 		ArrayList<Map> currentLabels = new ArrayList<>();
 		for (String line : blocksScript)
@@ -269,7 +289,7 @@ public class DisassemblyIO
 				if (currentLabels.size() == 0) continue;
 				String filePath = incbinMatcher.replaceFirst("");
 				filePath = filePath.replace("\"", "");
-				File file = this.inputFolder.toPath().resolve(filePath).toFile();
+				File file = this.dir.toPath().resolve(filePath).toFile();
 				if (!file.exists()) throw new IllegalStateException("Could not find file " + file.getAbsolutePath());
 				byte[] blockIndices = Files.readAllBytes(file.toPath());
 				for (Map map : currentLabels) if (!map.getTileSet().equals(currentLabels.get(0).getTileSet())) throw new IllegalStateException("Maps using the same blocks use different tile sets");
@@ -286,7 +306,7 @@ public class DisassemblyIO
 			}
 		}
 		
-		File mapsFolderIn = inputFolder.toPath().resolve("maps/").toFile();
+		File mapsFolderIn = dir.toPath().resolve("maps/").toFile();
 		File[] mapsFiles = mapsFolderIn.listFiles();
 		for (File file : mapsFiles) if (file.getName().endsWith(".asm"))
 		{
@@ -334,7 +354,7 @@ public class DisassemblyIO
 	{
 		Pattern mapAttributesPattern = Pattern.compile("\\tmap_attributes\\s+");
 		ArrayList<String> mapConsts = new ArrayList<>();
-		File mapAttributesFile = inputFolder.toPath().resolve("data/maps/attributes.asm").toFile();
+		File mapAttributesFile = dir.toPath().resolve("data/maps/attributes.asm").toFile();
 		ArrayList<String> mapAttributesScript = this.readScript(mapAttributesFile);
 		for (int i = 0; i < maps.size(); i++) mapConsts.add(null);
 		
@@ -350,61 +370,18 @@ public class DisassemblyIO
 		return mapConsts;
 	}
 	
-	public void writeAllMapBlocks(ArrayList<Map> maps) throws IOException
-	{
-		ArrayList<MapBlocks> mapBlockss = new ArrayList<>();
-		ArrayList<TileSet> tileSets = new ArrayList<>();
-		for (Map map : maps) if (!mapBlockss.contains(map.getBlocks()))
-		{
-			mapBlockss.add(map.getBlocks());
-			tileSets.add(map.getTileSet());
-		}
-		
-		for (int i = 0; i < mapBlockss.size(); i++) this.writeMapBlocks(mapBlockss.get(i), tileSets.get(i).getBlockSet());
-	}
-	
-	public void writeMapBlocks(MapBlocks blocks, BlockSet blockSet) throws IOException
-	{
-		File outputFile = this.getOutputFolder("maps/").toPath().resolve(blocks.getName() + ".blk").toFile();
-		byte[] outputArray = new byte[blocks.getBlocks().length];
-		for (int i = 0; i < blocks.getBlocks().length; i++)
-		{
-			if (!blockSet.getBlocks().contains(blocks.getBlocks()[i])) throw new IllegalArgumentException("This blockset does not contain the map block at index " + i);
-			outputArray[i] = (byte) (blockSet.getBlocks().indexOf(blocks.getBlocks()[i]) & 0xFF);
-		}
-		Files.write(outputFile.toPath(), outputArray);
-	}
-	
-	public void writeMapScript(Map map) throws IOException
-	{
-		File file = this.getOutputFolder("maps/").toPath().resolve(map.getName() + ".asm").toFile();
-		this.writeScript(map.getScript(), file);
-	}
-	
 	public ArrayList<String> readMusicPointers() throws FileNotFoundException, IOException
 	{
-		File file = inputFolder.toPath().resolve("audio/music_pointers.asm").toFile();
+		File file = dir.toPath().resolve("audio/music_pointers.asm").toFile();
 		if (!file.exists()) throw new FileNotFoundException(file.getAbsolutePath() + " could not be found.");
 		return this.readScript(file);
-	}
-	
-	public void writeMusicPointers(ArrayList<String> script) throws IOException
-	{
-		File file = this.getOutputFolder("audio/").toPath().resolve("music_pointers.asm").toFile();
-		this.writeScript(script, file);
 	}
 	
 	public ArrayList<String> readSFXPointers() throws FileNotFoundException, IOException
 	{
-		File file = inputFolder.toPath().resolve("audio/sfx_pointers.asm").toFile();
+		File file = dir.toPath().resolve("audio/sfx_pointers.asm").toFile();
 		if (!file.exists()) throw new FileNotFoundException(file.getAbsolutePath() + " could not be found.");
 		return this.readScript(file);
-	}
-	
-	public void writeSFXPointers(ArrayList<String> script) throws IOException
-	{
-		File file = this.getOutputFolder("audio/").toPath().resolve("sfx_pointers.asm").toFile();
-		this.writeScript(script, file);
 	}
 	
 	private ArrayList<String> readScript(File file) throws FileNotFoundException, IOException
@@ -419,48 +396,32 @@ public class DisassemblyIO
 		return script;
 	}
 	
-	private void writeScript(ArrayList<String> script, File file) throws IOException
-	{
-		try (BufferedWriter writer = new BufferedWriter(new FileWriter(file, Charset.forName("UTF-8"))))
-		{
-			for (String line : script)
-			{
-				writer.write(line);
-				writer.newLine();
-			}
-			writer.flush();
-		}
-	}
-	
-	private File getOutputFolder(String path)
-	{
-		File outputFolder = this.outputFolder.toPath().resolve(path).toFile();
-		if (!outputFolder.exists()) outputFolder.mkdirs();
-		return outputFolder;
-	}
-	
 	/**
 	 * Imports Constants from a File.
 	 * 
 	 * @param f the file to read from
 	 * @return an ArrayList of Constants in the order they
 	 *         are imported
-	 * @throws FileNotFoundException when the input file canot be found
-	 * @throws IOException           when an IO exception occurs
+	 * @throws FileNotFoundException if the input file cannot be found
+	 * @throws IOException           if an IO exception occurs
 	 */
-	private ArrayList<CollisionConstant> importConstants(File f) throws FileNotFoundException, IOException
+	private ArrayList<Constant> importConstants(File f) throws FileNotFoundException, IOException
 	{
-		ArrayList<CollisionConstant> constants = new ArrayList<>();
+		ArrayList<Constant> constants = new ArrayList<>();
 		Pattern equPattern = Pattern.compile("\\s+EQU\\s+");
-		Pattern constdefPattern = Pattern.compile("^\\tconst_def\\s+");
+		Pattern constdefPattern = Pattern.compile("^\\tconst_def\\s*");
 		Pattern constPattern = Pattern.compile("^\\tconst\\s+");
+		Pattern constskipPattern = Pattern.compile("^\\tconst_skip\\s*");
+		Pattern constnextPattern = Pattern.compile("^\\tconst_next\\s+");
 		
 		int count = -1;
+		int step = 1;
 		try (BufferedReader reader = new BufferedReader(new FileReader(f)))
 		{
 			while (reader.ready())
 			{
 				String line = reader.readLine();
+				String backup = line;
 				line = this.commentPattern.matcher(line).replaceFirst("");
 				line = this.trailingWhitespacePattern.matcher(line).replaceFirst("");
 				
@@ -469,22 +430,40 @@ public class DisassemblyIO
 					String[] args = equPattern.split(line, 2);
 					if (args.length != 2) continue; //throw new IllegalArgumentException("The line \"" + line + "\" does not compile");
 					
-					byte value = args[1].startsWith("$") ? (byte) Integer.parseInt(args[1].substring(1), 16)
-							: (byte) Integer.parseInt(args[1]);
-					constants.add(new CollisionConstant(args[0], value));
+					int value;
+					if (args[1].startsWith("$")) value = Integer.parseInt(args[1].substring(1), 16);
+					else if (args[1].equals("const_value")) value = count;
+					else value = Integer.parseInt(args[1]);
+					
+					constants.add(new Constant(args[0], value));
 				}
 				else if (constdefPattern.matcher(line).find())
 				{
 					line = constdefPattern.matcher(line).replaceFirst("");
 					if (line.equals("")) count = 0;
+					else if (this.commaSeparatorPattern.matcher(line).find())
+					{
+						String[] args = this.commaSeparatorPattern.split(line);
+						if (args.length > 2) throw new IOException("Too many arguments provided to const_def: " + backup);
+						count = Integer.parseInt(args[0]);
+						step = Integer.parseInt(args[1]);
+					}
 					else count = Integer.parseInt(line);
 				}
 				else if (constPattern.matcher(line).find())
 				{
-					if (count == -1) throw new IllegalStateException("");
+					if (count == -1) throw new IllegalStateException();
 					line = constPattern.matcher(line).replaceFirst("");
-					constants.add(new CollisionConstant(line, (byte) (count & 0xFF)));
-					count++;
+					constants.add(new Constant(line, count));
+					count += step;
+				}
+				else if (constskipPattern.matcher(line).find()) count += step;
+				else if (constnextPattern.matcher(line).find())
+				{
+					line = constnextPattern.matcher(line).replaceFirst("");
+					int newCount = Integer.parseInt(line);
+					if (newCount < count) throw new IOException("const value cannot decrease: " + backup);
+					count = newCount;
 				}
 			}
 		}

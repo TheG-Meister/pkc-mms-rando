@@ -3,6 +3,8 @@ package com.gmeister.temp.pkcmmsrando.map.data;
 import java.util.ArrayList;
 import java.util.regex.Pattern;
 
+import com.gmeister.temp.pkcmmsrando.map.data.MapBlocks.Direction;
+
 public class Map
 {
 	
@@ -128,7 +130,12 @@ public class Map
 				 * bulk movement code is in here?
 				 */
 				
+				//CollisionConstant 
 				
+				for (Direction direction : Direction.values())
+				{
+					
+				}
 				
 				tilesToTest[y][x] = false;
 				tilesTested[y][x] = true;

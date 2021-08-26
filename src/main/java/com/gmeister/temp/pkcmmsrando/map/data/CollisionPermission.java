@@ -30,7 +30,7 @@ public class CollisionPermission
 	public void setName(String name)
 	{ this.name = name; }
 	
-	public boolean getAllowed()
+	public boolean isAllowed()
 	{ return this.allowed; }
 	
 	public void setAllowed(boolean allowed)

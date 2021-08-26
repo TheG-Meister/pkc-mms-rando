@@ -4,12 +4,12 @@ public class Constant
 {
 	
 	private String name;
-	private byte value;
+	private int value;
 	
 	public Constant()
 	{}
 	
-	public Constant(String name, byte value)
+	public Constant(String name, int value)
 	{
 		this.name = name;
 		this.value = value;
@@ -21,10 +21,10 @@ public class Constant
 	public void setName(String name)
 	{ this.name = name; }
 	
-	public byte getValue()
+	public int getValue()
 	{ return this.value; }
 	
-	public void setValue(byte value)
+	public void setValue(int value)
 	{ this.value = value; }
 	
 }

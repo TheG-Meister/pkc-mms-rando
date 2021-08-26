@@ -3,6 +3,7 @@ package com.gmeister.temp.pkcmmsrando;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -11,7 +12,12 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.gmeister.temp.pkcmmsrando.io.DisassemblyReader;
+import com.gmeister.temp.pkcmmsrando.io.DisassemblyWriter;
+import com.gmeister.temp.pkcmmsrando.io.EmpiricalDataReader;
 import com.gmeister.temp.pkcmmsrando.map.data.CollisionConstant;
+import com.gmeister.temp.pkcmmsrando.map.data.CollisionPermission;
+import com.gmeister.temp.pkcmmsrando.map.data.Flag;
 import com.gmeister.temp.pkcmmsrando.map.data.Map;
 import com.gmeister.temp.pkcmmsrando.map.data.TileSet;
 import com.gmeister.temp.pkcmmsrando.map.data.Warp;
@@ -137,25 +143,25 @@ public class Notes
 		return groups;
 	}
 	
-	public static void main(String... args) throws IOException
+	public static void warpRando() throws IOException
 	{
-		
 		File inFolder = Paths.get(
 				"E:/grant/documents/.my-stuff/Pokecrystal/pokecrystal-speedchoice-7.2/").toFile();
 		File outFolder = Paths.get(
 				"E:/grant/documents/.my-stuff/Pokecrystal/pkc-mms-rando/patches/21-08-21-1/pokecrystal-speedchoice/").toFile();
 		
-		DisassemblyIO io = new DisassemblyIO(inFolder, outFolder);
+		DisassemblyReader disReader = new DisassemblyReader(inFolder);
+		DisassemblyWriter disWriter = new DisassemblyWriter(outFolder);
 		Randomiser rando = new Randomiser();
 		
-		ArrayList<String> musicScript = io.readMusicPointers();
+		ArrayList<String> musicScript = disReader.readMusicPointers();
 		ArrayList<String> shuffledScript = rando.shuffleMusicPointers(musicScript);
-		io.writeMusicPointers(shuffledScript);
+		disWriter.writeMusicPointers(shuffledScript);
 		
-		ArrayList<CollisionConstant> collisionConstants = io.readCollisionConstants();
-		ArrayList<TileSet> tileSets = io.readTileSets(collisionConstants);
+		ArrayList<CollisionConstant> collisionConstants = disReader.readCollisionConstants();
+		ArrayList<TileSet> tileSets = disReader.readTileSets(collisionConstants);
 		for (TileSet tileSet : tileSets) tileSet.getBlockSet().updateCollGroups();
-		ArrayList<Map> maps = io.readMaps(tileSets);
+		ArrayList<Map> maps = disReader.readMaps(tileSets);
 		
 		/*Notes.randomiseWarpAreas(maps);
 		
@@ -292,7 +298,33 @@ public class Notes
 		for (Map map : maps)
 		{
 			map.writeWarpsToScript();
-			io.writeMapScript(map);
+			disWriter.writeMapScript(map);
+		}
+	}
+	
+	public static void main(String... args) throws IOException, URISyntaxException
+	{
+		File inFolder = Paths.get(
+				"E:/grant/documents/.my-stuff/Pokecrystal/pokecrystal-speedchoice-7.2/").toFile();
+		File outFolder = Paths.get(
+				"E:/grant/documents/.my-stuff/Pokecrystal/pkc-mms-rando/patches/21-08-21-1/pokecrystal-speedchoice/").toFile();
+		
+		DisassemblyReader disReader = new DisassemblyReader(inFolder);
+		DisassemblyWriter disWriter = new DisassemblyWriter(outFolder);
+		EmpiricalDataReader empReader = new EmpiricalDataReader(null);
+		Randomiser rando = new Randomiser();
+		
+		ArrayList<Flag> flags = new ArrayList<>();
+		flags.addAll(disReader.readEngineFlags());
+		flags.addAll(disReader.readEventFlags());
+		
+		ArrayList<CollisionPermission> perms = empReader.readCollisionPermissions(flags);
+		
+		for (CollisionPermission perm : perms)
+		{
+			System.out.print(perm.getName() + "\t" + perm.isAllowed());
+			for (Flag flag : perm.getFlags()) System.out.print("\t" + flag.getName());
+			System.out.println();
 		}
 	}
 	

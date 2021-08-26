@@ -17,9 +17,15 @@ public class CollisionConstant extends Constant
 		this.setUpLists();
 	}
 	
-	public CollisionConstant(String name, byte value)
+	public CollisionConstant(String name, int value)
 	{
 		super(name, value);
+		this.setUpLists();
+	}
+	
+	public CollisionConstant(Constant constant)
+	{
+		super(constant.getName(), constant.getValue());
 		this.setUpLists();
 	}
 	
