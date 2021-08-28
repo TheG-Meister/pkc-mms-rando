@@ -319,12 +319,21 @@ public class Notes
 		flags.addAll(disReader.readEventFlags());
 		
 		ArrayList<CollisionPermission> perms = empReader.readCollisionPermissions(flags);
+		ArrayList<CollisionConstant> collision = empReader.readCollisionConstants(perms);
 		
-		for (CollisionPermission perm : perms)
+		ArrayList<TileSet> tileSets = disReader.readTileSets(collision);
+		for (TileSet tileSet : tileSets) tileSet.getBlockSet().updateCollGroups();
+		ArrayList<Map> maps = disReader.readMaps(tileSets);
+		
+		for (Map map : maps) if (map.getConstName().equals("TOHJO_FALLS"))
 		{
-			System.out.print(perm.getName() + "\t" + perm.isAllowed());
-			for (Flag flag : perm.getFlags()) System.out.print("\t" + flag.getName());
-			System.out.println();
+			System.out.println(map.getConstName());
+			System.out.println(map.testMovement(13,15,10,14,null));
+			System.out.println(map.testMovement(13,15,2,6,null));
+			System.out.println(map.testMovement(13,15,2,6,flags));
+			System.out.println(map.testMovement(13,15,25,15,null));
+			System.out.println(map.testMovement(13,15,25,15,flags));
+			break;
 		}
 	}
 	

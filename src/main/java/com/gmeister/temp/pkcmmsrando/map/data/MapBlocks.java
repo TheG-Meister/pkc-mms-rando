@@ -40,16 +40,16 @@ public class MapBlocks
 	
 	public Block getAt(int x, int y)
 	{
-		if (this.isWithinBlocksAt(x, y)) return this.blocks[(y * this.xCapacity) + x];
+		if (this.containsBlockAt(x, y)) return this.blocks[(y * this.xCapacity) + x];
 		else throw new MapOutOfBoundsException("Map does not contain coordinates " + x + ", " + y);
 	}
 	
-	public boolean isWithinBlocksAt(int x, int y)
+	public boolean containsBlockAt(int x, int y)
 	{ return !(x < 0 || x >= this.xCapacity || y < 0 || y >= this.yCapacity); }
 	
 	public void setAt(int x, int y, Block b)
 	{
-		if (this.isWithinBlocksAt(x, y)) this.blocks[(y * this.xCapacity) + x] = b;
+		if (this.containsBlockAt(x, y)) this.blocks[(y * this.xCapacity) + x] = b;
 		else throw new MapOutOfBoundsException("BooleanMap does not contain coordinates " + x + ", " + y);
 	}
 	
@@ -60,8 +60,15 @@ public class MapBlocks
 		int collisionX = x % 2;
 		int collisionY = y % 2;
 		
-		if (this.isWithinBlocksAt(blockX, blockY)) return this.blocks[(blockY * this.xCapacity) + blockX].getCollision()[collisionY][collisionX];
+		if (this.containsBlockAt(blockX, blockY)) return this.blocks[(blockY * this.xCapacity) + blockX].getCollision()[collisionY][collisionX];
 		else throw new MapOutOfBoundsException("Map does not contain coordinates " + x + ", " + y);
+	}
+	
+	public boolean containsCollisionAt(int x, int y)
+	{
+		int blockX = Math.floorDiv(x, 2);
+		int blockY = Math.floorDiv(y, 2);
+		return !(blockX < 0 || blockX >= this.xCapacity || blockY < 0 || blockY >= this.yCapacity);
 	}
 	
 	public Tile getTileAt(int x, int y)
@@ -71,8 +78,15 @@ public class MapBlocks
 		int tileX = x % 4;
 		int tileY = y % 4;
 		
-		if (this.isWithinBlocksAt(blockX, blockY)) return this.blocks[(blockY * this.xCapacity) + blockX].getTiles()[tileY][tileX];
+		if (this.containsBlockAt(blockX, blockY)) return this.blocks[(blockY * this.xCapacity) + blockX].getTiles()[tileY][tileX];
 		else throw new MapOutOfBoundsException("Map does not contain coordinates " + x + ", " + y);
+	}
+	
+	public boolean containsTileAt(int x, int y)
+	{
+		int blockX = Math.floorDiv(x, 4);
+		int blockY = Math.floorDiv(y, 4);
+		return !(blockX < 0 || blockX >= this.xCapacity || blockY < 0 || blockY >= this.yCapacity);
 	}
 
 	public String getName()

@@ -112,8 +112,10 @@ public class Map
 		}
 	}
 	
-	public boolean canMoveFrom(int x1, int y1, int x2, int y2)
+	public boolean testMovement(int x1, int y1, int x2, int y2, ArrayList<Flag> flags)
 	{
+		if (flags == null) flags = new ArrayList<>();
+		
 		boolean[][] tilesToTest = new boolean[this.blocks.getYCapacity() * 2][this.blocks.getXCapacity() * 2];
 		boolean[][] tilesTested = new boolean[this.blocks.getYCapacity() * 2][this.blocks.getXCapacity() * 2];
 		boolean[][] tilesValid = new boolean[this.blocks.getYCapacity() * 2][this.blocks.getXCapacity() * 2];
@@ -124,17 +126,28 @@ public class Map
 		{
 			changed = false;
 			
-			for (int y = 0; y < tilesToTest.length; y++) for (int x = 0; x < tilesToTest[y].length; x++) if (tilesToTest[y][x])
+			for (int y = 0; y < tilesToTest.length; y++) for (int x = 0; x < tilesToTest[y].length; x++) if (!tilesTested[y][x] && tilesToTest[y][x])
 			{
-				/*
-				 * bulk movement code is in here?
-				 */
-				
-				//CollisionConstant 
+				CollisionConstant collision = this.blocks.getCollisionAt(x, y);
 				
 				for (Direction direction : Direction.values())
 				{
-					
+					CollisionPermission perm = collision.getPermissionsForStep(direction, false);
+					if (perm.isAllowed() && flags.containsAll(perm.getFlags()))
+					{
+						int nextX = x + direction.getDx();
+						int nextY = y + direction.getDy();
+						if (this.blocks.containsCollisionAt(nextX, nextY))
+						{
+							CollisionPermission nextPerm = this.blocks.getCollisionAt(nextX, nextY).getPermissionsForStep(direction, true);
+							if (nextPerm.isAllowed() && flags.containsAll(nextPerm.getFlags()))
+							{
+								tilesToTest[nextY][nextX] = true;
+								tilesValid[nextY][nextX] = true;
+								changed = true;
+							}
+						}
+					}
 				}
 				
 				tilesToTest[y][x] = false;
@@ -144,6 +157,6 @@ public class Map
 		while (changed && !tilesValid[y2][x2]);
 		
 		return tilesValid[y2][x2];
-	}
+	} 
 	
 }
