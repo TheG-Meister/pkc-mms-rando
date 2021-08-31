@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -19,6 +20,8 @@ import com.gmeister.temp.pkcmmsrando.map.data.Constant;
 import com.gmeister.temp.pkcmmsrando.map.data.Flag;
 import com.gmeister.temp.pkcmmsrando.map.data.Map;
 import com.gmeister.temp.pkcmmsrando.map.data.MapBlocks;
+import com.gmeister.temp.pkcmmsrando.map.data.MapConnection;
+import com.gmeister.temp.pkcmmsrando.map.data.MapConnection.Cardinal;
 import com.gmeister.temp.pkcmmsrando.map.data.TileSet;
 import com.gmeister.temp.pkcmmsrando.map.data.Warp;
 
@@ -192,33 +195,62 @@ public class DisassemblyReader
 		 * -Find the pointer's blocks
 		 */
 		
-		/*File mapMeta = Paths.get(
-				"D:/Users/The_G_Meister/Documents/_MY SHIT/Pokecrystal/pkc-mms-rando/metadata/map-data.tsv").toFile();
-		HashMap<String, String> mapTileSets = new HashMap<>();
-		try (BufferedReader reader = new BufferedReader(new FileReader(mapMeta)))
-		{
-			while (reader.ready())
-			{
-				String[] fields = reader.readLine().split("\t");
-				mapTileSets.put(fields[0], fields[1].toLowerCase().replace("tileset_", ""));
-			}
-		}*/
-		
 		//Create a mapping of map file names to map constant names
 		Pattern mapAttributesPattern = Pattern.compile("\\tmap_attributes\\s+");
 		ArrayList<Map> maps = new ArrayList<>();
+		
 		File mapAttributesFile = dir.toPath().resolve("data/maps/attributes.asm").toFile();
 		ArrayList<String> mapAttributesScript = this.readScript(mapAttributesFile);
+		HashMap<String, Map> mapsByName = new HashMap<>();
+		HashMap<String, Map> mapsByConstName = new HashMap<>();
+		
 		for (String line : mapAttributesScript) if (mapAttributesPattern.matcher(line).find())
 		{
+			String backup = line;
 			line = this.commentPattern.matcher(line).replaceFirst("");
 			line = this.trailingWhitespacePattern.matcher(line).replaceFirst("");
 			line = mapAttributesPattern.matcher(line).replaceFirst("");
 			String[] args = this.commaSeparatorPattern.split(line);
+			
 			Map map = new Map();
+			if (args.length != 4) throw new IOException("map_attributes did not contain 4 arguments: \"" + backup + "\"");
 			map.setName(args[0]);
 			map.setConstName(args[1]);
+			
 			maps.add(map);
+			mapsByName.put(map.getName(), map);
+			mapsByConstName.put(map.getConstName(), map);
+		}
+
+		Pattern connectionPattern = Pattern.compile("\\tconnection\\s+");
+		Map currentMap = null;
+		for (String line : mapAttributesScript)
+		{
+			String backup = line;
+			line = this.commentPattern.matcher(line).replaceFirst("");
+			line = this.trailingWhitespacePattern.matcher(line).replaceFirst("");
+			
+			if (mapAttributesPattern.matcher(line).find())
+			{
+				line = mapAttributesPattern.matcher(line).replaceFirst("");
+				String[] args = this.commaSeparatorPattern.split(line);
+				if (args.length != 4) throw new IOException("map_attributes did not contain 4 arguments: \"" + backup + "\"");
+				
+				currentMap = mapsByConstName.get(args[1]);
+			}
+			else if (currentMap != null && connectionPattern.matcher(line).find())
+			{
+				line = connectionPattern.matcher(line).replaceFirst("");
+				String[] args = this.commaSeparatorPattern.split(line);
+				if (args.length != 4) throw new IOException("connection did not contain 4 arguments: \"" + backup + "\"");
+				
+				for (Cardinal cardinal : Cardinal.values()) if (cardinal.name().equals(args[0].toUpperCase()))
+				{
+					Map connection = mapsByConstName.get(args[2]);
+					if (connection == null) throw new IOException("Could not find a map with const name " + args[2] + ": \"" + backup + "\"");
+					currentMap.getConnections().put(cardinal, new MapConnection(connection, Integer.parseInt(args[3])));
+				}
+			}
 		}
 		
 		//Get map sizes from constants/map_constants.asm
@@ -227,16 +259,16 @@ public class DisassemblyReader
 		ArrayList<String> mapConstantsScript = this.readScript(mapConstantsFile);
 		for (String line : mapConstantsScript) if (mapConstPattern.matcher(line).find())
 		{
+			String backup = line;
 			line = this.commentPattern.matcher(line).replaceFirst("");
 			line = this.trailingWhitespacePattern.matcher(line).replaceFirst("");
 			line = mapConstPattern.matcher(line).replaceFirst("");
 			String[] args = this.commaSeparatorPattern.split(line);
 			
-			for (Map map : maps) if (args[0].equals(map.getConstName()))
-			{
-				map.setXCapacity(Integer.parseInt(args[1]));
-				map.setYCapacity(Integer.parseInt(args[2]));
-			}
+			Map map = mapsByConstName.get(args[0]);
+			if (map == null) throw new IOException("Could not find a map with name " + args[0] + ": \"" + backup + "\"");
+			map.setXCapacity(Integer.parseInt(args[1]));
+			map.setYCapacity(Integer.parseInt(args[2]));
 		}
 		
 		ArrayList<Constant> tileSetConstants = this.importConstants(this.dir.toPath().resolve("constants/tileset_constants.asm").toFile());
@@ -290,9 +322,9 @@ public class DisassemblyReader
 				String filePath = incbinMatcher.replaceFirst("");
 				filePath = filePath.replace("\"", "");
 				File file = this.dir.toPath().resolve(filePath).toFile();
-				if (!file.exists()) throw new IllegalStateException("Could not find file " + file.getAbsolutePath());
+				if (!file.exists()) throw new FileNotFoundException("Could not find file " + file.getAbsolutePath());
 				byte[] blockIndices = Files.readAllBytes(file.toPath());
-				for (Map map : currentLabels) if (!map.getTileSet().equals(currentLabels.get(0).getTileSet())) throw new IllegalStateException("Maps using the same blocks use different tile sets");
+				for (Map map : currentLabels) if (!map.getTileSet().equals(currentLabels.get(0).getTileSet())) throw new IOException("Maps using the same blocks use different tile sets");
 				ArrayList<Block> blockSetBlocks = currentLabels.get(0).getTileSet().getBlockSet().getBlocks();
 				MapBlocks mapBlocksObject = new MapBlocks();
 				mapBlocksObject.setXCapacity(currentLabels.get(0).getXCapacity());
@@ -311,11 +343,9 @@ public class DisassemblyReader
 		for (File file : mapsFiles) if (file.getName().endsWith(".asm"))
 		{
 			String mapName = file.getName().replaceAll(".asm", "");
-			for (Map map : maps) if (map.getName().equals(mapName))
-			{
-				map.setScript(this.readScript(file));
-				break;
-			}
+			Map map = mapsByName.get(mapName);
+			if (map == null) throw new IOException("Could not find a map with name " + mapName);
+			map.setScript(this.readScript(file));
 		}
 		
 		Pattern warpEventPattern = Pattern.compile("\\twarp_event\\s+");
@@ -326,6 +356,7 @@ public class DisassemblyReader
 			int count = 0;
 			if (map.getScript() != null) for (String line : map.getScript()) if (warpEventPattern.matcher(line).find())
 			{
+				String backup = line;
 				line = this.commentPattern.matcher(line).replaceFirst("");
 				line = this.trailingWhitespacePattern.matcher(line).replaceFirst("");
 				line = warpEventPattern.matcher(line).replaceFirst("");
@@ -336,12 +367,11 @@ public class DisassemblyReader
 				warp.setY(Integer.parseInt(args[1]));
 				warp.setMap(map);
 				int destinationIndex = Integer.parseInt(args[3]) - 1;
-				
-				for (Map mapTo : maps) if (mapTo.getConstName().equals(args[2]))
-				{
-					if (destinationIndex >= mapTo.getWarps().size()) throw new IllegalStateException();
-					if (destinationIndex >= 0) warp.setDestination(mapTo.getWarps().get(destinationIndex));
-				}
+
+				Map mapTo = mapsByConstName.get(args[2]);
+				if (mapTo == null) throw new IOException("Could not find a map with name " + args[2] + ": \"" + backup + "\"");
+				if (destinationIndex >= mapTo.getWarps().size()) throw new IllegalStateException();
+				if (destinationIndex >= 0) warp.setDestination(mapTo.getWarps().get(destinationIndex));
 				
 				count++;
 			}
@@ -377,6 +407,15 @@ public class DisassemblyReader
 		return this.readScript(file);
 	}
 	
+	public ArrayList<Constant> readMusicConstants() throws IOException
+	{
+		File file = dir.toPath().resolve("constants/music_constants.asm").toFile();
+		if (!file.exists()) throw new FileNotFoundException(file.getAbsolutePath() + " could not be found.");
+		ArrayList<Constant> constants = this.importConstants(file);
+		for (Constant constant : constants) if (!constant.getName().startsWith("MUSIC_")) constants.remove(constant);
+		return constants;
+	}
+	
 	public ArrayList<String> readSFXPointers() throws FileNotFoundException, IOException
 	{
 		File file = dir.toPath().resolve("audio/sfx_pointers.asm").toFile();
@@ -384,7 +423,7 @@ public class DisassemblyReader
 		return this.readScript(file);
 	}
 	
-	private ArrayList<String> readScript(File file) throws FileNotFoundException, IOException
+	public ArrayList<String> readScript(File file) throws FileNotFoundException, IOException
 	{
 		ArrayList<String> script = new ArrayList<>();
 		

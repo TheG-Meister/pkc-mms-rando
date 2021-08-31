@@ -19,6 +19,8 @@ import com.gmeister.temp.pkcmmsrando.map.data.CollisionConstant;
 import com.gmeister.temp.pkcmmsrando.map.data.CollisionPermission;
 import com.gmeister.temp.pkcmmsrando.map.data.Flag;
 import com.gmeister.temp.pkcmmsrando.map.data.Map;
+import com.gmeister.temp.pkcmmsrando.map.data.MapConnection;
+import com.gmeister.temp.pkcmmsrando.map.data.MapConnection.Cardinal;
 import com.gmeister.temp.pkcmmsrando.map.data.TileSet;
 import com.gmeister.temp.pkcmmsrando.map.data.Warp;
 
@@ -325,15 +327,10 @@ public class Notes
 		for (TileSet tileSet : tileSets) tileSet.getBlockSet().updateCollGroups();
 		ArrayList<Map> maps = disReader.readMaps(tileSets);
 		
-		for (Map map : maps) if (map.getConstName().equals("TOHJO_FALLS"))
+		for (Map map : maps) for (Cardinal cardinal : Cardinal.values())
 		{
-			System.out.println(map.getConstName());
-			System.out.println(map.testMovement(13,15,10,14,null));
-			System.out.println(map.testMovement(13,15,2,6,null));
-			System.out.println(map.testMovement(13,15,2,6,flags));
-			System.out.println(map.testMovement(13,15,25,15,null));
-			System.out.println(map.testMovement(13,15,25,15,flags));
-			break;
+			MapConnection connection = map.getConnections().get(cardinal);
+			if (connection != null) System.out.println(map.getConstName() + " has a " + cardinal.name() + " connection to " + connection.getMap().getConstName() + " with " + connection.getOffset() + " offset");
 		}
 	}
 	

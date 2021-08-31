@@ -1,9 +1,11 @@
 package com.gmeister.temp.pkcmmsrando.map.data;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.regex.Pattern;
 
 import com.gmeister.temp.pkcmmsrando.map.data.MapBlocks.Direction;
+import com.gmeister.temp.pkcmmsrando.map.data.MapConnection.Cardinal;
 
 public class Map
 {
@@ -26,11 +28,14 @@ public class Map
 	private MapBlocks blocks;
 	private ArrayList<Warp> warps;
 	private TileSet tileSet;
+	private HashMap<Cardinal, MapConnection> connections;
 	
 	public Map()
 	{
 		this.script = new ArrayList<>();
 		this.warps = new ArrayList<>();
+		this.connections = new HashMap<>();
+		for (Cardinal cardinal : Cardinal.values()) connections.put(cardinal, null);
 	}
 
 	public String getName()
@@ -81,6 +86,9 @@ public class Map
 	public void setTileSet(TileSet tileSet)
 	{ this.tileSet = tileSet; }
 	
+	public HashMap<Cardinal, MapConnection> getConnections()
+	{ return this.connections; }
+
 	public void writeWarpsToScript()
 	{
 		Pattern warpEventPattern = Pattern.compile("\\twarp_event\\s+");
