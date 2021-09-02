@@ -19,8 +19,6 @@ import com.gmeister.temp.pkcmmsrando.map.data.CollisionConstant;
 import com.gmeister.temp.pkcmmsrando.map.data.CollisionPermission;
 import com.gmeister.temp.pkcmmsrando.map.data.Flag;
 import com.gmeister.temp.pkcmmsrando.map.data.Map;
-import com.gmeister.temp.pkcmmsrando.map.data.MapConnection;
-import com.gmeister.temp.pkcmmsrando.map.data.MapConnection.Cardinal;
 import com.gmeister.temp.pkcmmsrando.map.data.TileSet;
 import com.gmeister.temp.pkcmmsrando.map.data.Warp;
 
@@ -114,7 +112,7 @@ public class Notes
 	
 	public static void randomiseWarpAreas(ArrayList<Map> maps) throws IOException
 	{
-		ArrayList<Warp> warps = new ArrayList<>();
+		ArrayList<ArrayList<Warp>> warpGroups = new ArrayList<>();
 		ArrayList<ArrayList<Map>> mapGroups = new ArrayList<>();
 		ArrayList<String[]> mapGroupNamess = Notes.readMapGroups();
 		for (String[] mapGroupNames : mapGroupNamess) mapGroups.add(Notes.getMapsByNames(maps, mapGroupNames));
@@ -124,9 +122,26 @@ public class Notes
 				for (Warp warp : map.getWarps())
 					for (ArrayList<Map> mapGroup2 : mapGroups)
 						if (!mapGroup.equals(mapGroup2) && mapGroup2.contains(warp.getDestination().getMap()))
-			warps.add(warp);
+		{
+			ArrayList<Warp> group = null;
+			
+			groupTesting:
+			for (ArrayList<Warp> testGroup : warpGroups) for (Warp testWarp : testGroup) if (warp.isAdjacentTo(testWarp))
+			{
+				group = testGroup;
+				break groupTesting;
+			}
+			
+			if (group == null)
+			{
+				group = new ArrayList<>();
+				warpGroups.add(group);
+			}
+			
+			group.add(warp);
+		}
 		
-		new Randomiser().shuffleWarpDestinations(warps, false, true, false);
+		new Randomiser().shuffleWarpGroups(warpGroups, false, true);
 	}
 	
 	public static ArrayList<Map> getMapsByNames(ArrayList<Map> maps, String... constNames)
@@ -309,7 +324,7 @@ public class Notes
 		File inFolder = Paths.get(
 				"E:/grant/documents/.my-stuff/Pokecrystal/pokecrystal-speedchoice-7.2/").toFile();
 		File outFolder = Paths.get(
-				"E:/grant/documents/.my-stuff/Pokecrystal/pkc-mms-rando/patches/21-08-21-1/pokecrystal-speedchoice/").toFile();
+				"E:/grant/documents/.my-stuff/Pokecrystal/pkc-mms-rando/patches/21-09-01-1/pokecrystal-speedchoice/").toFile();
 		
 		DisassemblyReader disReader = new DisassemblyReader(inFolder);
 		DisassemblyWriter disWriter = new DisassemblyWriter(outFolder);
@@ -327,10 +342,12 @@ public class Notes
 		for (TileSet tileSet : tileSets) tileSet.getBlockSet().updateCollGroups();
 		ArrayList<Map> maps = disReader.readMaps(tileSets);
 		
-		for (Map map : maps) for (Cardinal cardinal : Cardinal.values())
+		Notes.randomiseWarpAreas(maps);
+		
+		for (Map map : maps)
 		{
-			MapConnection connection = map.getConnections().get(cardinal);
-			if (connection != null) System.out.println(map.getConstName() + " has a " + cardinal.name() + " connection to " + connection.getMap().getConstName() + " with " + connection.getOffset() + " offset");
+			map.writeWarpsToScript();
+			disWriter.writeMapScript(map);
 		}
 	}
 	

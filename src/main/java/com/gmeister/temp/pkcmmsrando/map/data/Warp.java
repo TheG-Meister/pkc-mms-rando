@@ -46,4 +46,29 @@ public class Warp
 		else return false;
 	}
 	
+	public boolean isAdjacentTo(Warp warp)
+	{
+		if (this.equals(warp)) return true;
+		else if (this.getMap() == null || warp.getMap() == null) return false;
+		else if (!this.getMap().equals(warp.getMap())) return false;
+		else if (Math.abs(this.getX() - warp.getX()) + Math.abs(this.getY() - warp.getY()) > 1) return false;
+		else return true;
+	}
+	
+	/**
+	 * Returns whether this warp is paired with the provided warp.<br>
+	 * <br>
+	 * Warps are classed as paired if they are on a shared map, adjacent and lead to either the same destination or adjacent destinations on a shared map
+	 * @param warp
+	 * @return
+	 */
+	public boolean isPairedWith(Warp warp)
+	{
+		if (!this.isAdjacentTo(warp)) return false;
+		else if (this.getDestination() == null ^ warp.getDestination() == null) return false;
+		else if (this.getDestination() == null && warp.getDestination() == null) return true;
+		else if (!this.getDestination().isAdjacentTo(warp.getDestination())) return false;
+		else return true;
+	}
+	
 }

@@ -165,6 +165,15 @@ public class Map
 		while (changed && !tilesValid[y2][x2]);
 		
 		return tilesValid[y2][x2];
-	} 
+	}
+	
+	//public static ArrayList<ArrayList<Map>> 
+	
+	public static boolean testMovement(Map map1, int x1, int y1, Map map2, int x2, int y2, ArrayList<Flag> flags)
+	{
+		
+		
+		return false;
+	}
 	
 }

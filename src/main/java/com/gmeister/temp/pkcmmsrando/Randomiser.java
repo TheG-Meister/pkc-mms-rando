@@ -163,6 +163,80 @@ public class Randomiser
 		}
 	}
 	
+	public void shuffleWarpGroups(ArrayList<ArrayList<Warp>> warpGroups, boolean allowSelfWarps, boolean twoWay)
+	{
+		//Get a Random object
+		Random random = new Random(this.random.nextLong());
+		
+		if (warpGroups.size() % 2 != 0 && twoWay && !allowSelfWarps) throw new IllegalArgumentException("Could not avoid self warps as there are an odd number of destinations");
+		
+		//Create a random list of destinations
+		ArrayList<ArrayList<Warp>> groups = new ArrayList<>(warpGroups);
+		ArrayList<ArrayList<Warp>> shuffledGroups = new ArrayList<>(warpGroups);
+		Collections.shuffle(shuffledGroups, random);
+		
+		//Pull random destinations
+		ArrayList<ArrayList<Warp>> oldGroups = new ArrayList<>();
+		ArrayList<ArrayList<Warp>> newGroups = new ArrayList<>();
+		
+		while (shuffledGroups.size() > 0)
+		{
+			ArrayList<Warp> newGroup = shuffledGroups.get(0);
+			boolean testedAllOldDestsForThisGroup = false;
+			
+			oldGroupLoops:
+			while (true)
+			{
+				for (ArrayList<Warp> oldGroup : groups) if (allowSelfWarps || (!newGroups.contains(oldGroup) || testedAllOldDestsForThisGroup) && !oldGroup.equals(newGroup)) 
+				{
+					groups.remove(oldGroup);
+					oldGroups.add(oldGroup);
+					shuffledGroups.remove(newGroup);
+					newGroups.add(newGroup);
+					
+					if (twoWay)
+					{
+						groups.remove(newGroup);
+						oldGroups.add(newGroup);
+						shuffledGroups.remove(oldGroup);
+						newGroups.add(oldGroup);
+					}
+					
+					break oldGroupLoops;
+				}
+				
+				if (!testedAllOldDestsForThisGroup)
+				{
+					testedAllOldDestsForThisGroup = true;
+				}
+				else
+				{
+					throw new IllegalStateException("Could not find an old destination for the warp that links " + newGroup.get(0).getMap().getConstName() + " to " + newGroup.get(0).getDestination().getMap().getConstName());
+				}
+			}
+		}
+		
+		for (int i = 0; i < oldGroups.size(); i++)
+		{
+			ArrayList<Warp> oldGroup = oldGroups.get(i);
+			ArrayList<Warp> newGroup = newGroups.get(i);
+			for (int j = 0; j < oldGroup.size(); j++) oldGroup.get(j).setDestination(newGroup.get(j % newGroup.size()));
+		}
+		/*
+		//For each warp, record it's new destination to prevent concurrent modification errors
+		ArrayList<Warp> newDestinations = new ArrayList<>();
+		for (ArrayList<Warp> warpGroup : warpGroups) for (int i = 0; i < warpGroup.size(); i++)
+		{
+			
+			
+			if (oldGroups.contains(warp.getDestination())) newDestinations.add(newDests.get(oldDests.indexOf(warp.getDestination())).getDestination());
+			else newDestinations.add(warp.getDestination());
+		}
+		
+		//Apply the new recorded destinations
+		for (int i = 0; i < warps.size(); i++) warps.get(i).setDestination(newDestinations.get(i));*/
+	}
+	
 	/*
 	 * Currently, this method performs various initial filtering steps which could ideally be moved out to a more relevant class.
 	 * For example, one-way warps are not selected as destinations. While this acts as a good balancing feature, it is not necessary for all warp randomisers.
