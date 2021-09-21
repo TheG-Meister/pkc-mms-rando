@@ -19,6 +19,7 @@ import com.gmeister.temp.pkcmmsrando.map.data.CollisionConstant;
 import com.gmeister.temp.pkcmmsrando.map.data.CollisionPermission;
 import com.gmeister.temp.pkcmmsrando.map.data.Flag;
 import com.gmeister.temp.pkcmmsrando.map.data.Map;
+import com.gmeister.temp.pkcmmsrando.map.data.Player;
 import com.gmeister.temp.pkcmmsrando.map.data.TileSet;
 import com.gmeister.temp.pkcmmsrando.map.data.Warp;
 
@@ -324,7 +325,7 @@ public class Notes
 		File inFolder = Paths.get(
 				"E:/grant/documents/.my-stuff/Pokecrystal/pokecrystal-speedchoice-7.2/").toFile();
 		File outFolder = Paths.get(
-				"E:/grant/documents/.my-stuff/Pokecrystal/pkc-mms-rando/patches/21-09-01-1/pokecrystal-speedchoice/").toFile();
+				"E:/grant/documents/.my-stuff/Pokecrystal/pkc-mms-rando/patches/21-09-05-3/pokecrystal-speedchoice/").toFile();
 		
 		DisassemblyReader disReader = new DisassemblyReader(inFolder);
 		DisassemblyWriter disWriter = new DisassemblyWriter(outFolder);
@@ -342,13 +343,16 @@ public class Notes
 		for (TileSet tileSet : tileSets) tileSet.getBlockSet().updateCollGroups();
 		ArrayList<Map> maps = disReader.readMaps(tileSets);
 		
-		Notes.randomiseWarpAreas(maps);
+		Player player = new Player();
+		player.getFlags().addAll(flags);
+		boolean[][] playersRoomArea = new boolean[6][8];
+		playersRoomArea[3][3] = true;
 		
-		for (Map map : maps)
-		{
-			map.writeWarpsToScript();
-			disWriter.writeMapScript(map);
-		}
+		for (Map map : maps) if (map.getConstName().equals("PLAYERS_HOUSE_2F")) player.getPlayableAreas().put(map, playersRoomArea);
+		
+		player.testAllMovements();
+		
+		for (Map map : player.getPlayableAreas().keySet()) System.out.println(map.getConstName());
 	}
 	
 }

@@ -9,16 +9,18 @@ public class MapBlocks
 	
 	public static enum Direction
 	{
-		UP(0, -1),
-		DOWN(0, 1),
-		LEFT(-1, 0),
-		RIGHT(1, 0);
+		UP("NORTH", 0, -1),
+		DOWN("SOUTH", 0, 1),
+		LEFT("WEST", -1, 0),
+		RIGHT("EAST", 1, 0);
 		
+		private String cardinalName;
 		private int dx;
 		private int dy;
 		
-		Direction(int dx, int dy)
+		Direction(String cardinalName, int dx, int dy)
 		{
+			this.cardinalName = cardinalName;
 			this.dx = dx;
 			this.dy = dy;
 		}
@@ -28,6 +30,9 @@ public class MapBlocks
 
 		public int getDy()
 		{ return this.dy; }
+
+		public String getCardinalName()
+		{ return this.cardinalName; }
 	}
 	
 	private String name;
@@ -55,10 +60,10 @@ public class MapBlocks
 	
 	public CollisionConstant getCollisionAt(int x, int y)
 	{
-		int blockX = Math.floorDiv(x, 2);
-		int blockY = Math.floorDiv(y, 2);
-		int collisionX = x % 2;
-		int collisionY = y % 2;
+		int blockX = Math.floorDiv(x, Block.COLLISION_WIDTH);
+		int blockY = Math.floorDiv(y, Block.COLLISION_WIDTH);
+		int collisionX = x % Block.COLLISION_WIDTH;
+		int collisionY = y % Block.COLLISION_WIDTH;
 		
 		if (this.containsBlockAt(blockX, blockY)) return this.blocks[(blockY * this.xCapacity) + blockX].getCollision()[collisionY][collisionX];
 		else throw new MapOutOfBoundsException("Map does not contain coordinates " + x + ", " + y);
@@ -66,17 +71,23 @@ public class MapBlocks
 	
 	public boolean containsCollisionAt(int x, int y)
 	{
-		int blockX = Math.floorDiv(x, 2);
-		int blockY = Math.floorDiv(y, 2);
+		int blockX = Math.floorDiv(x, Block.COLLISION_WIDTH);
+		int blockY = Math.floorDiv(y, Block.COLLISION_WIDTH);
 		return !(blockX < 0 || blockX >= this.xCapacity || blockY < 0 || blockY >= this.yCapacity);
 	}
 	
+	public int getCollisionXCapacity()
+	{ return this.xCapacity * Block.COLLISION_WIDTH; }
+	
+	public int getCollisionYCapacity()
+	{ return this.yCapacity * Block.COLLISION_WIDTH; }
+	
 	public Tile getTileAt(int x, int y)
 	{
-		int blockX = Math.floorDiv(x, 4);
-		int blockY = Math.floorDiv(y, 4);
-		int tileX = x % 4;
-		int tileY = y % 4;
+		int blockX = Math.floorDiv(x, Block.TILE_WIDTH);
+		int blockY = Math.floorDiv(y, Block.TILE_WIDTH);
+		int tileX = x % Block.TILE_WIDTH;
+		int tileY = y % Block.TILE_WIDTH;
 		
 		if (this.containsBlockAt(blockX, blockY)) return this.blocks[(blockY * this.xCapacity) + blockX].getTiles()[tileY][tileX];
 		else throw new MapOutOfBoundsException("Map does not contain coordinates " + x + ", " + y);
@@ -84,10 +95,16 @@ public class MapBlocks
 	
 	public boolean containsTileAt(int x, int y)
 	{
-		int blockX = Math.floorDiv(x, 4);
-		int blockY = Math.floorDiv(y, 4);
+		int blockX = Math.floorDiv(x, Block.TILE_WIDTH);
+		int blockY = Math.floorDiv(y, Block.TILE_WIDTH);
 		return !(blockX < 0 || blockX >= this.xCapacity || blockY < 0 || blockY >= this.yCapacity);
 	}
+	
+	public int getTileXCapacity()
+	{ return this.xCapacity * Block.TILE_WIDTH; }
+	
+	public int getTileYCapacity()
+	{ return this.yCapacity * Block.TILE_WIDTH; }
 
 	public String getName()
 	{ return this.name; }

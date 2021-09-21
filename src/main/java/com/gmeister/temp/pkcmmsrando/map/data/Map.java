@@ -1,11 +1,11 @@
 package com.gmeister.temp.pkcmmsrando.map.data;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.regex.Pattern;
 
 import com.gmeister.temp.pkcmmsrando.map.data.MapBlocks.Direction;
-import com.gmeister.temp.pkcmmsrando.map.data.MapConnection.Cardinal;
 
 public class Map
 {
@@ -28,14 +28,14 @@ public class Map
 	private MapBlocks blocks;
 	private ArrayList<Warp> warps;
 	private TileSet tileSet;
-	private HashMap<Cardinal, MapConnection> connections;
+	private HashMap<Direction, MapConnection> connections;
 	
 	public Map()
 	{
 		this.script = new ArrayList<>();
 		this.warps = new ArrayList<>();
 		this.connections = new HashMap<>();
-		for (Cardinal cardinal : Cardinal.values()) connections.put(cardinal, null);
+		for (Direction direction : Direction.values()) connections.put(direction, null);
 	}
 
 	public String getName()
@@ -86,7 +86,7 @@ public class Map
 	public void setTileSet(TileSet tileSet)
 	{ this.tileSet = tileSet; }
 	
-	public HashMap<Cardinal, MapConnection> getConnections()
+	public HashMap<Direction, MapConnection> getConnections()
 	{ return this.connections; }
 
 	public void writeWarpsToScript()
@@ -120,35 +120,52 @@ public class Map
 		}
 	}
 	
-	public boolean testMovement(int x1, int y1, int x2, int y2, ArrayList<Flag> flags)
+	public boolean[][] beginMovement(int x, int y, ArrayList<Flag> flags)
 	{
+		boolean[][] tilesToTest = new boolean[this.blocks.getYCapacity() * 2][this.blocks.getXCapacity() * 2];
+		tilesToTest[y][x] = true;
+		return this.expandMovement(tilesToTest, flags);
+	}
+	
+	public boolean[][] expandMovement(boolean[][] tiles, ArrayList<Flag> flags)
+	{
+		if (tiles.length != this.blocks.getYCapacity() * 2) throw new IllegalArgumentException("The provded boolean array was not equal in size to this map.");
 		if (flags == null) flags = new ArrayList<>();
 		
-		boolean[][] tilesToTest = new boolean[this.blocks.getYCapacity() * 2][this.blocks.getXCapacity() * 2];
+		boolean[][] tilesToTest = new boolean[tiles.length][];
+		for (int y = 0; y < tiles.length; y++) tilesToTest[y] = Arrays.copyOf(tiles[y], tiles[y].length);
+		
 		boolean[][] tilesTested = new boolean[this.blocks.getYCapacity() * 2][this.blocks.getXCapacity() * 2];
 		boolean[][] tilesValid = new boolean[this.blocks.getYCapacity() * 2][this.blocks.getXCapacity() * 2];
-		tilesToTest[y1][x1] = true;
 		
 		boolean changed;
 		do
 		{
 			changed = false;
 			
-			for (int y = 0; y < tilesToTest.length; y++) for (int x = 0; x < tilesToTest[y].length; x++) if (!tilesTested[y][x] && tilesToTest[y][x])
+			for (int y = 0; y < tilesToTest.length; y++)
 			{
-				CollisionConstant collision = this.blocks.getCollisionAt(x, y);
-				
-				for (Direction direction : Direction.values())
+				if (tilesToTest[y].length != this.blocks.getXCapacity() * 2) throw new IllegalArgumentException("The provded boolean array was not equal in size to this map.");
+				for (int x = 0; x < tilesToTest[y].length; x++) if (!tilesTested[y][x] && tilesToTest[y][x])
 				{
-					CollisionPermission perm = collision.getPermissionsForStep(direction, false);
-					if (perm.isAllowed() && flags.containsAll(perm.getFlags()))
+					CollisionConstant collision = this.blocks.getCollisionAt(x, y);
+					
+					for (Direction direction : Direction.values())
 					{
+						if (collision.getPermissionsForStep(direction, false).getName().toUpperCase().equals("HOP"))
+						{
+							int nextX = x + direction.getDx() * 2;
+							int nextY = y + direction.getDy() * 2;
+							if (this.blocks.containsCollisionAt(nextX, nextY))
+							{
+								
+							}
+						}
 						int nextX = x + direction.getDx();
 						int nextY = y + direction.getDy();
 						if (this.blocks.containsCollisionAt(nextX, nextY))
 						{
-							CollisionPermission nextPerm = this.blocks.getCollisionAt(nextX, nextY).getPermissionsForStep(direction, true);
-							if (nextPerm.isAllowed() && flags.containsAll(nextPerm.getFlags()))
+							if (this.blocks.getCollisionAt(x, y).canMoveTo(this.blocks.getCollisionAt(nextX, nextY), direction, flags))
 							{
 								tilesToTest[nextY][nextX] = true;
 								tilesValid[nextY][nextX] = true;
@@ -156,24 +173,15 @@ public class Map
 							}
 						}
 					}
+					
+					tilesToTest[y][x] = false;
+					tilesTested[y][x] = true;
 				}
-				
-				tilesToTest[y][x] = false;
-				tilesTested[y][x] = true;
 			}
 		}
-		while (changed && !tilesValid[y2][x2]);
+		while (changed);
 		
-		return tilesValid[y2][x2];
-	}
-	
-	//public static ArrayList<ArrayList<Map>> 
-	
-	public static boolean testMovement(Map map1, int x1, int y1, Map map2, int x2, int y2, ArrayList<Flag> flags)
-	{
-		
-		
-		return false;
+		return tilesValid;
 	}
 	
 }

@@ -20,8 +20,8 @@ import com.gmeister.temp.pkcmmsrando.map.data.Constant;
 import com.gmeister.temp.pkcmmsrando.map.data.Flag;
 import com.gmeister.temp.pkcmmsrando.map.data.Map;
 import com.gmeister.temp.pkcmmsrando.map.data.MapBlocks;
+import com.gmeister.temp.pkcmmsrando.map.data.MapBlocks.Direction;
 import com.gmeister.temp.pkcmmsrando.map.data.MapConnection;
-import com.gmeister.temp.pkcmmsrando.map.data.MapConnection.Cardinal;
 import com.gmeister.temp.pkcmmsrando.map.data.TileSet;
 import com.gmeister.temp.pkcmmsrando.map.data.Warp;
 
@@ -244,11 +244,11 @@ public class DisassemblyReader
 				String[] args = this.commaSeparatorPattern.split(line);
 				if (args.length != 4) throw new IOException("connection did not contain 4 arguments: \"" + backup + "\"");
 				
-				for (Cardinal cardinal : Cardinal.values()) if (cardinal.name().equals(args[0].toUpperCase()))
+				for (Direction direction : Direction.values()) if (direction.getCardinalName().equals(args[0].toUpperCase()))
 				{
 					Map connection = mapsByConstName.get(args[2]);
 					if (connection == null) throw new IOException("Could not find a map with const name " + args[2] + ": \"" + backup + "\"");
-					currentMap.getConnections().put(cardinal, new MapConnection(connection, Integer.parseInt(args[3])));
+					currentMap.getConnections().put(direction, new MapConnection(connection, Integer.parseInt(args[3])));
 				}
 			}
 		}

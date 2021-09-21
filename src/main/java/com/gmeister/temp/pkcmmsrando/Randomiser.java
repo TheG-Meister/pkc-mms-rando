@@ -222,19 +222,6 @@ public class Randomiser
 			ArrayList<Warp> newGroup = newGroups.get(i);
 			for (int j = 0; j < oldGroup.size(); j++) oldGroup.get(j).setDestination(newGroup.get(j % newGroup.size()));
 		}
-		/*
-		//For each warp, record it's new destination to prevent concurrent modification errors
-		ArrayList<Warp> newDestinations = new ArrayList<>();
-		for (ArrayList<Warp> warpGroup : warpGroups) for (int i = 0; i < warpGroup.size(); i++)
-		{
-			
-			
-			if (oldGroups.contains(warp.getDestination())) newDestinations.add(newDests.get(oldDests.indexOf(warp.getDestination())).getDestination());
-			else newDestinations.add(warp.getDestination());
-		}
-		
-		//Apply the new recorded destinations
-		for (int i = 0; i < warps.size(); i++) warps.get(i).setDestination(newDestinations.get(i));*/
 	}
 	
 	/*

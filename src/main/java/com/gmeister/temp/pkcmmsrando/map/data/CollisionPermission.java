@@ -3,11 +3,14 @@ package com.gmeister.temp.pkcmmsrando.map.data;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.gmeister.temp.pkcmmsrando.map.data.Player.PlayerMovementAction;
+
 public class CollisionPermission
 {
 	
 	private String name;
 	private boolean allowed;
+	private PlayerMovementAction action;
 	private ArrayList<Flag> flags;
 	
 	public CollisionPermission()
@@ -36,6 +39,12 @@ public class CollisionPermission
 	public void setAllowed(boolean allowed)
 	{ this.allowed = allowed; }
 	
+	public PlayerMovementAction getAction()
+	{ return this.action; }
+
+	public void setAction(PlayerMovementAction action)
+	{ this.action = action; }
+
 	public ArrayList<Flag> getFlags()
 	{ return this.flags; }
 	

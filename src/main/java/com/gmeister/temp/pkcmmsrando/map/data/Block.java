@@ -3,6 +3,9 @@ package com.gmeister.temp.pkcmmsrando.map.data;
 public class Block
 {
 	
+	public static final int COLLISION_WIDTH = 2;
+	public static final int TILE_WIDTH = 4;
+	
 	private String name;
 	private CollisionConstant[][] collision;
 	private Tile[][] tiles;
@@ -10,8 +13,8 @@ public class Block
 	
 	public Block()
 	{
-		this.collision = new CollisionConstant[2][2];
-		this.tiles = new Tile[4][4];
+		this.collision = new CollisionConstant[Block.COLLISION_WIDTH][Block.COLLISION_WIDTH];
+		this.tiles = new Tile[Block.TILE_WIDTH][Block.TILE_WIDTH];
 	}
 	
 	public CollisionConstant[][] getCollision()

@@ -3,14 +3,6 @@ package com.gmeister.temp.pkcmmsrando.map.data;
 public class MapConnection
 {
 	
-	public enum Cardinal
-	{
-		NORTH(), SOUTH(), EAST(), WEST();
-		
-		Cardinal()
-		{}
-	}
-	
 	private Map map;
 	private int offset;
 	
