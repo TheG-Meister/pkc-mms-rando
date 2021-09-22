@@ -1,30 +1,30 @@
 name	hex	notes	on up	on down	on left	on right	off up	off down	off left	off right
-COLL_FLOOR	00		floor	floor	floor	floor	floor	floor	floor	floor
+COLL_FLOOR	00		FLOOR	FLOOR	FLOOR	FLOOR	FLOOR	FLOOR	FLOOR	FLOOR
 COLL_01	01	garbage								
 COLL_03	03	garbage								
 COLL_04	04	garbage								
-COLL_WALL	07		wall	wall	wall	wall	floor	floor	floor	floor
+COLL_WALL	07		WALL	WALL	WALL	WALL	FLOOR	FLOOR	FLOOR	FLOOR
 COLL_CUT_08	08	unused								
 COLL_TALL_GRASS_10	10	unused								
-COLL_CUT_TREE	12		cut tree	cut tree	cut tree	cut tree	floor	floor	floor	floor
-COLL_LONG_GRASS	14		floor	floor	floor	floor	floor	floor	floor	floor
-COLL_HEADBUTT_TREE	15		wall	wall	wall	wall	floor	floor	floor	floor
-COLL_TALL_GRASS	18		floor	floor	floor	floor	floor	floor	floor	floor
+COLL_CUT_TREE	12		CUT_TREE	CUT_TREE	CUT_TREE	CUT_TREE	FLOOR	FLOOR	FLOOR	FLOOR
+COLL_LONG_GRASS	14		FLOOR	FLOOR	FLOOR	FLOOR	FLOOR	FLOOR	FLOOR	FLOOR
+COLL_HEADBUTT_TREE	15		WALL	WALL	WALL	WALL	FLOOR	FLOOR	FLOOR	FLOOR
+COLL_TALL_GRASS	18		FLOOR	FLOOR	FLOOR	FLOOR	FLOOR	FLOOR	FLOOR	FLOOR
 COLL_CUT_TREE_1A	1a	unused								
 COLL_LONG_GRASS_1C	1c	unused								
 COLL_HEADBUTT_TREE_1D	1d	unused								
 COLL_WATER_21	21	unused								
-COLL_ICE	23		ice	ice	ice	ice	ice	ice	ice	ice
-COLL_WHIRLPOOL	24		whirlpool	whirlpool	whirlpool	whirlpool	floor	floor	floor	floor
-COLL_BUOY	27		wall	wall	wall	wall	floor	floor	floor	floor
+COLL_ICE	23		ICE	ICE	ICE	ICE	ICE	ICE	ICE	ICE
+COLL_WHIRLPOOL	24		WHIRLPOOL	WHIRLPOOL	WHIRLPOOL	WHIRLPOOL	FLOOR	FLOOR	FLOOR	FLOOR
+COLL_BUOY	27		WALL	WALL	WALL	WALL	FLOOR	FLOOR	FLOOR	FLOOR
 COLL_CUT_28	28	garbage								
-COLL_WATER	29		water	water	water	water	floor	floor	floor	floor
+COLL_WATER	29		WATER	WATER	WATER	WATER	FLOOR	FLOOR	FLOOR	FLOOR
 COLL_ICE_2B	2b	unused								
 COLL_WHIRLPOOL_2C	2c	unused								
 COLL_WATERFALL_RIGHT	30	unused								
 COLL_WATERFALL_LEFT	31	unused								
 COLL_WATERFALL_UP	32	unused								
-COLL_WATERFALL	33		waterfall	water	water	water	waterfall	water	wall	wall
+COLL_WATERFALL	33		WATERFALL	WATER	WATER	WATER	WATERFALL	WATER	WALL	WALL
 COLL_CURRENT_RIGHT	38	unused								
 COLL_CURRENT_LEFT	39	unused								
 COLL_CURRENT_UP	3a	unused								
@@ -51,49 +51,49 @@ COLL_BRAKE_55	55	unused
 COLL_BRAKE_56	56	unused								
 COLL_BRAKE_57	57	unused								
 COLL_5B	5b	garbage								
-COLL_PIT	60		warp	warp	warp	warp	floor	floor	floor	floor
+COLL_PIT	60		WARP_FLOOR	WARP_FLOOR	WARP_FLOOR	WARP_FLOOR	FLOOR	FLOOR	FLOOR	FLOOR
 COLL_VIRTUAL_BOY	61	garbage								
 COLL_64	64	garbage								
 COLL_65	65	garbage								
 COLL_PIT_68	68	unused								
-COLL_WARP_CARPET_DOWN	70		floor	floor	floor	floor	floor	warp	floor	floor
-COLL_DOOR	71		warp	warp	warp	warp	floor	floor	floor	floor
-COLL_LADDER	72		warp	warp	warp	warp	floor	floor	floor	floor
+COLL_WARP_CARPET_DOWN	70		FLOOR	FLOOR	FLOOR	FLOOR	FLOOR	WARP_WALL	FLOOR	FLOOR
+COLL_DOOR	71		WARP_FLOOR	WARP_FLOOR	WARP_FLOOR	WARP_FLOOR	WALL	FLOOR	WALL	WALL
+COLL_LADDER	72		WARP_FLOOR	WARP_FLOOR	WARP_FLOOR	WARP_FLOOR	FLOOR	FLOOR	FLOOR	FLOOR
 COLL_STAIRCASE_73	73	unused								
 COLL_CAVE_74	74	unused								
 COLL_DOOR_75	75	unused								
-COLL_WARP_CARPET_LEFT	76		floor	floor	floor	floor	floor	floor	warp	floor
+COLL_WARP_CARPET_LEFT	76		FLOOR	FLOOR	FLOOR	FLOOR	FLOOR	FLOOR	WARP_WALL	FLOOR
 COLL_WARP_77	77	unused								
-COLL_WARP_CARPET_UP	78		floor	floor	floor	floor	warp	floor	floor	floor
+COLL_WARP_CARPET_UP	78		FLOOR	FLOOR	FLOOR	FLOOR	WARP_WALL	FLOOR	FLOOR	FLOOR
 COLL_DOOR_79	79	unused								
-COLL_STAIRCASE	7a		warp	warp	warp	warp	floor	floor	floor	floor
-COLL_CAVE	7b		warp	warp	warp	warp	floor	floor	floor	floor
-COLL_WARP_PANEL	7c		warp	warp	warp	warp	floor	floor	floor	floor
+COLL_STAIRCASE	7a		WARP_FLOOR	WARP_FLOOR	WARP_FLOOR	WARP_FLOOR	WALL	FLOOR	WALL	WALL
+COLL_CAVE	7b		WARP_FLOOR	WARP_FLOOR	WARP_FLOOR	WARP_FLOOR	WALL	FLOOR	WALL	WALL
+COLL_WARP_PANEL	7c		WARP_FLOOR	WARP_FLOOR	WARP_FLOOR	WARP_FLOOR	FLOOR	FLOOR	FLOOR	FLOOR
 COLL_DOOR_7D	7d	unused								
-COLL_WARP_CARPET_RIGHT	7e		floor	floor	floor	floor	floor	floor	floor	warp
+COLL_WARP_CARPET_RIGHT	7e		FLOOR	FLOOR	FLOOR	FLOOR	FLOOR	FLOOR	FLOOR	WARP_WALL
 COLL_WARP_7F	7f	unused								
-COLL_COUNTER	90		wall	wall	wall	wall	floor	floor	floor	floor
-COLL_BOOKSHELF	91		wall	wall	wall	wall	floor	floor	floor	floor
-COLL_PC	93		wall	wall	wall	wall	floor	floor	floor	floor
-COLL_RADIO	94		wall	wall	wall	wall	floor	floor	floor	floor
-COLL_TOWN_MAP	95		wall	wall	wall	wall	floor	floor	floor	floor
-COLL_MART_SHELF	96		wall	wall	wall	wall	floor	floor	floor	floor
-COLL_TV	97		wall	wall	wall	wall	floor	floor	floor	floor
+COLL_COUNTER	90		WALL	WALL	WALL	WALL	FLOOR	FLOOR	FLOOR	FLOOR
+COLL_BOOKSHELF	91		WALL	WALL	WALL	WALL	FLOOR	FLOOR	FLOOR	FLOOR
+COLL_PC	93		WALL	WALL	WALL	WALL	FLOOR	FLOOR	FLOOR	FLOOR
+COLL_RADIO	94		WALL	WALL	WALL	WALL	FLOOR	FLOOR	FLOOR	FLOOR
+COLL_TOWN_MAP	95		WALL	WALL	WALL	WALL	FLOOR	FLOOR	FLOOR	FLOOR
+COLL_MART_SHELF	96		WALL	WALL	WALL	WALL	FLOOR	FLOOR	FLOOR	FLOOR
+COLL_TV	97		WALL	WALL	WALL	WALL	FLOOR	FLOOR	FLOOR	FLOOR
 COLL_COUNTER_98	98	unused								
 COLL_9C	9c	garbage								
-COLL_WINDOW	9d		wall	wall	wall	wall	floor	floor	floor	floor
-COLL_INCENSE_BURNER	9f		wall	wall	wall	wall	floor	floor	floor	floor
-COLL_HOP_RIGHT	a0		wall	wall	wall	floor	floor	floor	floor	floor
-COLL_HOP_LEFT	a1		wall	wall	floor	wall	floor	floor	floor	floor
+COLL_WINDOW	9d		WALL	WALL	WALL	WALL	FLOOR	FLOOR	FLOOR	FLOOR
+COLL_INCENSE_BURNER	9f		WALL	WALL	WALL	WALL	FLOOR	FLOOR	FLOOR	FLOOR
+COLL_HOP_RIGHT	a0		FLOOR	FLOOR	FLOOR	FLOOR	FLOOR	FLOOR	FLOOR	LEDGE
+COLL_HOP_LEFT	a1		FLOOR	FLOOR	FLOOR	FLOOR	FLOOR	FLOOR	LEDGE	FLOOR
 COLL_HOP_UP	a2	unused								
-COLL_HOP_DOWN	a3		wall	floor	wall	wall	floor	floor	floor	floor
-COLL_HOP_DOWN_RIGHT	a4		wall	floor	wall	floor	floor	floor	floor	floor
-COLL_HOP_DOWN_LEFT	a5		wall	floor	floor	wall	floor	floor	floor	floor
+COLL_HOP_DOWN	a3		FLOOR	FLOOR	FLOOR	FLOOR	FLOOR	LEDGE	FLOOR	FLOOR
+COLL_HOP_DOWN_RIGHT	a4		FLOOR	FLOOR	FLOOR	FLOOR	FLOOR	LEDGE	FLOOR	LEDGE
+COLL_HOP_DOWN_LEFT	a5		FLOOR	FLOOR	FLOOR	FLOOR	FLOOR	LEDGE	LEDGE	FLOOR
 COLL_HOP_UP_RIGHT	a6	unused								
 COLL_HOP_UP_LEFT	a7	unused								
-COLL_RIGHT_WALL	b0		floor	floor	wall	floor	floor	floor	floor	wall
-COLL_LEFT_WALL	b1		floor	floor	floor	wall	floor	floor	wall	floor
-COLL_UP_WALL	b2		floor	wall	floor	floor	wall	floor	floor	floor
+COLL_RIGHT_WALL	b0		FLOOR	FLOOR	WALL	FLOOR	FLOOR	FLOOR	FLOOR	WALL
+COLL_LEFT_WALL	b1		FLOOR	FLOOR	FLOOR	WALL	FLOOR	FLOOR	WALL	FLOOR
+COLL_UP_WALL	b2		FLOOR	WALL	FLOOR	FLOOR	WALL	FLOOR	FLOOR	FLOOR
 COLL_DOWN_WALL	b3	unused								
 COLL_DOWN_RIGHT_WALL	b4	unused								
 COLL_DOWN_LEFT_WALL	b5	unused								

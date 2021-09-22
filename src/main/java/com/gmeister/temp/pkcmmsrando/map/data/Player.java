@@ -45,13 +45,13 @@ public class Player
 			switch (direction)
 			{
 				case UP:
-					return new OverworldPosition(connection.getMap(), this.x + connection.getOffset() * Block.COLLISION_WIDTH, this.y + connection.getMap().getBlocks().getCollisionYCapacity());
+					return new OverworldPosition(connection.getMap(), this.x - connection.getOffset() * Block.COLLISION_WIDTH, this.y + connection.getMap().getBlocks().getCollisionYCapacity());
 				case DOWN:
-					return new OverworldPosition(connection.getMap(), this.x + connection.getOffset() * Block.COLLISION_WIDTH, this.y - this.map.getBlocks().getCollisionYCapacity());
+					return new OverworldPosition(connection.getMap(), this.x - connection.getOffset() * Block.COLLISION_WIDTH, this.y - this.map.getBlocks().getCollisionYCapacity());
 				case LEFT:
-					return new OverworldPosition(connection.getMap(), this.x + connection.getMap().getBlocks().getCollisionXCapacity(), this.y + connection.getOffset() * Block.COLLISION_WIDTH);
+					return new OverworldPosition(connection.getMap(), this.x + connection.getMap().getBlocks().getCollisionXCapacity(), this.y - connection.getOffset() * Block.COLLISION_WIDTH);
 				case RIGHT:
-					return new OverworldPosition(connection.getMap(), this.x - this.map.getBlocks().getCollisionXCapacity(), this.y + connection.getOffset() * Block.COLLISION_WIDTH);
+					return new OverworldPosition(connection.getMap(), this.x - this.map.getBlocks().getCollisionXCapacity(), this.y - connection.getOffset() * Block.COLLISION_WIDTH);
 				default:
 					throw new IllegalArgumentException("direction was not a valid Direction");
 			}
@@ -69,9 +69,8 @@ public class Player
 		public OverworldPosition move(Direction direction, int multiplier)
 		{
 			OverworldPosition position = new OverworldPosition(this.map, this.x + direction.getDx() * multiplier, this.y + direction.getDy() * multiplier);
-			if (!position.isWithinMap()) position = position.moveThroughConnection(direction);
-			if (!position.isWithinMap()) throw new IllegalArgumentException("This movement puts the position out of bounds.");
-			else return position;
+			if (!position.isWithinMap() && position.map.getConnections().get(direction) != null) position = position.moveThroughConnection(direction);
+			return position;
 		}
 		
 		public CollisionConstant getCollision()
@@ -123,10 +122,10 @@ public class Player
 			slide = false;
 			CollisionPermission perm = this.position.getCollision().getPermissionsForStep(direction, false);
 			
-			if (perm.getAction().equals(PlayerMovementAction.WARP) && this.attemptWarp(this.position));
+			if (PlayerMovementAction.WARP.equals(perm.getAction()) && this.attemptWarp(this.position));
 			else if (perm.isAllowed() && this.flags.containsAll(perm.getFlags()))
 			{
-				if (perm.getAction().equals(PlayerMovementAction.HOP))
+				if (PlayerMovementAction.HOP.equals(perm.getAction()))
 				{
 					this.hop(direction);
 					slide = this.checkSlide(direction);
@@ -134,15 +133,18 @@ public class Player
 				else
 				{
 					OverworldPosition nextPosition = this.position.move(direction);
-					CollisionPermission nextPerm = nextPosition.getCollision().getPermissionsForStep(direction, true);
-					
-					if (nextPerm.getAction().equals(PlayerMovementAction.WARP) && this.attemptWarp(nextPosition));
-					else if (nextPerm.isAllowed() && this.flags.containsAll(nextPerm.getFlags()))
+					if (nextPosition.isWithinMap())
 					{
-						if (nextPerm.getAction().equals(PlayerMovementAction.HOP)) this.hop(direction);
-						else this.move(direction);
+						CollisionPermission nextPerm = nextPosition.getCollision().getPermissionsForStep(direction, true);
 						
-						slide = this.checkSlide(direction);
+						if (PlayerMovementAction.WARP.equals(nextPerm.getAction()) && this.attemptWarp(nextPosition));
+						else if (nextPerm.isAllowed() && this.flags.containsAll(nextPerm.getFlags()))
+						{
+							if (PlayerMovementAction.HOP.equals(nextPerm.getAction())) this.hop(direction);
+							else this.step(direction);
+							
+							slide = this.checkSlide(direction);
+						}
 					}
 				}
 			}
@@ -153,9 +155,9 @@ public class Player
 	public boolean attemptWarp(OverworldPosition position)
 	{
 		//Find a warp for the provided position, warping to it and returning true if it exists
-		for (Warp warp : position.getMap().getWarps()) if (warp.getX() == position.getX() && warp.getY() == position.getY())
+		for (Warp warp : position.getMap().getWarps()) if (warp.getX() == position.getX() && warp.getY() == position.getY()) if (warp.getDestination() != null)
 		{
-			this.position = position.warpTo(warp);
+			this.position = position.warpTo(warp.getDestination());
 			return true;
 		}
 		
@@ -180,137 +182,82 @@ public class Player
 	
 	public void testAllMovements()
 	{
-		/*
-		 * I guess take each map in the hashmap
-		 * re-perform all movement with current flags
-		 * obtain new flags
-		 * travel through warps and map connections, adding new maps where relevant
-		 * Repeat
-		 */
-		int loop = 0;
-		boolean changed;
-		do
+		ArrayList<Map> maps = new ArrayList<>(this.playableAreas.keySet());
+		
+		while (maps.size() > 0)
 		{
-			loop++;
-			System.out.println("Loop " + loop);
-			changed = false;
+			Map map = maps.remove(0);
 			
-			ArrayList<Map> maps = new ArrayList<>(this.playableAreas.keySet());
+			boolean[][] oldCollisionsValid = this.playableAreas.get(map);
 			
-			while (maps.size() > 0)
+			boolean[][] collisionsToTest = new boolean[oldCollisionsValid.length][];
+			for (int y = 0; y < oldCollisionsValid.length; y++) collisionsToTest[y] = Arrays.copyOf(oldCollisionsValid[y], oldCollisionsValid[y].length);
+			boolean[][] collisionsTested = new boolean[collisionsToTest.length][collisionsToTest[0].length];
+			boolean[][] collisionsValid = new boolean[collisionsToTest.length][collisionsToTest[0].length];
+			
+			boolean mapChanged;
+			do
 			{
-				Map map = maps.remove(0);
-				boolean[][] oldArea = this.playableAreas.get(map);
-				boolean[][] newArea = map.expandMovement(oldArea, this.flags);
+				mapChanged = false;
 				
-				if (map.getConstName().equals("MAHOGANY_TOWN"))
+				for (int y = 0; y < collisionsToTest.length; y++) for (int x = 0; x < collisionsToTest[y].length; x++) if (!collisionsTested[y][x] && collisionsToTest[y][x])
 				{
-					System.out.println(map.getConstName());
-					System.out.println("Old area:");
-					for (int y = 0; y < oldArea.length; y++)
+					OverworldPosition position = new OverworldPosition(map, x, y);
+					for (Direction direction : Direction.values())
 					{
-						for (int x = 0; x < oldArea[y].length; x++) System.out.print(oldArea[y][x] ? '1' : '0');
-						System.out.println();
-					}
-					System.out.println();
-					System.out.println("New area:");
-					for (int y = 0; y < newArea.length; y++)
-					{
-						for (int x = 0; x < newArea[y].length; x++) System.out.print(newArea[y][x] ? '1' : '0');
-						System.out.println();
-					}
-					System.out.println();
-				}
-				
-				for (int i = 0; i < oldArea.length; i++) if (!Arrays.equals(oldArea[i], newArea[i]))
-				{
-					changed = true;
-					this.playableAreas.put(map, newArea);
-					
-					for (Warp warp : map.getWarps()) if (newArea[warp.getY()][warp.getX()] && warp.hasAccessibleDestination() && warp.getDestination() != null)
-					{
-						Map destination = warp.getDestination().getMap();
-						boolean[][] destinationArea;
-						
-						if (this.playableAreas.keySet().contains(destination)) destinationArea = this.playableAreas.get(destination);
-						else
+						this.position = position;
+						this.move(direction);
+						if (!position.equals(this.position))
 						{
-							destinationArea = new boolean[destination.getBlocks().getYCapacity() * 2][destination.getBlocks().getXCapacity() * 2];
-							maps.add(destination);
-						}
-						
-						destinationArea[warp.getDestination().getY()][warp.getDestination().getX()] = true;
-						this.playableAreas.put(destination, destinationArea);
-					}
-					
-					//map connections
-					for (Direction direction : Direction.values()) if (map.getConnections().get(direction) != null)
-					{
-						MapConnection connection = map.getConnections().get(direction);
-						int offset = connection.getOffset() * 2;
-						boolean[][] connectionArea;
-						
-						if (this.playableAreas.keySet().contains(connection.getMap())) connectionArea = this.playableAreas.get(connection.getMap());
-						else
-						{
-							connectionArea = new boolean[connection.getMap().getBlocks().getYCapacity() * 2][connection.getMap().getBlocks().getXCapacity() * 2];
-							maps.add(connection.getMap());
-						}
-						
-						int start = Math.max(0, offset);
-						
-						switch (direction)
-						{
-							case UP:
+							if (this.position.getMap().equals(map)) collisionsToTest[this.position.getY()][this.position.getX()] = true;
+							else
 							{
-								int end = Math.min(map.getBlocks().getXCapacity() * 2, connection.getMap().getXCapacity() * 2 + offset);
-								int y1 = 0;
-								int y2 = connection.getMap().getBlocks().getYCapacity() * 2 - 1;
-								for (int x1 = start, x2 = start - offset; x1 < end; x1++, x2++) if (newArea[y1][x1] &&
-									map.getBlocks().getCollisionAt(x1, y1).canMoveTo(connection.getMap().getBlocks().getCollisionAt(x2, y2), direction, this.flags))
-										connectionArea[y2][x2] = true;
-								break;
-							}
-							case DOWN:
-							{
-								int end = Math.min(map.getBlocks().getXCapacity() * 2, connection.getMap().getXCapacity() * 2 + offset);
-								int y1 = map.getBlocks().getYCapacity() * 2 - 1;
-								int y2 = 0;
-								for (int x1 = start, x2 = start - offset; x1 < end; x1++, x2++) if (newArea[y1][x1] &&
-									map.getBlocks().getCollisionAt(x1, y1).canMoveTo(connection.getMap().getBlocks().getCollisionAt(x2, y2), direction, this.flags))
-										connectionArea[y2][x2] = true;
-								break;
-							}
-							case LEFT:
-							{
-								int end = Math.min(map.getBlocks().getYCapacity() * 2, connection.getMap().getYCapacity() * 2 + offset);
-								int x1 = 0;
-								int x2 = connection.getMap().getBlocks().getXCapacity() * 2 - 1;
-								for (int y1 = start, y2 = start - offset; y1 < end; y1++, y2++) if (newArea[y1][x1] &&
-									map.getBlocks().getCollisionAt(x1, y1).canMoveTo(connection.getMap().getBlocks().getCollisionAt(x2, y2), direction, this.flags))
-										connectionArea[y2][x2] = true;
-								break;
-							}
-							case RIGHT:
-							{
-								int end = Math.min(map.getBlocks().getYCapacity() * 2, connection.getMap().getYCapacity() * 2 + offset);
-								int x1 = map.getBlocks().getXCapacity() * 2 - 1;
-								int x2 = 0;
-								for (int y1 = start, y2 = start - offset; y1 < end; y1++, y2++) if (newArea[y1][x1] &&
-									map.getBlocks().getCollisionAt(x1, y1).canMoveTo(connection.getMap().getBlocks().getCollisionAt(x2, y2), direction, this.flags))
-										connectionArea[y2][x2] = true;
-								break;
+								boolean[][] nextMapCollision;
+								
+								if (this.playableAreas.keySet().contains(this.position.getMap())) nextMapCollision = this.playableAreas.get(this.position.getMap());
+								else
+								{
+									nextMapCollision = new boolean[this.position.getMap().getBlocks().getCollisionYCapacity()][this.position.getMap().getBlocks().getCollisionXCapacity()];
+									maps.add(this.position.getMap());
+								}
+								
+								if (!nextMapCollision[this.position.getY()][this.position.getX()])
+								{
+									nextMapCollision[this.position.getY()][this.position.getX()] = true;
+									this.playableAreas.put(this.position.getMap(), nextMapCollision);
+									if (!maps.contains(this.position.getMap())) maps.add(this.position.getMap());
+								}
 							}
 						}
-						
-						this.playableAreas.put(connection.getMap(), connectionArea);
 					}
 					
-					break;
+					mapChanged = true;
+					collisionsTested[y][x] = true;
+					collisionsValid[y][x] = true;
 				}
 			}
+			while (mapChanged);
+			
+			this.playableAreas.put(map, collisionsValid);
+			
+			if (map.getConstName().equals("ECRUTEAK_CITY"))
+			{
+				System.out.println("Old area:");
+				for (int y = 0; y < oldCollisionsValid.length; y++)
+				{
+					for (int x = 0; x < oldCollisionsValid[y].length; x++) System.out.print(oldCollisionsValid[y][x] ? '1' : '0');
+					System.out.println();
+				}
+				System.out.println();
+				System.out.println("New area:");
+				for (int y = 0; y < collisionsValid.length; y++)
+				{
+					for (int x = 0; x < collisionsValid[y].length; x++) System.out.print(collisionsValid[y][x] ? '1' : '0');
+					System.out.println();
+				}
+				System.out.println();
+			}
 		}
-		while (changed);
 	}
 	
 }

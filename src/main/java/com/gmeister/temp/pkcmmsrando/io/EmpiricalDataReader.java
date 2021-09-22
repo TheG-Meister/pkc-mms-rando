@@ -14,6 +14,7 @@ import com.gmeister.temp.pkcmmsrando.map.data.CollisionConstant;
 import com.gmeister.temp.pkcmmsrando.map.data.CollisionPermission;
 import com.gmeister.temp.pkcmmsrando.map.data.Flag;
 import com.gmeister.temp.pkcmmsrando.map.data.MapBlocks.Direction;
+import com.gmeister.temp.pkcmmsrando.map.data.Player.PlayerMovementAction;
 
 /**
  * Reads select empirical data from files within this project. <br>
@@ -67,7 +68,23 @@ public class EmpiricalDataReader
 				perm.setName(args[headers.indexOf("name")]);
 				perm.setAllowed(!args[headers.indexOf("allowed")].equals("0"));
 				
-				if (args.length > 2)
+				if (args.length - 1 >= headers.indexOf("action")) 
+				{
+					String actionName = args[headers.indexOf("action")];
+					if (!actionName.isEmpty())
+					{
+						boolean found = false;
+						for (PlayerMovementAction action : PlayerMovementAction.values()) if (action.name().equals(actionName))
+						{
+							perm.setAction(action);
+							found = true;
+							break;
+						}
+						if (!found) throw new IOException("Could not find a PlayerMovementAction for the name " + actionName);
+					}
+				}
+				
+				if (args.length - 1 >= headers.indexOf("flags"))
 				{
 					ArrayList<String> flagNames = new ArrayList<>(Arrays.asList(args[headers.indexOf("flags")].split(",")));
 					for (Flag flag : flags) if (flagNames.contains(flag.getName()))
@@ -78,7 +95,6 @@ public class EmpiricalDataReader
 					
 					if (!flagNames.isEmpty()) throw new IllegalArgumentException("Could not find a flag for the name \"" + flagNames.get(0) + "\"");
 				}
-				
 				
 				perms.add(perm);
 			}
