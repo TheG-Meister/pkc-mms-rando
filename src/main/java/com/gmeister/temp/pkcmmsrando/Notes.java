@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -325,7 +326,7 @@ public class Notes
 		File inFolder = Paths.get(
 				"E:/grant/documents/.my-stuff/Pokecrystal/pokecrystal-speedchoice-7.2/").toFile();
 		File outFolder = Paths.get(
-				"E:/grant/documents/.my-stuff/Pokecrystal/pkc-mms-rando/patches/21-09-05-3/pokecrystal-speedchoice/").toFile();
+				"E:/grant/documents/.my-stuff/Pokecrystal/pkc-mms-rando/patches/21-09-23-warp-5/pokecrystal-speedchoice/").toFile();
 		
 		DisassemblyReader disReader = new DisassemblyReader(inFolder);
 		DisassemblyWriter disWriter = new DisassemblyWriter(outFolder);
@@ -343,16 +344,16 @@ public class Notes
 		for (TileSet tileSet : tileSets) tileSet.getBlockSet().updateCollGroups();
 		ArrayList<Map> maps = disReader.readMaps(tileSets);
 		
-		Player player = new Player();
-		player.getFlags().addAll(flags);
+		HashMap<Map, boolean[][]> accessibleCollision = new HashMap<>();
 		boolean[][] playersRoomArea = new boolean[6][8];
 		playersRoomArea[3][3] = true;
 		
-		for (Map map : maps) if (map.getConstName().equals("PLAYERS_HOUSE_2F")) player.getPlayableAreas().put(map, playersRoomArea);
+		for (Map map : maps) if (map.getConstName().equals("PLAYERS_HOUSE_2F")) accessibleCollision.put(map, playersRoomArea);
 		
-		player.testAllMovements();
+		Player.getAllAccesibleCollision(accessibleCollision, flags);
 		
-		for (Map map : player.getPlayableAreas().keySet()) System.out.println(map.getConstName());
+		for (Map map : accessibleCollision.keySet()) System.out.println(map.getConstName());
+		
 	}
 	
 }

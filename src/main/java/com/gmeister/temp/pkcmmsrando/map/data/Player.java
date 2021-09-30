@@ -11,236 +11,162 @@ import com.gmeister.temp.pkcmmsrando.map.data.MapBlocks.Direction;
  * They can move across maps, battle trainers, interact with anything, etc.
  */
 
-public class Player
+public final class Player
 {
 	
 	public static enum PlayerMovementAction
 	{ HOP, SLIDE, WARP }
 	
-	public static final class OverworldPosition
-	{
-		private final Map map;
-		private final int x;
-		private final int y;
-		
-		public OverworldPosition(Map map, int x, int y)
-		{
-			super();
-			this.map = map;
-			this.x = x;
-			this.y = y;
-		}
-		
-		public OverworldPosition warpTo(Warp warp)
-		{
-			if (warp == null) throw new NullPointerException();
-			return new OverworldPosition(warp.getMap(), warp.getX(), warp.getY());
-		}
-		
-		public OverworldPosition moveThroughConnection(Direction direction)
-		{
-			MapConnection connection = this.map.getConnections().get(direction);
-			if (connection == null) throw new NullPointerException("Map " + this.map.getConstName() + " has no connection to the " + direction.getCardinalName());
-			
-			switch (direction)
-			{
-				case UP:
-					return new OverworldPosition(connection.getMap(), this.x - connection.getOffset() * Block.COLLISION_WIDTH, this.y + connection.getMap().getBlocks().getCollisionYCapacity());
-				case DOWN:
-					return new OverworldPosition(connection.getMap(), this.x - connection.getOffset() * Block.COLLISION_WIDTH, this.y - this.map.getBlocks().getCollisionYCapacity());
-				case LEFT:
-					return new OverworldPosition(connection.getMap(), this.x + connection.getMap().getBlocks().getCollisionXCapacity(), this.y - connection.getOffset() * Block.COLLISION_WIDTH);
-				case RIGHT:
-					return new OverworldPosition(connection.getMap(), this.x - this.map.getBlocks().getCollisionXCapacity(), this.y - connection.getOffset() * Block.COLLISION_WIDTH);
-				default:
-					throw new IllegalArgumentException("direction was not a valid Direction");
-			}
-		}
-		
-		public OverworldPosition set(int x, int y)
-		{ return new OverworldPosition(this.map, x, y); }
-		
-		public OverworldPosition add(int x, int y)
-		{ return new OverworldPosition(this.map, this.x + x, this.y + y); }
-		
-		public OverworldPosition move(Direction direction)
-		{ return this.move(direction, 1); }
-		
-		public OverworldPosition move(Direction direction, int multiplier)
-		{
-			OverworldPosition position = new OverworldPosition(this.map, this.x + direction.getDx() * multiplier, this.y + direction.getDy() * multiplier);
-			if (!position.isWithinMap() && position.map.getConnections().get(direction) != null) position = position.moveThroughConnection(direction);
-			return position;
-		}
-		
-		public CollisionConstant getCollision()
-		{ return this.map.getBlocks().getCollisionAt(this.x, this.y); }
-		
-		public boolean isWithinMap()
-		{
-			if (this.x < 0) return false;
-			else if (this.y < 0) return false;
-			else if (this.x >= this.map.getBlocks().getCollisionXCapacity()) return false;
-			else if (this.y >= this.map.getBlocks().getCollisionYCapacity()) return false;
-			else return true;
-		}
-
-		public Map getMap()
-		{ return this.map; }
-
-		public int getX()
-		{ return this.x; }
-
-		public int getY()
-		{ return this.y; }
-	}
+	private final OverworldPosition position;
+	private final Direction facing;
+	private final boolean sliding;
 	
 	private ArrayList<Flag> flags;
-	private HashMap<Map, boolean[][]> playableAreas;
-	
-	private OverworldPosition position;
-	//private Direction facing;
 	
 	public Player()
 	{
+		this.position = null;
+		this.facing = null;
+		this.sliding = false;
 		this.flags = new ArrayList<>();
-		this.playableAreas = new HashMap<>();
-		this.position = new OverworldPosition(null, 0, 0);
 	}
+	
+	public Player(OverworldPosition position, Direction facing, boolean sliding, Flag... flags)
+	{
+		this.position = position;
+		this.facing = facing;
+		this.sliding = sliding;
+		this.flags = new ArrayList<>(Arrays.asList(flags));
+	}
+	
+	public Player(OverworldPosition position, Direction facing, boolean sliding, ArrayList<Flag> flags)
+	{
+		this.position = position;
+		this.facing = facing;
+		this.sliding = sliding;
+		this.flags = new ArrayList<>(flags);
+	}
+	
+	public Player(Player player)
+	{
+		this.position = player.position;
+		this.facing = player.facing;
+		this.sliding = player.sliding;
+		this.flags = new ArrayList<>(player.flags);
+	}
+	
+	public OverworldPosition getPosition()
+	{ return this.position; }
+	
+	public Player setPosition(OverworldPosition position)
+	{ return new Player(position, this.facing, this.sliding, this.flags); }
+
+	public Direction getFacing()
+	{ return this.facing; }
+	
+	public Player setFacing(Direction facing)
+	{ return new Player(this.position, facing, this.sliding, this.flags); }
+
+	public boolean isSliding()
+	{ return this.sliding; }
+	
+	public Player setSliding(boolean sliding)
+	{ return new Player(this.position, this.facing, sliding, this.flags); }
 
 	public ArrayList<Flag> getFlags()
-	{ return this.flags; }
-
-	public HashMap<Map, boolean[][]> getPlayableAreas()
-	{ return this.playableAreas; }
+	{ return new ArrayList<>(this.flags); }
 	
-	public void move(Direction direction)
+	public Player setFlags(ArrayList<Flag> flags)
+	{ return new Player(this.position, this.facing, this.sliding, flags); }
+	
+	public Player move(Direction direction)
+	{ return this.setFacing(direction).move(); }
+
+	public Player move()
 	{
-		boolean slide;
-		do
+		CollisionPermission perm = this.position.getCollision().getPermissionsForStep(this.facing, false);
+		
+		if (!this.flags.containsAll(perm.getFlags())) return this.setSliding(false);
+		else
 		{
-			slide = false;
-			CollisionPermission perm = this.position.getCollision().getPermissionsForStep(direction, false);
+			Player warpedPlayer = this.attemptWarp();
 			
-			if (PlayerMovementAction.WARP.equals(perm.getAction()) && this.attemptWarp(this.position));
-			else if (perm.isAllowed() && this.flags.containsAll(perm.getFlags()))
+			if (PlayerMovementAction.WARP.equals(perm.getAction()) && warpedPlayer != null) return warpedPlayer;
+			else if (!perm.isAllowed()) return this.setSliding(false);
+			else if (PlayerMovementAction.HOP.equals(perm.getAction())) return this.hop();
+			else
 			{
-				if (PlayerMovementAction.HOP.equals(perm.getAction()))
-				{
-					this.hop(direction);
-					slide = this.checkSlide(direction);
-				}
+				Player movedPlayer = this.setPosition(this.position.move(this.facing));
+				if (!movedPlayer.position.isWithinMap()) return this.setSliding(false);
+				CollisionPermission nextPerm = movedPlayer.position.getCollision().getPermissionsForStep(this.facing, true);
+				
+				if (!this.flags.containsAll(nextPerm.getFlags())) return this.setSliding(false);
 				else
 				{
-					OverworldPosition nextPosition = this.position.move(direction);
-					if (nextPosition.isWithinMap())
-					{
-						CollisionPermission nextPerm = nextPosition.getCollision().getPermissionsForStep(direction, true);
-						
-						if (PlayerMovementAction.WARP.equals(nextPerm.getAction()) && this.attemptWarp(nextPosition));
-						else if (nextPerm.isAllowed() && this.flags.containsAll(nextPerm.getFlags()))
-						{
-							if (PlayerMovementAction.HOP.equals(nextPerm.getAction())) this.hop(direction);
-							else this.step(direction);
-							
-							slide = this.checkSlide(direction);
-						}
-					}
+					warpedPlayer = movedPlayer.attemptWarp();
+					
+					if (PlayerMovementAction.WARP.equals(nextPerm.getAction()) && warpedPlayer != null) return warpedPlayer;
+					else if (!nextPerm.isAllowed()) return this.setSliding(false);
+					else if (PlayerMovementAction.HOP.equals(nextPerm.getAction())) return this.hop();
+					else return this.step(PlayerMovementAction.SLIDE.equals(nextPerm.getAction()));
 				}
 			}
 		}
-		while (slide);
 	}
 	
-	public boolean attemptWarp(OverworldPosition position)
+	public Player attemptWarp()
 	{
 		//Find a warp for the provided position, warping to it and returning true if it exists
-		for (Warp warp : position.getMap().getWarps()) if (warp.getX() == position.getX() && warp.getY() == position.getY()) if (warp.getDestination() != null)
-		{
-			this.position = position.warpTo(warp.getDestination());
-			return true;
-		}
+		Warp warp = this.position.getMap().findWarpAt(this.position.getX(), this.position.getY());
+		if (warp != null && warp.getDestination() != null) return this.setPosition(this.position.warpTo(warp.getDestination()));
 		
 		//otherwise, return false
-		return false;
+		else return null;
 	}
 	
-	public void step(Direction direction)
+	public Player hop()
 	{
-		this.position = this.position.move(direction);
+		OverworldPosition nextPosition = this.position.move(this.facing, 2);
+		boolean sliding = PlayerMovementAction.SLIDE.equals(nextPosition.getCollision().getPermissionsForStep(this.facing, true).getAction());
+		return new Player(nextPosition, this.facing, sliding, this.flags);
 	}
 	
-	public void hop(Direction direction)
-	{
-		this.position = this.position.move(direction, 2);
-	}
+	public Player step(boolean sliding)
+	{ return new Player(this.position.move(this.facing), this.facing, sliding, this.flags); }
 	
-	private boolean checkSlide(Direction direction)
+	public static void getAllAccesibleCollision(HashMap<Map, boolean[][]> accessibleCollision, ArrayList<Flag> flags)
 	{
-		return PlayerMovementAction.SLIDE.equals(this.position.getCollision().getPermissionsForStep(direction, true).getAction());
-	}
-	
-	public void testAllMovements()
-	{
-		ArrayList<Map> maps = new ArrayList<>(this.playableAreas.keySet());
+		ArrayList<Map> maps = new ArrayList<>(accessibleCollision.keySet());
 		
 		while (maps.size() > 0)
 		{
 			Map map = maps.remove(0);
 			
-			boolean[][] oldCollisionsValid = this.playableAreas.get(map);
+			HashMap<Map, boolean[][]> accessibleCollisionFromMap = Player.getAccessibleCollision(map, accessibleCollision.get(map), flags);
 			
-			boolean[][] collisionsToTest = new boolean[oldCollisionsValid.length][];
-			for (int y = 0; y < oldCollisionsValid.length; y++) collisionsToTest[y] = Arrays.copyOf(oldCollisionsValid[y], oldCollisionsValid[y].length);
-			boolean[][] collisionsTested = new boolean[collisionsToTest.length][collisionsToTest[0].length];
-			boolean[][] collisionsValid = new boolean[collisionsToTest.length][collisionsToTest[0].length];
-			
-			boolean mapChanged;
-			do
+			for (Map updatedMap : accessibleCollisionFromMap.keySet())
 			{
-				mapChanged = false;
-				
-				for (int y = 0; y < collisionsToTest.length; y++) for (int x = 0; x < collisionsToTest[y].length; x++) if (!collisionsTested[y][x] && collisionsToTest[y][x])
+				if (accessibleCollision.containsKey(updatedMap))
 				{
-					OverworldPosition position = new OverworldPosition(map, x, y);
-					for (Direction direction : Direction.values())
+					boolean[][] oldCollision = accessibleCollision.get(updatedMap);
+					boolean[][] newCollision = accessibleCollisionFromMap.get(updatedMap);
+					boolean changed = false;
+					for (int y = 0; y < oldCollision.length; y++) for (int x = 0; x < oldCollision[y].length; x++) if (!oldCollision[y][x] && newCollision[y][x])
 					{
-						this.position = position;
-						this.move(direction);
-						if (!position.equals(this.position))
-						{
-							if (this.position.getMap().equals(map)) collisionsToTest[this.position.getY()][this.position.getX()] = true;
-							else
-							{
-								boolean[][] nextMapCollision;
-								
-								if (this.playableAreas.keySet().contains(this.position.getMap())) nextMapCollision = this.playableAreas.get(this.position.getMap());
-								else
-								{
-									nextMapCollision = new boolean[this.position.getMap().getBlocks().getCollisionYCapacity()][this.position.getMap().getBlocks().getCollisionXCapacity()];
-									maps.add(this.position.getMap());
-								}
-								
-								if (!nextMapCollision[this.position.getY()][this.position.getX()])
-								{
-									nextMapCollision[this.position.getY()][this.position.getX()] = true;
-									this.playableAreas.put(this.position.getMap(), nextMapCollision);
-									if (!maps.contains(this.position.getMap())) maps.add(this.position.getMap());
-								}
-							}
-						}
+						changed = true;
+						oldCollision[y][x] = newCollision[y][x];
 					}
-					
-					mapChanged = true;
-					collisionsTested[y][x] = true;
-					collisionsValid[y][x] = true;
+					accessibleCollision.put(updatedMap, oldCollision);
+					if (changed && map != updatedMap && !maps.contains(updatedMap)) maps.add(updatedMap);
+				}
+				else
+				{
+					accessibleCollision.put(updatedMap, accessibleCollisionFromMap.get(updatedMap));
+					if (!maps.contains(updatedMap)) maps.add(updatedMap);
 				}
 			}
-			while (mapChanged);
 			
-			this.playableAreas.put(map, collisionsValid);
-			
-			if (map.getConstName().equals("ECRUTEAK_CITY"))
+			/*if (map.getConstName().equals("ECRUTEAK_CITY"))
 			{
 				System.out.println("Old area:");
 				for (int y = 0; y < oldCollisionsValid.length; y++)
@@ -256,8 +182,63 @@ public class Player
 					System.out.println();
 				}
 				System.out.println();
+			}*/
+		}
+	}
+	
+	public static HashMap<Map, boolean[][]> getAccessibleCollision(Map map, boolean[][] collisionToTest, ArrayList<Flag> flags)
+	{
+		HashMap<Map, boolean[][]> accessibleCollision = new HashMap<>();
+		
+		boolean[][] newCollisionToTest = new boolean[collisionToTest.length][];
+		for (int y = 0; y < collisionToTest.length; y++) newCollisionToTest[y] = Arrays.copyOf(collisionToTest[y], collisionToTest[y].length);
+		boolean[][] collisionTested = new boolean[newCollisionToTest.length][newCollisionToTest[0].length];
+		boolean[][] collisionValid = new boolean[newCollisionToTest.length][newCollisionToTest[0].length];
+		
+		boolean mapChanged;
+		do
+		{
+			mapChanged = false;
+			
+			for (int y = 0; y < newCollisionToTest.length; y++) for (int x = 0; x < newCollisionToTest[y].length; x++) if (!collisionTested[y][x] && newCollisionToTest[y][x])
+			{
+				OverworldPosition position = new OverworldPosition(map, x, y);
+				for (Direction direction : Direction.values())
+				{
+					Player player = new Player(position, direction, false, flags);
+					do player = player.move();
+					while (player.isSliding());
+					OverworldPosition nextPosition = player.getPosition();
+					
+					if (!position.equals(nextPosition))
+					{
+						if (nextPosition.getMap().equals(map)) newCollisionToTest[nextPosition.getY()][nextPosition.getX()] = true;
+						else
+						{
+							boolean[][] nextMapCollision;
+							
+							if (accessibleCollision.keySet().contains(nextPosition.getMap())) nextMapCollision = accessibleCollision.get(nextPosition.getMap());
+							else nextMapCollision = new boolean[nextPosition.getMap().getBlocks().getCollisionYCapacity()][nextPosition.getMap().getBlocks().getCollisionXCapacity()];
+							
+							if (!nextMapCollision[nextPosition.getY()][nextPosition.getX()])
+							{
+								nextMapCollision[nextPosition.getY()][nextPosition.getX()] = true;
+								accessibleCollision.put(nextPosition.getMap(), nextMapCollision);
+							}
+						}
+					}
+				}
+				
+				mapChanged = true;
+				collisionTested[y][x] = true;
+				collisionValid[y][x] = true;
 			}
 		}
+		while (mapChanged);
+		
+		accessibleCollision.put(map, collisionValid);
+		
+		return accessibleCollision;
 	}
 	
 }

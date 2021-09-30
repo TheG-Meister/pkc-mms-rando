@@ -120,6 +120,12 @@ public class Map
 		}
 	}
 	
+	public Warp findWarpAt(int x, int y)
+	{
+		for (Warp warp : this.getWarps()) if (warp.getX() == x && warp.getY() == y) return warp;
+		return null;
+	}
+	
 	public boolean[][] beginMovement(int x, int y, ArrayList<Flag> flags)
 	{
 		boolean[][] tilesToTest = new boolean[this.blocks.getYCapacity() * 2][this.blocks.getXCapacity() * 2];
