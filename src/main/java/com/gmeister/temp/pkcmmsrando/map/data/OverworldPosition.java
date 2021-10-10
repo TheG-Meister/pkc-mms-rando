@@ -1,7 +1,5 @@
 package com.gmeister.temp.pkcmmsrando.map.data;
 
-import com.gmeister.temp.pkcmmsrando.map.data.MapBlocks.Direction;
-
 /**
  * Holds a Map, x coordinate and y coordinate, and provides methods for travelling through MapConnections and Warps. <br>
  * <br>
@@ -86,4 +84,43 @@ public final class OverworldPosition
 
 	public final int getY()
 	{ return this.y; }
+
+	@Override
+	public int hashCode()
+	{
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((this.map == null) ? 0 : this.map.hashCode());
+		result = prime * result + this.x;
+		result = prime * result + this.y;
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj)
+	{
+		if (this == obj) return true;
+		if (obj == null) return false;
+		if (getClass() != obj.getClass()) return false;
+		OverworldPosition other = (OverworldPosition) obj;
+		if (this.map == null)
+		{
+			if (other.map != null) return false;
+		}
+		else
+		{
+			if (this.map.getConstName() == null)
+			{
+				if (other.map.getConstName() == null) return false;
+			}
+			else if (!this.map.getConstName().equals(other.map.getConstName())) return false;
+		}
+		if (this.x != other.x) return false;
+		if (this.y != other.y) return false;
+		return true;
+	}
+
+	@Override
+	public String toString()
+	{ return "OverworldPosition [map=" + this.map.getConstName() + ", x=" + this.x + ", y=" + this.y + "]"; }
 }

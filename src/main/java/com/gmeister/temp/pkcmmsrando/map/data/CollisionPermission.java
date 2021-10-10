@@ -3,8 +3,6 @@ package com.gmeister.temp.pkcmmsrando.map.data;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.gmeister.temp.pkcmmsrando.map.data.Player.PlayerMovementAction;
-
 public class CollisionPermission
 {
 	

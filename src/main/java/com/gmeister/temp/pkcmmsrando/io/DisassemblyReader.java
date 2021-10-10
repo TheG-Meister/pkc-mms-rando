@@ -17,11 +17,12 @@ import com.gmeister.temp.pkcmmsrando.map.data.Block;
 import com.gmeister.temp.pkcmmsrando.map.data.BlockSet;
 import com.gmeister.temp.pkcmmsrando.map.data.CollisionConstant;
 import com.gmeister.temp.pkcmmsrando.map.data.Constant;
+import com.gmeister.temp.pkcmmsrando.map.data.Direction;
 import com.gmeister.temp.pkcmmsrando.map.data.Flag;
 import com.gmeister.temp.pkcmmsrando.map.data.Map;
 import com.gmeister.temp.pkcmmsrando.map.data.MapBlocks;
-import com.gmeister.temp.pkcmmsrando.map.data.MapBlocks.Direction;
 import com.gmeister.temp.pkcmmsrando.map.data.MapConnection;
+import com.gmeister.temp.pkcmmsrando.map.data.OverworldPosition;
 import com.gmeister.temp.pkcmmsrando.map.data.TileSet;
 import com.gmeister.temp.pkcmmsrando.map.data.Warp;
 
@@ -363,9 +364,7 @@ public class DisassemblyReader
 				String[] args = this.commaSeparatorPattern.split(line);
 				
 				Warp warp = map.getWarps().get(count);
-				warp.setX(Integer.parseInt(args[0]));
-				warp.setY(Integer.parseInt(args[1]));
-				warp.setMap(map);
+				warp.setPosition(new OverworldPosition(map, Integer.parseInt(args[0]), Integer.parseInt(args[1])));
 				int destinationIndex = Integer.parseInt(args[3]) - 1;
 
 				Map mapTo = mapsByConstName.get(args[2]);

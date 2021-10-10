@@ -2,38 +2,8 @@ package com.gmeister.temp.pkcmmsrando.map.data;
 
 import java.util.Arrays;
 
-import com.gmeister.temp.maps.MapOutOfBoundsException;
-
 public class MapBlocks
 {
-	
-	public static enum Direction
-	{
-		UP("NORTH", 0, -1),
-		DOWN("SOUTH", 0, 1),
-		LEFT("WEST", -1, 0),
-		RIGHT("EAST", 1, 0);
-		
-		private String cardinalName;
-		private int dx;
-		private int dy;
-		
-		Direction(String cardinalName, int dx, int dy)
-		{
-			this.cardinalName = cardinalName;
-			this.dx = dx;
-			this.dy = dy;
-		}
-
-		public int getDx()
-		{ return this.dx; }
-
-		public int getDy()
-		{ return this.dy; }
-
-		public String getCardinalName()
-		{ return this.cardinalName; }
-	}
 	
 	private String name;
 	private int xCapacity;
@@ -46,7 +16,7 @@ public class MapBlocks
 	public Block getAt(int x, int y)
 	{
 		if (this.containsBlockAt(x, y)) return this.blocks[(y * this.xCapacity) + x];
-		else throw new MapOutOfBoundsException("Map does not contain coordinates " + x + ", " + y);
+		else throw new ArrayIndexOutOfBoundsException("Map does not contain coordinates " + x + ", " + y);
 	}
 	
 	public boolean containsBlockAt(int x, int y)
@@ -55,7 +25,7 @@ public class MapBlocks
 	public void setAt(int x, int y, Block b)
 	{
 		if (this.containsBlockAt(x, y)) this.blocks[(y * this.xCapacity) + x] = b;
-		else throw new MapOutOfBoundsException("BooleanMap does not contain coordinates " + x + ", " + y);
+		else throw new ArrayIndexOutOfBoundsException("BooleanMap does not contain coordinates " + x + ", " + y);
 	}
 	
 	public CollisionConstant getCollisionAt(int x, int y)
@@ -66,7 +36,7 @@ public class MapBlocks
 		int collisionY = y % Block.COLLISION_WIDTH;
 		
 		if (this.containsBlockAt(blockX, blockY)) return this.blocks[(blockY * this.xCapacity) + blockX].getCollision()[collisionY][collisionX];
-		else throw new MapOutOfBoundsException("Map does not contain coordinates " + x + ", " + y);
+		else throw new ArrayIndexOutOfBoundsException("Map does not contain coordinates " + x + ", " + y);
 	}
 	
 	public boolean containsCollisionAt(int x, int y)
@@ -90,7 +60,7 @@ public class MapBlocks
 		int tileY = y % Block.TILE_WIDTH;
 		
 		if (this.containsBlockAt(blockX, blockY)) return this.blocks[(blockY * this.xCapacity) + blockX].getTiles()[tileY][tileX];
-		else throw new MapOutOfBoundsException("Map does not contain coordinates " + x + ", " + y);
+		else throw new ArrayIndexOutOfBoundsException("Map does not contain coordinates " + x + ", " + y);
 	}
 	
 	public boolean containsTileAt(int x, int y)

@@ -1,11 +1,8 @@
 package com.gmeister.temp.pkcmmsrando.map.data;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.regex.Pattern;
-
-import com.gmeister.temp.pkcmmsrando.map.data.MapBlocks.Direction;
 
 public class Map
 {
@@ -35,60 +32,60 @@ public class Map
 		this.script = new ArrayList<>();
 		this.warps = new ArrayList<>();
 		this.connections = new HashMap<>();
-		for (Direction direction : Direction.values()) connections.put(direction, null);
+		for (Direction direction : Direction.values()) this.connections.put(direction, null);
 	}
-
+	
 	public String getName()
 	{ return this.name; }
-
+	
 	public void setName(String name)
 	{ this.name = name; }
-
+	
 	public String getConstName()
 	{ return this.constName; }
-
+	
 	public void setConstName(String constName)
 	{ this.constName = constName; }
-
+	
 	public int getXCapacity()
 	{ return this.xCapacity; }
-
+	
 	public void setXCapacity(int xCapacity)
 	{ this.xCapacity = xCapacity; }
-
+	
 	public int getYCapacity()
 	{ return this.yCapacity; }
-
+	
 	public void setYCapacity(int yCapacity)
 	{ this.yCapacity = yCapacity; }
-
+	
 	public ArrayList<String> getScript()
 	{ return this.script; }
-
+	
 	public void setScript(ArrayList<String> script)
 	{ this.script = script; }
-
+	
 	public ArrayList<Warp> getWarps()
 	{ return this.warps; }
-
+	
 	public void setWarps(ArrayList<Warp> warps)
 	{ this.warps = warps; }
-
+	
 	public MapBlocks getBlocks()
 	{ return this.blocks; }
-
+	
 	public void setBlocks(MapBlocks blocks)
 	{ this.blocks = blocks; }
-
+	
 	public TileSet getTileSet()
 	{ return this.tileSet; }
-
+	
 	public void setTileSet(TileSet tileSet)
 	{ this.tileSet = tileSet; }
 	
 	public HashMap<Direction, MapConnection> getConnections()
 	{ return this.connections; }
-
+	
 	public void writeWarpsToScript()
 	{
 		Pattern warpEventPattern = Pattern.compile("\\twarp_event\\s+");
@@ -126,68 +123,52 @@ public class Map
 		return null;
 	}
 	
-	public boolean[][] beginMovement(int x, int y, ArrayList<Flag> flags)
+	public ArrayList<Map> getConnectingMaps()
 	{
-		boolean[][] tilesToTest = new boolean[this.blocks.getYCapacity() * 2][this.blocks.getXCapacity() * 2];
-		tilesToTest[y][x] = true;
-		return this.expandMovement(tilesToTest, flags);
-	}
-	
-	public boolean[][] expandMovement(boolean[][] tiles, ArrayList<Flag> flags)
-	{
-		if (tiles.length != this.blocks.getYCapacity() * 2) throw new IllegalArgumentException("The provded boolean array was not equal in size to this map.");
-		if (flags == null) flags = new ArrayList<>();
-		
-		boolean[][] tilesToTest = new boolean[tiles.length][];
-		for (int y = 0; y < tiles.length; y++) tilesToTest[y] = Arrays.copyOf(tiles[y], tiles[y].length);
-		
-		boolean[][] tilesTested = new boolean[this.blocks.getYCapacity() * 2][this.blocks.getXCapacity() * 2];
-		boolean[][] tilesValid = new boolean[this.blocks.getYCapacity() * 2][this.blocks.getXCapacity() * 2];
-		
-		boolean changed;
-		do
+		ArrayList<Map> maps = new ArrayList<>();
+		for (MapConnection connection : this.connections.values()) if (connection != null)
 		{
-			changed = false;
-			
-			for (int y = 0; y < tilesToTest.length; y++)
-			{
-				if (tilesToTest[y].length != this.blocks.getXCapacity() * 2) throw new IllegalArgumentException("The provded boolean array was not equal in size to this map.");
-				for (int x = 0; x < tilesToTest[y].length; x++) if (!tilesTested[y][x] && tilesToTest[y][x])
-				{
-					CollisionConstant collision = this.blocks.getCollisionAt(x, y);
-					
-					for (Direction direction : Direction.values())
-					{
-						if (collision.getPermissionsForStep(direction, false).getName().toUpperCase().equals("HOP"))
-						{
-							int nextX = x + direction.getDx() * 2;
-							int nextY = y + direction.getDy() * 2;
-							if (this.blocks.containsCollisionAt(nextX, nextY))
-							{
-								
-							}
-						}
-						int nextX = x + direction.getDx();
-						int nextY = y + direction.getDy();
-						if (this.blocks.containsCollisionAt(nextX, nextY))
-						{
-							if (this.blocks.getCollisionAt(x, y).canMoveTo(this.blocks.getCollisionAt(nextX, nextY), direction, flags))
-							{
-								tilesToTest[nextY][nextX] = true;
-								tilesValid[nextY][nextX] = true;
-								changed = true;
-							}
-						}
-					}
-					
-					tilesToTest[y][x] = false;
-					tilesTested[y][x] = true;
-				}
-			}
+			Map connectionMap = connection.getMap();
+			if (connectionMap != null && !this.equals(connectionMap) && !maps.contains(connectionMap))
+				maps.add(connectionMap);
 		}
-		while (changed);
 		
-		return tilesValid;
+		for (Warp warp : this.warps) if (warp != null && warp.getDestination() != null)
+		{
+			Map destinationMap = warp.getDestination().getMap();
+			if (destinationMap != null && !this.equals(destinationMap) && !maps.contains(destinationMap))
+				maps.add(destinationMap);
+		}
+		
+		return maps;
 	}
+
+	@Override
+	public int hashCode()
+	{
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((this.constName == null) ? 0 : this.constName.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj)
+	{
+		if (this == obj) return true;
+		if (obj == null) return false;
+		if (getClass() != obj.getClass()) return false;
+		Map other = (Map) obj;
+		if (this.constName == null)
+		{
+			if (other.constName != null) return false;
+		}
+		else if (!this.constName.equals(other.constName)) return false;
+		return true;
+	}
+
+	@Override
+	public String toString()
+	{ return this.constName; }
 	
 }

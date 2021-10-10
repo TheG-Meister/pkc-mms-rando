@@ -1,6 +1,7 @@
 package com.gmeister.temp.pkcmmsrando;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -112,11 +113,10 @@ public class Notes
 		}
 	}
 	
-	public static void randomiseWarpAreas(ArrayList<Map> maps) throws IOException
+	public static void randomiseWarpAreas(ArrayList<Map> maps, ArrayList<String[]> mapGroupNamess) throws IOException
 	{
 		ArrayList<ArrayList<Warp>> warpGroups = new ArrayList<>();
 		ArrayList<ArrayList<Map>> mapGroups = new ArrayList<>();
-		ArrayList<String[]> mapGroupNamess = Notes.readMapGroups();
 		for (String[] mapGroupNames : mapGroupNamess) mapGroups.add(Notes.getMapsByNames(maps, mapGroupNames));
 		
 		for (ArrayList<Map> mapGroup : mapGroups)
@@ -146,20 +146,132 @@ public class Notes
 		new Randomiser().shuffleWarpGroups(warpGroups, false, true);
 	}
 	
+	public static void testWarpAreas(ArrayList<Map> maps, ArrayList<Flag> flags, ArrayList<String[]> mapGroupNamess) throws IOException
+	{
+		ArrayList<ArrayList<Warp>> warpGroups = new ArrayList<>();
+		ArrayList<ArrayList<Map>> mapGroups = new ArrayList<>();
+		for (String[] mapGroupNames : mapGroupNamess) mapGroups.add(Notes.getMapsByNames(maps, mapGroupNames));
+		
+		for (ArrayList<Map> mapGroup : mapGroups)
+			for (Map map : mapGroup)
+				for (Warp warp : map.getWarps())
+					for (ArrayList<Map> mapGroup2 : mapGroups)
+						if (!mapGroup.equals(mapGroup2) && warp.getDestination() != null &&
+						mapGroup2.contains(warp.getDestination().getMap()))
+		{
+			ArrayList<Warp> group = null;
+			
+			groupTesting:
+			for (ArrayList<Warp> testGroup : warpGroups) for (Warp testWarp : testGroup) if (warp.isAdjacentTo(testWarp))
+			{
+				group = testGroup;
+				break groupTesting;
+			}
+			
+			if (group == null)
+			{
+				group = new ArrayList<>();
+				warpGroups.add(group);
+			}
+			
+			group.add(warp);
+		}
+		
+		ArrayList<ArrayList<ArrayList<Warp>>> accessibleGroups = new ArrayList<>();
+		for (int i = 0; i < warpGroups.size(); i++) accessibleGroups.add(new ArrayList<>());
+		
+		for (ArrayList<Map> mapGroup : mapGroups)
+		{
+			ArrayList<ArrayList<Warp>> mapGroupWarpGroups = new ArrayList<>();
+			
+			for (ArrayList<Warp> warpGroup : warpGroups) if (mapGroup.contains(warpGroup.get(0).getMap())) mapGroupWarpGroups.add(warpGroup);
+			
+			for (ArrayList<Warp> warpGroup : mapGroupWarpGroups)
+			{
+				Warp warp = warpGroup.get(0);
+				HashMap<Map, boolean[][]> accessibleCollision = new HashMap<>();
+				boolean[][] startCollision = new boolean[warp.getMap().getBlocks().getCollisionYCapacity()][warp.getMap().getBlocks().getCollisionXCapacity()];
+				startCollision[warp.getY()][warp.getX()] = true;
+				accessibleCollision.put(warp.getMap(), startCollision);
+				
+				ArrayList<Map> mapsToTest = new ArrayList<>(accessibleCollision.keySet());
+				
+				while (mapsToTest.size() > 0)
+				{
+					Map map = mapsToTest.remove(0);
+					
+					HashMap<Map, boolean[][]> accessibleCollisionFromMap = Player.getAccessibleCollision(map, accessibleCollision.get(map), flags);
+					
+					for (Map updatedMap : accessibleCollisionFromMap.keySet())
+					{
+						if (accessibleCollision.containsKey(updatedMap))
+						{
+							boolean[][] oldCollision = accessibleCollision.get(updatedMap);
+							boolean[][] newCollision = accessibleCollisionFromMap.get(updatedMap);
+							boolean changed = false;
+							for (int y = 0; y < oldCollision.length; y++) for (int x = 0; x < oldCollision[y].length; x++) if (!oldCollision[y][x] && newCollision[y][x])
+							{
+								changed = true;
+								oldCollision[y][x] = newCollision[y][x];
+							}
+							accessibleCollision.put(updatedMap, oldCollision);
+							if (mapGroup.contains(updatedMap) && changed && map != updatedMap && !mapsToTest.contains(updatedMap)) mapsToTest.add(updatedMap);
+						}
+						else
+						{
+							accessibleCollision.put(updatedMap, accessibleCollisionFromMap.get(updatedMap));
+							if (mapGroup.contains(updatedMap) && !mapsToTest.contains(updatedMap)) mapsToTest.add(updatedMap);
+						}
+					}
+				}
+				
+				for (ArrayList<Warp> otherGroup : mapGroupWarpGroups)
+				{
+					Warp otherWarp = otherGroup.get(0);
+					if (!warp.equals(otherWarp))
+					{
+						if ((accessibleCollision.keySet().contains(otherWarp.getMap()) &&
+								accessibleCollision.get(otherWarp.getMap())[otherWarp.getY()][otherWarp.getX()])
+								|| (accessibleCollision.keySet().contains(otherWarp.getDestination().getMap()) &&
+										accessibleCollision.get(otherWarp.getDestination().getMap())[otherWarp.getDestination().getY()][otherWarp.getDestination().getX()]))
+						{
+							accessibleGroups.get(warpGroups.indexOf(warpGroup)).add(otherGroup);
+							StringBuilder builder = new StringBuilder();
+							builder.append(warp.getMap().getConstName()).append(" ");
+							builder.append(warp.getX()).append(" ");
+							builder.append(warp.getY());
+							builder.append(" -> ");
+							builder.append(otherWarp.getMap().getConstName()).append(" ");
+							builder.append(otherWarp.getX()).append(" ");
+							builder.append(otherWarp.getY());
+							System.out.println(builder.toString());
+						}
+					}
+				}
+					
+			}
+		}
+	}
+	
+	/*
+	 * We're trying to get all maps to be visitable right?
+	 * The way the new group rando works is by setting destinations directly instead of setting one destination to the destination of another
+	 * Any group that cannot be accessed via this code cannot be made the destination of another group that cannot be accessed by the code
+	 * Furthermore, this continues if all of the warps leading to a map cannot be accessed
+	 * Oh, rather than all maps being accessed, make it so all warps can be accessed (groups, I mean)
+	 * 
+	 * Start at new bark
+	 * Pick a random warp group
+	 * Only place it down if the number of remaining accessible warps is greater than 1
+	 * Have to build off of new bark though
+	 */
+	
 	public static ArrayList<Map> getMapsByNames(ArrayList<Map> maps, String... constNames)
 	{
 		ArrayList<Map> selectedMaps = new ArrayList<>();
 		ArrayList<String> constNamesList = new ArrayList<>(Arrays.asList(constNames));
 		for (Map map : maps) if (constNamesList.contains(map.getConstName())) selectedMaps.add(map);
 		return selectedMaps;
-	}
-	
-	public static ArrayList<String[]> readMapGroups() throws IOException
-	{
-		ArrayList<String[]> groups = new ArrayList<>();
-		ArrayList<String> lines = new ArrayList<>(Files.readAllLines(Paths.get("E:/grant/documents/.my-stuff/Pokecrystal/pkc-mms-rando/map/vanilla-map-groups.tsv")));
-		for (String line : lines) groups.add(line.split("\t"));
-		return groups;
 	}
 	
 	public static void warpRando() throws IOException
@@ -321,6 +433,16 @@ public class Notes
 		}
 	}
 	
+	public static void randomiseMusicPointers(DisassemblyReader reader, DisassemblyWriter writer, Randomiser rando) throws FileNotFoundException, IOException
+	{
+		writer.writeMusicPointers(rando.shuffleMusicPointers(reader.readMusicPointers()));
+	}
+	
+	public static void randomiseSFXPointers(DisassemblyReader reader, DisassemblyWriter writer, Randomiser rando) throws FileNotFoundException, IOException
+	{
+		writer.writeSFXPointers(rando.shuffleSFXPointers(reader.readSFXPointers()));
+	}
+	
 	public static void main(String... args) throws IOException, URISyntaxException
 	{
 		File inFolder = Paths.get(
@@ -344,7 +466,9 @@ public class Notes
 		for (TileSet tileSet : tileSets) tileSet.getBlockSet().updateCollGroups();
 		ArrayList<Map> maps = disReader.readMaps(tileSets);
 		
-		HashMap<Map, boolean[][]> accessibleCollision = new HashMap<>();
+		Notes.testWarpAreas(maps, flags, empReader.readVanillaMapGroups());
+		
+		/*HashMap<Map, boolean[][]> accessibleCollision = new HashMap<>();
 		boolean[][] playersRoomArea = new boolean[6][8];
 		playersRoomArea[3][3] = true;
 		
@@ -352,7 +476,7 @@ public class Notes
 		
 		Player.getAllAccesibleCollision(accessibleCollision, flags);
 		
-		for (Map map : accessibleCollision.keySet()) System.out.println(map.getConstName());
+		for (Map map : accessibleCollision.keySet()) System.out.println(map.getConstName());*/
 		
 	}
 	

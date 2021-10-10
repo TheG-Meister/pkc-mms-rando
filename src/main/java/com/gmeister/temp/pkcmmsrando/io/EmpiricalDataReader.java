@@ -7,14 +7,16 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 
 import com.gmeister.temp.pkcmmsrando.map.data.CollisionConstant;
 import com.gmeister.temp.pkcmmsrando.map.data.CollisionPermission;
+import com.gmeister.temp.pkcmmsrando.map.data.Direction;
 import com.gmeister.temp.pkcmmsrando.map.data.Flag;
-import com.gmeister.temp.pkcmmsrando.map.data.MapBlocks.Direction;
-import com.gmeister.temp.pkcmmsrando.map.data.Player.PlayerMovementAction;
+import com.gmeister.temp.pkcmmsrando.map.data.PlayerMovementAction;
 
 /**
  * Reads select empirical data from files within this project. <br>
@@ -143,6 +145,17 @@ public class EmpiricalDataReader
 		}
 		
 		return constants;
+	}
+	
+	public ArrayList<String[]> readVanillaMapGroups() throws IOException, URISyntaxException
+	{
+		URL url = EmpiricalDataReader.class.getResource("/vanilla-map-groups.tsv");
+		if (url == null) throw new FileNotFoundException("Could not find vanilla-map-groups.tsv");
+		
+		ArrayList<String[]> groups = new ArrayList<>();
+		ArrayList<String> lines = new ArrayList<>(Files.readAllLines(Paths.get(url.toURI())));
+		for (String line : lines) groups.add(line.split("\t"));
+		return groups;
 	}
 	
 }

@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 
-import com.gmeister.temp.pkcmmsrando.map.data.MapBlocks.Direction;
-
 /*
  * A player has a bunch of flags they can obtain, as well as stuff like items, pokemon, etc.
  * They can move across maps, battle trainers, interact with anything, etc.
@@ -13,9 +11,6 @@ import com.gmeister.temp.pkcmmsrando.map.data.MapBlocks.Direction;
 
 public final class Player
 {
-	
-	public static enum PlayerMovementAction
-	{ HOP, SLIDE, WARP }
 	
 	private final OverworldPosition position;
 	private final Direction facing;
@@ -165,24 +160,6 @@ public final class Player
 					if (!maps.contains(updatedMap)) maps.add(updatedMap);
 				}
 			}
-			
-			/*if (map.getConstName().equals("ECRUTEAK_CITY"))
-			{
-				System.out.println("Old area:");
-				for (int y = 0; y < oldCollisionsValid.length; y++)
-				{
-					for (int x = 0; x < oldCollisionsValid[y].length; x++) System.out.print(oldCollisionsValid[y][x] ? '1' : '0');
-					System.out.println();
-				}
-				System.out.println();
-				System.out.println("New area:");
-				for (int y = 0; y < collisionsValid.length; y++)
-				{
-					for (int x = 0; x < collisionsValid[y].length; x++) System.out.print(collisionsValid[y][x] ? '1' : '0');
-					System.out.println();
-				}
-				System.out.println();
-			}*/
 		}
 	}
 	

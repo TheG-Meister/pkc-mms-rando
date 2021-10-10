@@ -2,8 +2,6 @@ package com.gmeister.temp.pkcmmsrando.map.data;
 
 import java.util.ArrayList;
 
-import com.gmeister.temp.pkcmmsrando.map.data.MapBlocks.Direction;
-
 public class CollisionConstant extends Constant
 {
 	

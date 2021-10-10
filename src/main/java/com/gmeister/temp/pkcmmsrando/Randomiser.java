@@ -2,6 +2,7 @@ package com.gmeister.temp.pkcmmsrando;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -222,6 +223,29 @@ public class Randomiser
 			ArrayList<Warp> newGroup = newGroups.get(i);
 			for (int j = 0; j < oldGroup.size(); j++) oldGroup.get(j).setDestination(newGroup.get(j % newGroup.size()));
 		}
+	}
+	
+	public void buildWarpGroups(ArrayList<ArrayList<Warp>> warpGroups, HashMap<ArrayList<Warp>, ArrayList<ArrayList<Warp>>> accessibleGroups, ArrayList<Warp> startingGroup)
+	{
+		/*
+		 * Make a random
+		 * Check that the accessible groups contains all keys from the groups
+		 * check that the groups contains the starting group
+		 * Pick a random group that we can currently access
+		 * Pick a random group that we haven't selected yet
+		 * if performing this link would mean there is at least one warp we can still access (unless it's the last one) then do it
+		 * don't do the self warps so include similar code to above
+		 */
+		
+		Random random = new Random(this.random.nextLong());
+		
+		for (ArrayList<Warp> warpGroup : warpGroups) if (!accessibleGroups.containsKey(warpGroup)) throw new IllegalArgumentException("accessibleGroups does not contain a key for every group");
+		for (ArrayList<Warp> warpGroup : accessibleGroups.keySet()) if (!warpGroups.contains(warpGroup)) throw new IllegalArgumentException("accessibleGroups contains groups that are not present in warpGroups");
+		if (!warpGroups.contains(startingGroup)) throw new IllegalArgumentException("warpGroups does not contain startingGroup");
+		
+		if (warpGroups.size() % 2 != 0) throw new IllegalArgumentException("Could not avoid self warps as there are an odd number of groups");
+		
+		
 	}
 	
 	/*
