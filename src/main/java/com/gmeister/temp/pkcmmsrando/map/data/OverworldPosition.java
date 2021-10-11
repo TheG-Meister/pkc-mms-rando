@@ -107,7 +107,7 @@ public final class OverworldPosition
 		{
 			if (other.map != null) return false;
 		}
-		else
+		else if (other.map != null)
 		{
 			if (this.map.getConstName() == null)
 			{

@@ -87,7 +87,7 @@ public class Warp
 		{
 			if (other.destination != null) return false;
 		}
-		else
+		else if (other.destination != null)
 		{
 			if (this.destination.position == null)
 			{

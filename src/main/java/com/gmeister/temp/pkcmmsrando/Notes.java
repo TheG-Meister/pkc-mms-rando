@@ -18,7 +18,6 @@ import com.gmeister.temp.pkcmmsrando.io.DisassemblyReader;
 import com.gmeister.temp.pkcmmsrando.io.DisassemblyWriter;
 import com.gmeister.temp.pkcmmsrando.io.EmpiricalDataReader;
 import com.gmeister.temp.pkcmmsrando.map.data.CollisionConstant;
-import com.gmeister.temp.pkcmmsrando.map.data.CollisionPermission;
 import com.gmeister.temp.pkcmmsrando.map.data.Flag;
 import com.gmeister.temp.pkcmmsrando.map.data.Map;
 import com.gmeister.temp.pkcmmsrando.map.data.Player;
@@ -113,15 +112,21 @@ public class Notes
 		}
 	}
 	
-	public static void randomiseWarpAreas(ArrayList<Map> maps, ArrayList<String[]> mapGroupNamess) throws IOException
+	public static void randomiseWarpAreas(DisassemblyReader disReader, EmpiricalDataReader empReader, DisassemblyWriter disWriter, Randomiser rando) throws IOException, URISyntaxException
 	{
+		ArrayList<CollisionConstant> collisionConstants = disReader.readCollisionConstants();
+		ArrayList<TileSet> tileSets = disReader.readTileSets(collisionConstants);
+		for (TileSet tileSet : tileSets) tileSet.getBlockSet().updateCollGroups();
+		ArrayList<Map> maps = disReader.readMaps(tileSets);
+		
 		ArrayList<ArrayList<Warp>> warpGroups = new ArrayList<>();
 		ArrayList<ArrayList<Map>> mapGroups = new ArrayList<>();
+		ArrayList<String[]> mapGroupNamess = empReader.readVanillaMapGroups();
 		for (String[] mapGroupNames : mapGroupNamess) mapGroups.add(Notes.getMapsByNames(maps, mapGroupNames));
 		
 		for (ArrayList<Map> mapGroup : mapGroups)
 			for (Map map : mapGroup)
-				for (Warp warp : map.getWarps())
+				for (Warp warp : map.getWarps()) if (warp.getDestination() != null)
 					for (ArrayList<Map> mapGroup2 : mapGroups)
 						if (!mapGroup.equals(mapGroup2) && mapGroup2.contains(warp.getDestination().getMap()))
 		{
@@ -143,7 +148,13 @@ public class Notes
 			group.add(warp);
 		}
 		
-		new Randomiser().shuffleWarpGroups(warpGroups, false, true);
+		rando.shuffleWarpGroups(warpGroups, false, true);
+		
+		for (Map map : maps)
+		{
+			map.writeWarpsToScript();
+			disWriter.writeMapScript(map);
+		}
 	}
 	
 	public static void testWarpAreas(ArrayList<Map> maps, ArrayList<Flag> flags, ArrayList<String[]> mapGroupNamess) throws IOException
@@ -274,35 +285,12 @@ public class Notes
 		return selectedMaps;
 	}
 	
-	public static void warpRando() throws IOException
+	public static void warpRando(DisassemblyReader disReader, DisassemblyWriter disWriter, Randomiser rando) throws IOException
 	{
-		File inFolder = Paths.get(
-				"E:/grant/documents/.my-stuff/Pokecrystal/pokecrystal-speedchoice-7.2/").toFile();
-		File outFolder = Paths.get(
-				"E:/grant/documents/.my-stuff/Pokecrystal/pkc-mms-rando/patches/21-08-21-1/pokecrystal-speedchoice/").toFile();
-		
-		DisassemblyReader disReader = new DisassemblyReader(inFolder);
-		DisassemblyWriter disWriter = new DisassemblyWriter(outFolder);
-		Randomiser rando = new Randomiser();
-		
-		ArrayList<String> musicScript = disReader.readMusicPointers();
-		ArrayList<String> shuffledScript = rando.shuffleMusicPointers(musicScript);
-		disWriter.writeMusicPointers(shuffledScript);
-		
 		ArrayList<CollisionConstant> collisionConstants = disReader.readCollisionConstants();
 		ArrayList<TileSet> tileSets = disReader.readTileSets(collisionConstants);
 		for (TileSet tileSet : tileSets) tileSet.getBlockSet().updateCollGroups();
 		ArrayList<Map> maps = disReader.readMaps(tileSets);
-		
-		/*Notes.randomiseWarpAreas(maps);
-		
-		for (Map map : maps)
-		{
-			//System.out.println(map.getConstName());
-			map.writeWarpsToScript();
-			io.writeMapScript(map);
-		}
-		if (true) return;*/
 		
 		ArrayList<Warp> warps = new ArrayList<>();
 		for (Map map : maps)
@@ -445,39 +433,30 @@ public class Notes
 	
 	public static void main(String... args) throws IOException, URISyntaxException
 	{
-		File inFolder = Paths.get(
-				"E:/grant/documents/.my-stuff/Pokecrystal/pokecrystal-speedchoice-7.2/").toFile();
-		File outFolder = Paths.get(
-				"E:/grant/documents/.my-stuff/Pokecrystal/pkc-mms-rando/patches/21-09-23-warp-5/pokecrystal-speedchoice/").toFile();
+		if (args.length != 5)
+		{
+			System.out.println("pkc-mms-rando");
+			System.out.println();
+			System.out.println("requires the following arguments in order:");
+			System.out.println("Path to a pret/pokecrystal style disassembly input folder, eg. \"C:/user/documents/pokecrystal-speedchoice-7.2/\"");
+			System.out.println("Path to an output folder, eg. \"C:/user/documents/output/\"");
+			System.out.println("true/false, whether to randomise music pointers (race safe)");
+			System.out.println("true/false, whether to randomise SFX pointers (race safe)");
+			System.out.println("true/false, whether to randomise warps (not race safe)");
+			return;
+		}
+		
+		File inFolder = Paths.get(args[0]).normalize().toAbsolutePath().toFile();
+		File outFolder = Paths.get(args[1]).normalize().toAbsolutePath().toFile();
 		
 		DisassemblyReader disReader = new DisassemblyReader(inFolder);
 		DisassemblyWriter disWriter = new DisassemblyWriter(outFolder);
 		EmpiricalDataReader empReader = new EmpiricalDataReader(null);
 		Randomiser rando = new Randomiser();
 		
-		ArrayList<Flag> flags = new ArrayList<>();
-		flags.addAll(disReader.readEngineFlags());
-		flags.addAll(disReader.readEventFlags());
-		
-		ArrayList<CollisionPermission> perms = empReader.readCollisionPermissions(flags);
-		ArrayList<CollisionConstant> collision = empReader.readCollisionConstants(perms);
-		
-		ArrayList<TileSet> tileSets = disReader.readTileSets(collision);
-		for (TileSet tileSet : tileSets) tileSet.getBlockSet().updateCollGroups();
-		ArrayList<Map> maps = disReader.readMaps(tileSets);
-		
-		Notes.testWarpAreas(maps, flags, empReader.readVanillaMapGroups());
-		
-		/*HashMap<Map, boolean[][]> accessibleCollision = new HashMap<>();
-		boolean[][] playersRoomArea = new boolean[6][8];
-		playersRoomArea[3][3] = true;
-		
-		for (Map map : maps) if (map.getConstName().equals("PLAYERS_HOUSE_2F")) accessibleCollision.put(map, playersRoomArea);
-		
-		Player.getAllAccesibleCollision(accessibleCollision, flags);
-		
-		for (Map map : accessibleCollision.keySet()) System.out.println(map.getConstName());*/
-		
+		if (Boolean.parseBoolean(args[2])) Notes.randomiseMusicPointers(disReader, disWriter, rando);
+		if (Boolean.parseBoolean(args[3])) Notes.randomiseSFXPointers(disReader, disWriter, rando);
+		if (Boolean.parseBoolean(args[4])) Notes.randomiseWarpAreas(disReader, empReader, disWriter, rando);
 	}
 	
 }
