@@ -471,6 +471,7 @@ public class DisassemblyReader
 					int value;
 					if (args[1].startsWith("$")) value = Integer.parseInt(args[1].substring(1), 16);
 					else if (args[1].equals("const_value")) value = count;
+					else if (args[1].equals("const_value - 1")) value = count - 1;
 					else value = Integer.parseInt(args[1]);
 					
 					constants.add(new Constant(args[0], value));

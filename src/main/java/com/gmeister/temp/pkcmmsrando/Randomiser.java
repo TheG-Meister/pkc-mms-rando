@@ -188,7 +188,7 @@ public class Randomiser
 			oldGroupLoops:
 			while (true)
 			{
-				for (ArrayList<Warp> oldGroup : groups) if (allowSelfWarps || (!newGroups.contains(oldGroup) || testedAllOldDestsForThisGroup) && !oldGroup.equals(newGroup)) 
+				for (ArrayList<Warp> oldGroup : groups) if (allowSelfWarps || ((!newGroups.contains(oldGroup) || testedAllOldDestsForThisGroup) && !oldGroup.equals(newGroup))) 
 				{
 					groups.remove(oldGroup);
 					oldGroups.add(oldGroup);
@@ -245,7 +245,71 @@ public class Randomiser
 		
 		if (warpGroups.size() % 2 != 0) throw new IllegalArgumentException("Could not avoid self warps as there are an odd number of groups");
 		
+		//Create a random list of groups
+		ArrayList<ArrayList<Warp>> shuffledGroups = new ArrayList<>(warpGroups);
+		Collections.shuffle(shuffledGroups, random);
+		ArrayList<ArrayList<Warp>> freeGroups = new ArrayList<>();
+		freeGroups.add(startingGroup);
+		freeGroups.addAll(accessibleGroups.get(startingGroup));
 		
+		/*
+		 * We can't enforce both not allowing self warps and making sure we're always allowed to select the old group
+		 * Does this even solve the issue of things being added multiple times?
+		 */
+		
+		//Pull random destinations
+		ArrayList<ArrayList<Warp>> oldGroups = new ArrayList<>();
+		ArrayList<ArrayList<Warp>> newGroups = new ArrayList<>();
+		
+		while (shuffledGroups.size() > 0)
+		{
+			ArrayList<Warp> oldGroup = freeGroups.get(0);
+			boolean testedAllNewDestsForThisGroup = false;
+			
+			oldGroupLoops:
+			while (true)
+			{
+				for (ArrayList<Warp> newGroup : shuffledGroups) if ((!newGroups.contains(oldGroup) || testedAllNewDestsForThisGroup) && !oldGroup.equals(newGroup))
+				{
+					ArrayList<ArrayList<Warp>> nextFreeGroups = new ArrayList<>(freeGroups);
+					for (ArrayList<Warp> freeGroup : accessibleGroups.get(newGroup)) if (shuffledGroups.contains(freeGroup)) nextFreeGroups.add(freeGroup);
+					nextFreeGroups.remove(oldGroup);
+					nextFreeGroups.remove(newGroup);
+					
+					if (nextFreeGroups.size() > 0 || shuffledGroups.size() < 2)
+					{
+						oldGroups.add(oldGroup);
+						newGroups.add(newGroup);
+						
+						oldGroups.add(newGroup);
+						newGroups.add(oldGroup);
+						
+						shuffledGroups.remove(newGroup);
+						shuffledGroups.remove(oldGroup);
+						
+						freeGroups = nextFreeGroups;
+						
+						break oldGroupLoops;
+					}
+				}
+				
+				if (!testedAllNewDestsForThisGroup)
+				{
+					testedAllNewDestsForThisGroup = true;
+				}
+				else
+				{
+					throw new IllegalStateException("Could not find an old destination for the warp that links " + oldGroup.get(0).getMap().getConstName() + " to " + oldGroup.get(0).getDestination().getMap().getConstName());
+				}
+			}
+		}
+		
+		for (int i = 0; i < oldGroups.size(); i++)
+		{
+			ArrayList<Warp> oldGroup = oldGroups.get(i);
+			ArrayList<Warp> newGroup = newGroups.get(i);
+			for (int j = 0; j < oldGroup.size(); j++) oldGroup.get(j).setDestination(newGroup.get(j % newGroup.size()));
+		}
 	}
 	
 	/*
@@ -331,7 +395,7 @@ public class Randomiser
 			oldDestLoops:
 			while (true)
 			{
-				for (Warp oldDest : destinations) if (allowSelfWarps || (!newDests.contains(oldDest) || testedAllOldDestsForThisWarp) && !oldDest.equals(newDest)) 
+				for (Warp oldDest : destinations) if (allowSelfWarps || ((!newDests.contains(oldDest) || testedAllOldDestsForThisWarp) && !oldDest.equals(newDest))) 
 				{
 					if (preserveMapConnections &&
 							Collections.frequency(newConnections.get(maps.indexOf(oldDest.getDestination().getMap())), newDest.getDestination().getMap())

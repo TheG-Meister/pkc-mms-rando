@@ -18,6 +18,7 @@ import com.gmeister.temp.pkcmmsrando.io.DisassemblyReader;
 import com.gmeister.temp.pkcmmsrando.io.DisassemblyWriter;
 import com.gmeister.temp.pkcmmsrando.io.EmpiricalDataReader;
 import com.gmeister.temp.pkcmmsrando.map.data.CollisionConstant;
+import com.gmeister.temp.pkcmmsrando.map.data.CollisionPermission;
 import com.gmeister.temp.pkcmmsrando.map.data.Flag;
 import com.gmeister.temp.pkcmmsrando.map.data.Map;
 import com.gmeister.temp.pkcmmsrando.map.data.Player;
@@ -157,10 +158,21 @@ public class Notes
 		}
 	}
 	
-	public static void testWarpAreas(ArrayList<Map> maps, ArrayList<Flag> flags, ArrayList<String[]> mapGroupNamess) throws IOException
+	public static void buildWarpAreas(DisassemblyReader disReader, EmpiricalDataReader empReader, DisassemblyWriter disWriter, Randomiser rando) throws FileNotFoundException, IOException, URISyntaxException
 	{
+		ArrayList<Flag> flags = new ArrayList<>();
+		flags.addAll(disReader.readEngineFlags());
+		flags.addAll(disReader.readEventFlags());
+		
+		ArrayList<CollisionPermission> collisionPermissions = empReader.readCollisionPermissions(flags);
+		ArrayList<CollisionConstant> collisionConstants = empReader.readCollisionConstants(collisionPermissions);
+		ArrayList<TileSet> tileSets = disReader.readTileSets(collisionConstants);
+		for (TileSet tileSet : tileSets) tileSet.getBlockSet().updateCollGroups();
+		ArrayList<Map> maps = disReader.readMaps(tileSets);
+		
 		ArrayList<ArrayList<Warp>> warpGroups = new ArrayList<>();
 		ArrayList<ArrayList<Map>> mapGroups = new ArrayList<>();
+		ArrayList<String[]> mapGroupNamess = empReader.readVanillaMapGroups();
 		for (String[] mapGroupNames : mapGroupNamess) mapGroups.add(Notes.getMapsByNames(maps, mapGroupNames));
 		
 		for (ArrayList<Map> mapGroup : mapGroups)
@@ -188,8 +200,8 @@ public class Notes
 			group.add(warp);
 		}
 		
-		ArrayList<ArrayList<ArrayList<Warp>>> accessibleGroups = new ArrayList<>();
-		for (int i = 0; i < warpGroups.size(); i++) accessibleGroups.add(new ArrayList<>());
+		HashMap<ArrayList<Warp>, ArrayList<ArrayList<Warp>>> accessibleGroups = new HashMap<>();
+		for (ArrayList<Warp> group : warpGroups) accessibleGroups.put(group, new ArrayList<>());
 		
 		for (ArrayList<Map> mapGroup : mapGroups)
 		{
@@ -246,7 +258,7 @@ public class Notes
 								|| (accessibleCollision.keySet().contains(otherWarp.getDestination().getMap()) &&
 										accessibleCollision.get(otherWarp.getDestination().getMap())[otherWarp.getDestination().getY()][otherWarp.getDestination().getX()]))
 						{
-							accessibleGroups.get(warpGroups.indexOf(warpGroup)).add(otherGroup);
+							accessibleGroups.get(warpGroup).add(otherGroup);
 							StringBuilder builder = new StringBuilder();
 							builder.append(warp.getMap().getConstName()).append(" ");
 							builder.append(warp.getX()).append(" ");
@@ -261,6 +273,18 @@ public class Notes
 				}
 					
 			}
+		}
+		
+		for (ArrayList<Warp> group : warpGroups) for (Warp warp : group) if (warp.getMap().getConstName().equals("ROUTE_29"))
+		{
+			rando.buildWarpGroups(warpGroups, accessibleGroups, group);
+			break;
+		}
+		
+		for (Map map : maps)
+		{
+			map.writeWarpsToScript();
+			disWriter.writeMapScript(map);
 		}
 	}
 	

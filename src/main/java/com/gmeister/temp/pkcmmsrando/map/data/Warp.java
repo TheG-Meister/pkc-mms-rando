@@ -71,7 +71,7 @@ public class Warp
 	{
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + ((this.destination == null) ? 0 : this.destination.hashCode());
+		result = prime * result + ((this.destination == null || this.destination.position == null) ? 0 : this.destination.position.hashCode());
 		result = prime * result + ((this.position == null) ? 0 : this.position.hashCode());
 		return result;
 	}
