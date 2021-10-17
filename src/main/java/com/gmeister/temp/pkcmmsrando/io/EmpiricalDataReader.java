@@ -50,7 +50,7 @@ public class EmpiricalDataReader
 	
 	public ArrayList<CollisionPermission> readCollisionPermissions(ArrayList<Flag> flags) throws URISyntaxException, FileNotFoundException, IOException
 	{
-		try (InputStream stream = this.getClass().getResourceAsStream("/collision-permissions.tsv"))
+		try (InputStream stream = this.getClass().getClassLoader().getResourceAsStream("collision-permissions.tsv"))
 		{
 			if (stream == null) throw new FileNotFoundException("Could not find collision-permissions.tsv");
 			
@@ -108,7 +108,7 @@ public class EmpiricalDataReader
 	
 	public ArrayList<CollisionConstant> readCollisionConstants(ArrayList<CollisionPermission> perms) throws FileNotFoundException, IOException, URISyntaxException
 	{
-		try (InputStream stream = this.getClass().getResourceAsStream("/collision-constants.tsv"))
+		try (InputStream stream = this.getClass().getClassLoader().getResourceAsStream("collision-constants.tsv"))
 		{
 			if (stream == null) throw new FileNotFoundException("Could not find collision-constants.tsv");
 			
@@ -152,7 +152,7 @@ public class EmpiricalDataReader
 	
 	public ArrayList<String[]> readVanillaMapGroups() throws IOException, URISyntaxException
 	{
-		try (InputStream stream = this.getClass().getResourceAsStream("/vanilla-map-groups.tsv"))
+		try (InputStream stream = this.getClass().getClassLoader().getResourceAsStream("vanilla-map-groups.tsv"))
 		{
 			if (stream == null) throw new FileNotFoundException("Could not find vanilla-map-groups.tsv");
 			

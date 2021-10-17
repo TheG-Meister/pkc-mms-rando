@@ -264,12 +264,11 @@ public class Randomiser
 		while (shuffledGroups.size() > 0)
 		{
 			ArrayList<Warp> oldGroup = freeGroups.get(0);
-			boolean testedAllNewDestsForThisGroup = false;
 			
 			oldGroupLoops:
 			while (true)
 			{
-				for (ArrayList<Warp> newGroup : shuffledGroups) if ((!newGroups.contains(oldGroup) || testedAllNewDestsForThisGroup) && !oldGroup.equals(newGroup))
+				for (ArrayList<Warp> newGroup : shuffledGroups) if (oldGroup != newGroup || shuffledGroups.size() < 2)
 				{
 					ArrayList<ArrayList<Warp>> nextFreeGroups = new ArrayList<>(freeGroups);
 					for (ArrayList<Warp> freeGroup : accessibleGroups.get(newGroup)) if (shuffledGroups.contains(freeGroup)) nextFreeGroups.add(freeGroup);
@@ -293,14 +292,7 @@ public class Randomiser
 					}
 				}
 				
-				if (!testedAllNewDestsForThisGroup)
-				{
-					testedAllNewDestsForThisGroup = true;
-				}
-				else
-				{
-					throw new IllegalStateException("Could not find an old destination for the warp that links " + oldGroup.get(0).getMap().getConstName() + " to " + oldGroup.get(0).getDestination().getMap().getConstName());
-				}
+				throw new IllegalStateException("Could not find a destination for " + oldGroup.get(0));
 			}
 		}
 		
