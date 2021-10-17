@@ -3,15 +3,14 @@
 A toolbox for various Pokémon Crystal map, music and story randomisers currently only usable by coders.
 
 ## Existing Capabilities
-* replacing the majority of tiles on Routes with water or grass
-* replacing map blocks to other blocks with the same collision
+* randomising map visuals without randomising collision
 * shuffling music pointers
 * shuffling sfx pointers
 * shuffling warps
 
 ## Accessibility
 
-This project currently requires a basic knowledge of coding to use, though this is under development.
+This project currently requires a basic knowledge of coding to use, though this is under development. For a full guide on downloading and running this project in Eclipse, see the wiki (https://github.com/TheG-Meister/pkc-mms-rando/wiki/Loading-and-running-in-Eclipse)
 
 To create a ROM:
 1. Clone a pret/pokecrystal style repository
