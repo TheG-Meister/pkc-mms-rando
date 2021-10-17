@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.gmeister.temp</groupId>
 	<artifactId>pkcmmsrando</artifactId>
-	<version>1.0.0</version>
+	<version>0.0.1</version>
 	<name>Pokecrystal Map, Music and Story Randomiser</name>
 
 	<properties>
