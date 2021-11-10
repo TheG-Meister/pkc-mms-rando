@@ -309,134 +309,108 @@ public class Notes
 		return selectedMaps;
 	}
 	
-	public static void warpRando(DisassemblyReader disReader, DisassemblyWriter disWriter, Randomiser rando) throws IOException
+	public static void randomiseWarps(DisassemblyReader disReader, DisassemblyWriter disWriter, Randomiser rando) throws IOException
 	{
 		ArrayList<CollisionConstant> collisionConstants = disReader.readCollisionConstants();
 		ArrayList<TileSet> tileSets = disReader.readTileSets(collisionConstants);
 		for (TileSet tileSet : tileSets) tileSet.getBlockSet().updateCollGroups();
 		ArrayList<Map> maps = disReader.readMaps(tileSets);
 		
-		ArrayList<Warp> warps = new ArrayList<>();
+		//Collect a bunch of maps to manually edit warps
+		Map victoryRoadGate = maps.stream().filter(m -> m.getConstName().equals("VICTORY_ROAD_GATE")).findFirst().orElseThrow();
+		Map victoryRoad = maps.stream().filter(m -> m.getConstName().equals("VICTORY_ROAD")).findFirst().orElseThrow();
+		Map route22 = maps.stream().filter(m -> m.getConstName().equals("ROUTE_22")).findFirst().orElseThrow();
+		Map route23 = maps.stream().filter(m -> m.getConstName().equals("ROUTE_23")).findFirst().orElseThrow();
+		Map route28 = maps.stream().filter(m -> m.getConstName().equals("ROUTE_28")).findFirst().orElseThrow();
+		Map indigoPlateau = maps.stream().filter(m -> m.getConstName().equals("INDIGO_PLATEAU_POKECENTER_1F")).findFirst().orElseThrow();
+		Map silverCaveRoom2 = maps.stream().filter(m -> m.getConstName().equals("SILVER_CAVE_ROOM_2")).findFirst().orElseThrow();
+		Map redsRoom = maps.stream().filter(m -> m.getConstName().equals("SILVER_CAVE_ROOM_3")).findFirst().orElseThrow();
+		
+		//Link all the warps on the right side of victory road gate to themselves
+		victoryRoadGate.getWarps().get(0).setDestination(victoryRoadGate.getWarps().get(0));
+		victoryRoadGate.getWarps().get(1).setDestination(victoryRoadGate.getWarps().get(1));
+		route22.getWarps().get(0).setDestination(route22.getWarps().get(0));
+				
+		//Link victory road and indigo plateau
+		victoryRoadGate.getWarps().get(4).setDestination(indigoPlateau.getWarps().get(0));
+		victoryRoadGate.getWarps().get(5).setDestination(indigoPlateau.getWarps().get(1));
+		indigoPlateau.getWarps().get(0).setDestination(victoryRoadGate.getWarps().get(4));
+		indigoPlateau.getWarps().get(1).setDestination(victoryRoadGate.getWarps().get(5));
+		
+		//Link route 23 and victory road (creates a cycle that should get un-done by the randomiser)
+		victoryRoad.getWarps().get(0).setDestination(route23.getWarps().get(0));
+		route23.getWarps().get(0).setDestination(victoryRoad.getWarps().get(0));
+		route23.getWarps().get(1).setDestination(victoryRoad.getWarps().get(0));
+		
+		//Link victory road gate and Red's room
+		victoryRoadGate.getWarps().get(6).setDestination(redsRoom.getWarps().get(0));
+		victoryRoadGate.getWarps().get(7).setDestination(redsRoom.getWarps().get(0));
+		redsRoom.getWarps().get(0).setDestination(victoryRoadGate.getWarps().get(6));
+		
+		//Link silver cave room 2 and route 28 (creates a cycle that should get un-done by the randomiser)
+		route28.getWarps().get(1).setDestination(silverCaveRoom2.getWarps().get(1));
+		silverCaveRoom2.getWarps().get(1).setDestination(route28.getWarps().get(1));
+		
+		//Create groups of warps which all lead to the same warp
+		HashMap<Warp, ArrayList<Warp>> warpSourcess = new HashMap<>();
+		for (Map map : maps) for (Warp warp : map.getWarps()) warpSourcess.put(warp, new ArrayList<>());
+		for (Map map : maps) for (Warp warp : map.getWarps()) if (warp.getDestination() != null) warpSourcess.get(warp.getDestination()).add(warp);
+		
+		//Make a list of maps to unrandomise warps within
+		ArrayList<String> unrandomisedMapNames = new ArrayList<>(
+				Arrays.asList("NEW_BARK_TOWN", "ELMS_LAB", "PLAYERS_HOUSE_1F", "PLAYERS_HOUSE_2F",
+						"PLAYERS_NEIGHBORS_HOUSE", "ELMS_HOUSE", "BATTLE_TOWER_BATTLE_ROOM", "BATTLE_TOWER_ELEVATOR",
+						"BATTLE_TOWER_HALLWAY", "INDIGO_PLATEAU_POKECENTER_1F", "WILLS_ROOM", "KOGAS_ROOM",
+						"BRUNOS_ROOM", "KARENS_ROOM", "LANCES_ROOM", "HALL_OF_FAME", "POKECENTER_2F", "TRADE_CENTER",
+						"COLOSSEUM", "TIME_CAPSULE", "MOBILE_TRADE_ROOM", "MOBILE_BATTLE_ROOM", "SILVER_CAVE_ROOM_3"));
+		
+		ArrayList<ArrayList<Warp>> warpGroups = new ArrayList<>();
 		for (Map map : maps)
+			if (!unrandomisedMapNames.contains(map.getConstName()) && !map.getConstName().contains("BETA"))
+				for (Warp warp : map.getWarps())
 		{
+			Warp dest = warp.getDestination();
+			if (dest == null) continue;
+			else if (unrandomisedMapNames.contains(dest.getMap().getConstName())) continue;
+			else if (dest.getMap().getConstName().contains("BETA")) continue;
+			else if (dest.equals(warp)) continue;
+			else if (!warp.hasAccessibleDestination()) continue;
+			else if (dest.getDestination() == null) continue;
+			else if (!dest.hasAccessibleDestination()) continue;
+			
 			/*
-			//Force the badge checks before E4 and Red by linking certain warps
-			if (map.getConstName().equals("VICTORY_ROAD_GATE"))
-			{
-				Map route22 = map.getWarps().get(0).getDestination().getMap();
-				
-				//Link the warps to Route 22 to each other
-				map.getWarps().get(0).setDestination(map.getWarps().get(1));
-				map.getWarps().get(1).setDestination(map.getWarps().get(0));
-				
-				//Link route 22 to itself
-				route22.getWarps().get(0).setDestination(route22.getWarps().get(0));
-				
-				for (Map indigoPlateau : maps) if (indigoPlateau.getConstName().equals("INDIGO_PLATEAU_POKECENTER_1F"))
-				{
-					Map victoryRoad = map.getWarps().get(4).getDestination().getMap();
-					Map route23 = indigoPlateau.getWarps().get(0).getDestination().getMap();
-					
-					//Link victory road and indigo plateau
-					map.getWarps().get(4).setDestination(indigoPlateau.getWarps().get(0));
-					map.getWarps().get(5).setDestination(indigoPlateau.getWarps().get(1));
-					
-					indigoPlateau.getWarps().get(0).setDestination(map.getWarps().get(4));
-					indigoPlateau.getWarps().get(1).setDestination(map.getWarps().get(5));
-					
-					//Link route 23 and victory road (creates a cycle that should get un-done by the randomiser)
-					victoryRoad.getWarps().get(0).setDestination(route23.getWarps().get(0));
-					
-					route23.getWarps().get(0).setDestination(victoryRoad.getWarps().get(0));
-					route23.getWarps().get(1).setDestination(victoryRoad.getWarps().get(0));
-				}
-				
-				for (Map redsRoom : maps) if (redsRoom.getConstName().equals("SILVER_CAVE_ROOM_3"))
-				{
-					Map route28 = map.getWarps().get(6).getDestination().getMap();
-					Map silverCaveRoom2 = redsRoom.getWarps().get(0).getDestination().getMap();
-					
-					//Link victory road gate and Red's room
-					map.getWarps().get(6).setDestination(redsRoom.getWarps().get(0));
-					map.getWarps().get(7).setDestination(redsRoom.getWarps().get(0));
-					
-					redsRoom.getWarps().get(0).setDestination(map.getWarps().get(6));
-					
-					//Link silver cave room 2 and route 28 (creates a cycle that should get un-done by the randomiser)
-					route28.getWarps().get(1).setDestination(silverCaveRoom2.getWarps().get(1));
-					
-					silverCaveRoom2.getWarps().get(1).setDestination(route28.getWarps().get(1));
-				}
-			}*/
+			 * Okay, so by the time we've got here, we want to make sure that we're randomising the second step of each carpet, but we aren't randomising 1-way entrances
+			 * Take example cases of the goldenrod elevator entrance (1-way) vs the right carpet exit from azalea mart (carpet step 2)
+			 * Both of these warps have no other warp lead directly to them
+			 * Both lead to a warp that is itself accessible
+			 * The important difference is that the destination of the goldenrod elevator lead to a null warp, whereas the destination of the azalea carpet leads to a non-null warp
+			 * Going one step further, this is not the same if we compare the azalea mart carpet to a pit
+			 * Both of these lead to a destination that leads to an accissble warp
+			 * 
+			 * Remove the last two checks?
+			 * Add a check that the dest of the dest is not null
+			 * Add a check that the dest is accessible
+			 */
 			
-			//ignore all beta maps
-			if (map.getConstName().contains("BETA")) continue;
+			ArrayList<Warp> group = null;
 			
-			switch (map.getConstName())
+			groupTesting:
+			for (ArrayList<Warp> testGroup : warpGroups) for (Warp testWarp : testGroup) if (warp.isAdjacentTo(testWarp))
 			{
-				//Unrandomise new bark town to force the player to get a pokemon
-				case "NEW_BARK_TOWN":
-				case "ELMS_LAB":
-				case "PLAYERS_HOUSE_1F":
-				case "PLAYERS_HOUSE_2F":
-				case "PLAYERS_NEIGHBORS_HOUSE":
-				case "ELMS_HOUSE":
-				
-				//unrandomise most battle tower areas as they are all cutscenes
-				case "BATTLE_TOWER_BATTLE_ROOM":
-				case "BATTLE_TOWER_ELEVATOR":
-				case "BATTLE_TOWER_HALLWAY":
-				
-				//unrandomise indigo plateau
-				case "INDIGO_PLATEAU_POKECENTER_1F":
-				case "WILLS_ROOM":
-				case "KOGAS_ROOM":
-				case "BRUNOS_ROOM":
-				case "KARENS_ROOM":
-				case "LANCES_ROOM":
-				case "HALL_OF_FAME":
-				
-				//Unrandomise red's room from the changes above
-				//case "SILVER_CAVE_ROOM_3":
-				
-				//Unrandomise the cable club and its rooms
-				case "POKECENTER_2F":
-				case "TRADE_CENTER":
-				case "COLOSSEUM":
-				case "TIME_CAPSULE":
-				case "MOBILE_TRADE_ROOM":
-				case "MOBILE_BATTLE_ROOM":
-					continue;
+				group = testGroup;
+				break groupTesting;
 			}
 			
-			for (Warp warp : map.getWarps())
+			if (group == null)
 			{
-				if (warp.getDestination() != null)
-				{
-					//String mapName = warp.getMap().getConstName();
-					String destMapName = warp.getDestination().getMap().getConstName();
-					//Remove warps that lead to some of the above maps
-					if (destMapName.contains("BETA")) continue;
-					
-					switch (destMapName)
-					{
-						case "BATTLE_TOWER_ELEVATOR":
-						case "POKECENTER_2F":
-						case "INDIGO_PLATEAU_POKECENTER_1F":
-						//case "SILVER_CAVE_ROOM_3":
-							continue;
-					}
-					
-					//Unrandomise the changed route22 and Victory Road gate warps
-					//if (mapName.equals("VICTORY_ROAD_GATE") && destMapName.equals("VICTORY_ROAD_GATE")) continue;
-					//if (warp.getMap().getConstName().equals("ROUTE_22") && warp.getDestination().getMap().getConstName().equals("ROUTE_22")) continue;
-				}
-				
-				warps.add(warp);
+				group = new ArrayList<>();
+				warpGroups.add(group);
 			}
+			
+			group.add(warp);
 		}
 		
-		rando.shuffleWarpDestinations(warps, false, true, true);
+		rando.shuffleWarpGroups(warpGroups, false, true);
 		
 		for (Map map : maps)
 		{
@@ -480,7 +454,7 @@ public class Notes
 		
 		if (Boolean.parseBoolean(args[2])) Notes.randomiseMusicPointers(disReader, disWriter, rando);
 		if (Boolean.parseBoolean(args[3])) Notes.randomiseSFXPointers(disReader, disWriter, rando);
-		if (Boolean.parseBoolean(args[4])) Notes.randomiseWarpAreas(disReader, empReader, disWriter, rando);
+		if (Boolean.parseBoolean(args[4])) Notes.randomiseWarps(disReader, disWriter, rando);
 	}
 	
 }
