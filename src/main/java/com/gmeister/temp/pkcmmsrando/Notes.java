@@ -134,7 +134,7 @@ public class Notes
 			ArrayList<Warp> group = null;
 			
 			groupTesting:
-			for (ArrayList<Warp> testGroup : warpGroups) for (Warp testWarp : testGroup) if (warp.isAdjacentTo(testWarp))
+			for (ArrayList<Warp> testGroup : warpGroups) for (Warp testWarp : testGroup) if (warp.isPairedWith(testWarp))
 			{
 				group = testGroup;
 				break groupTesting;
@@ -185,7 +185,7 @@ public class Notes
 			ArrayList<Warp> group = null;
 			
 			groupTesting:
-			for (ArrayList<Warp> testGroup : warpGroups) for (Warp testWarp : testGroup) if (warp.isAdjacentTo(testWarp))
+			for (ArrayList<Warp> testGroup : warpGroups) for (Warp testWarp : testGroup) if (warp.isPairedWith(testWarp))
 			{
 				group = testGroup;
 				break groupTesting;
@@ -395,7 +395,7 @@ public class Notes
 			ArrayList<Warp> group = null;
 			
 			groupTesting:
-			for (ArrayList<Warp> testGroup : warpGroups) for (Warp testWarp : testGroup) if (warp.isAdjacentTo(testWarp))
+			for (ArrayList<Warp> testGroup : warpGroups) for (Warp testWarp : testGroup) if (warp.isPairedWith(testWarp))
 			{
 				group = testGroup;
 				break groupTesting;
