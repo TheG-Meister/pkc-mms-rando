@@ -330,7 +330,7 @@ public class Notes
 		victoryRoadGate.getWarps().get(0).setDestination(victoryRoadGate.getWarps().get(0));
 		victoryRoadGate.getWarps().get(1).setDestination(victoryRoadGate.getWarps().get(1));
 		route22.getWarps().get(0).setDestination(route22.getWarps().get(0));
-				
+		
 		//Link victory road and indigo plateau
 		victoryRoadGate.getWarps().get(4).setDestination(indigoPlateau.getWarps().get(0));
 		victoryRoadGate.getWarps().get(5).setDestination(indigoPlateau.getWarps().get(1));
@@ -377,20 +377,6 @@ public class Notes
 			else if (!warp.hasAccessibleDestination()) continue;
 			else if (dest.getDestination() == null) continue;
 			else if (!dest.hasAccessibleDestination()) continue;
-			
-			/*
-			 * Okay, so by the time we've got here, we want to make sure that we're randomising the second step of each carpet, but we aren't randomising 1-way entrances
-			 * Take example cases of the goldenrod elevator entrance (1-way) vs the right carpet exit from azalea mart (carpet step 2)
-			 * Both of these warps have no other warp lead directly to them
-			 * Both lead to a warp that is itself accessible
-			 * The important difference is that the destination of the goldenrod elevator lead to a null warp, whereas the destination of the azalea carpet leads to a non-null warp
-			 * Going one step further, this is not the same if we compare the azalea mart carpet to a pit
-			 * Both of these lead to a destination that leads to an accissble warp
-			 * 
-			 * Remove the last two checks?
-			 * Add a check that the dest of the dest is not null
-			 * Add a check that the dest is accessible
-			 */
 			
 			ArrayList<Warp> group = null;
 			
