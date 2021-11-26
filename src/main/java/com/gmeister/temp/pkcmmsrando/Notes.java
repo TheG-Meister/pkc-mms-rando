@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import com.gmeister.temp.pkcmmsrando.io.DisassemblyReader;
 import com.gmeister.temp.pkcmmsrando.io.DisassemblyWriter;
@@ -223,7 +224,7 @@ public class Notes
 				{
 					Map map = mapsToTest.remove(0);
 					
-					HashMap<Map, boolean[][]> accessibleCollisionFromMap = Player.getAccessibleCollision(map, accessibleCollision.get(map), flags);
+					HashMap<Map, boolean[][]> accessibleCollisionFromMap = Player.getAccessibleCollision(map, accessibleCollision.get(map), new ArrayList<>());
 					
 					for (Map updatedMap : accessibleCollisionFromMap.keySet())
 					{
@@ -259,15 +260,6 @@ public class Notes
 										accessibleCollision.get(otherWarp.getDestination().getMap())[otherWarp.getDestination().getY()][otherWarp.getDestination().getX()]))
 						{
 							accessibleGroups.get(warpGroup).add(otherGroup);
-							StringBuilder builder = new StringBuilder();
-							builder.append(warp.getMap().getConstName()).append(" ");
-							builder.append(warp.getX()).append(" ");
-							builder.append(warp.getY());
-							builder.append(" -> ");
-							builder.append(otherWarp.getMap().getConstName()).append(" ");
-							builder.append(otherWarp.getX()).append(" ");
-							builder.append(otherWarp.getY());
-							System.out.println(builder.toString());
 						}
 					}
 				}
@@ -275,11 +267,31 @@ public class Notes
 			}
 		}
 		
-		for (ArrayList<Warp> group : warpGroups) for (Warp warp : group) if (warp.getMap().getConstName().equals("ROUTE_29"))
-		{
-			rando.buildWarpGroups(warpGroups, accessibleGroups, group);
-			break;
-		}
+		//Manually add warps from and to the north cycling road gatehouse
+		Map route16 = maps.stream().filter(m -> m.getConstName().equals("ROUTE_16")).findFirst().orElseThrow();
+		ArrayList<Warp> route16ToGate = new ArrayList<>(route16.getWarps().stream()
+				.filter(w -> w.getPosition().getX() == 14 && (w.getPosition().getY() == 6 || w.getPosition().getY() == 7))
+				.collect(Collectors.toList()));
+		ArrayList<Warp> route7GateToSaffron = warpGroups.stream().filter(g -> g.stream().anyMatch(w -> w.getMap().getConstName().equals("ROUTE_7_SAFFRON_GATE"))).findFirst().orElseThrow();
+		
+		warpGroups.add(route16ToGate);
+		accessibleGroups.get(route7GateToSaffron).add(route16ToGate);
+		accessibleGroups.put(route16ToGate, new ArrayList<>(Arrays.asList(route7GateToSaffron)));
+		
+		Map route16Gate = maps.stream().filter(m -> m.getConstName().equals("ROUTE_16_GATE")).findFirst().orElseThrow();
+		ArrayList<Warp> route16GateToRoute = new ArrayList<>(route16Gate.getWarps().stream()
+				.filter(w -> w.getPosition().getX() == 9 && (w.getPosition().getY() == 4 || w.getPosition().getY() == 5))
+				.collect(Collectors.toList()));
+		ArrayList<Warp> route17GateToRoute = warpGroups.stream().filter(g -> g.stream().anyMatch(w -> w.getMap().getConstName().equals("ROUTE_17_ROUTE_18_GATE"))).findFirst().orElseThrow();
+		
+		warpGroups.add(route16GateToRoute);
+		accessibleGroups.get(route17GateToRoute).add(route16GateToRoute);
+		accessibleGroups.put(route16GateToRoute, new ArrayList<>(Arrays.asList(route17GateToRoute)));
+		
+		//Find the Route 29 gatehouse as the starting warp
+		ArrayList<Warp> startingGroup = warpGroups.stream().filter(g -> g.stream().anyMatch(w -> w.getMap().getConstName().equals("ROUTE_29"))).findFirst().orElseThrow();
+		
+		rando.buildWarpGroups(warpGroups, accessibleGroups, startingGroup);
 		
 		for (Map map : maps)
 		{
@@ -287,19 +299,6 @@ public class Notes
 			disWriter.writeMapScript(map);
 		}
 	}
-	
-	/*
-	 * We're trying to get all maps to be visitable right?
-	 * The way the new group rando works is by setting destinations directly instead of setting one destination to the destination of another
-	 * Any group that cannot be accessed via this code cannot be made the destination of another group that cannot be accessed by the code
-	 * Furthermore, this continues if all of the warps leading to a map cannot be accessed
-	 * Oh, rather than all maps being accessed, make it so all warps can be accessed (groups, I mean)
-	 * 
-	 * Start at new bark
-	 * Pick a random warp group
-	 * Only place it down if the number of remaining accessible warps is greater than 1
-	 * Have to build off of new bark though
-	 */
 	
 	public static ArrayList<Map> getMapsByNames(ArrayList<Map> maps, String... constNames)
 	{
@@ -440,7 +439,7 @@ public class Notes
 		
 		if (Boolean.parseBoolean(args[2])) Notes.randomiseMusicPointers(disReader, disWriter, rando);
 		if (Boolean.parseBoolean(args[3])) Notes.randomiseSFXPointers(disReader, disWriter, rando);
-		if (Boolean.parseBoolean(args[4])) Notes.randomiseWarps(disReader, disWriter, rando);
+		if (Boolean.parseBoolean(args[4])) Notes.buildWarpAreas(disReader, empReader, disWriter, rando);
 	}
 	
 }
