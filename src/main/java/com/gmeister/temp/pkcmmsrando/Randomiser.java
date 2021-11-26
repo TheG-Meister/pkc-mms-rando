@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import com.gmeister.temp.pkcmmsrando.map.data.Block;
 import com.gmeister.temp.pkcmmsrando.map.data.BlockSet;
@@ -227,15 +228,6 @@ public class Randomiser
 	
 	public void buildWarpGroups(ArrayList<ArrayList<Warp>> warpGroups, HashMap<ArrayList<Warp>, ArrayList<ArrayList<Warp>>> accessibleGroups, ArrayList<Warp> startingGroup)
 	{
-		/*
-		 * Make a random
-		 * Check that the accessible groups contains all keys from the groups
-		 * check that the groups contains the starting group
-		 * Pick a random group that we can currently access
-		 * Pick a random group that we haven't selected yet
-		 * if performing this link would mean there is at least one warp we can still access (unless it's the last one) then do it
-		 * don't do the self warps so include similar code to above
-		 */
 		
 		Random random = new Random(this.random.nextLong());
 		
@@ -245,17 +237,42 @@ public class Randomiser
 		
 		if (warpGroups.size() % 2 != 0) throw new IllegalArgumentException("Could not avoid self warps as there are an odd number of groups");
 		
+		//Make warp group groups
+		ArrayList<ArrayList<ArrayList<Warp>>> warpGroupGroups = new ArrayList<>();
+		for (ArrayList<Warp> warpGroup : warpGroups)
+		{
+			//Find an existing warp group group that contains this warp group, or any warp group that this warp group can access. Otherwise, make a new group 
+			ArrayList<ArrayList<Warp>> warpGroupGroup = warpGroupGroups.stream()
+					.filter(g -> g.contains(warpGroup))
+					.findFirst()
+					.orElse(warpGroupGroups.stream()
+							.filter(g -> accessibleGroups.get(warpGroup).stream()
+									.anyMatch(h -> g.contains(h)))
+							.findFirst()
+							.orElse(new ArrayList<>()));
+			
+			//If the warp group group isn't part of the list, add it
+			if (!warpGroupGroups.contains(warpGroupGroup)) warpGroupGroups.add(warpGroupGroup);
+			
+			//If this warp group isn't part of the warp group group, add it
+			if (!warpGroupGroup.contains(warpGroup)) warpGroupGroup.add(warpGroup);
+			
+			//Add all of the warps groups that this warp group can access to the warp group group if they are not already present
+			warpGroupGroup.addAll(accessibleGroups.get(warpGroup).stream()
+					.filter(g -> !warpGroupGroup.contains(g))
+					.collect(Collectors.toList()));
+		}
+		
+		//Get the sum of each group size minus 2. If it's greater than or equal to zero we have a rom
+		//except in the case where there's literally no one-way warps and then we can add 2 to the total heh
+		if (warpGroupGroups.stream().mapToInt(g -> g.size() - 2).sum() < 0) throw new IllegalArgumentException("Not enough warps are accessible to make a single overworld map.");
+		
 		//Create a random list of groups
 		ArrayList<ArrayList<Warp>> shuffledGroups = new ArrayList<>(warpGroups);
 		Collections.shuffle(shuffledGroups, random);
 		ArrayList<ArrayList<Warp>> freeGroups = new ArrayList<>();
 		freeGroups.add(startingGroup);
 		freeGroups.addAll(accessibleGroups.get(startingGroup));
-		
-		/*
-		 * We can't enforce both not allowing self warps and making sure we're always allowed to select the old group
-		 * Does this even solve the issue of things being added multiple times?
-		 */
 		
 		//Pull random destinations
 		ArrayList<ArrayList<Warp>> oldGroups = new ArrayList<>();
@@ -307,8 +324,6 @@ public class Randomiser
 	/*
 	 * Currently, this method performs various initial filtering steps which could ideally be moved out to a more relevant class.
 	 * For example, one-way warps are not selected as destinations. While this acts as a good balancing feature, it is not necessary for all warp randomisers.
-	 * 
-	 * Groups of destinations will be considered in the future. This will allow 2-tile warp carpets leading to other 2-tile warp carpets to be considered as a single destination each.
 	 */
 	
 	/**
