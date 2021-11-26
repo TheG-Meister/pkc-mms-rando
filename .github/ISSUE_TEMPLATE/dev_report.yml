@@ -1,5 +1,6 @@
 name: "Developer bug report"
 description: "Already know causes of and solutions to your issue? Start here."
+labels: "bug"
 body:
   - type: textarea
     attributes:
