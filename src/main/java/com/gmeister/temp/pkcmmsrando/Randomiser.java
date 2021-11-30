@@ -1,8 +1,10 @@
 package com.gmeister.temp.pkcmmsrando;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -263,9 +265,147 @@ public class Randomiser
 					.collect(Collectors.toList()));
 		}
 		
+		/*
+		 * How to we know that in blackthorn, 4 must connect to 1 or 2?
+		 * Well, we know that 4 is below the ledge as it can't access 1, 2 and 3, which can all access it
+		 * We know that 3 must be below a ledge from 1 and 2, as it can't access them but they can access it
+		 * We know that 1 and 2 can access each other and therefore aren't considered to be separate (imagine tin tower ledge hopping)
+		 * 3 must be de-throned by 1 and 2 as they can both access it
+		 * We then employ the rule where both of the ones at the top cannot open a one way path and one at the bottom cannot close a 1-way path
+		 * 
+		 * In alph outside, how do we know that 1 and 2 must connect to 3 and 4?
+		 * 1 and 2 must be below a ledge from 3 and 4 from the same reasons as above
+		 * 3 must be on a different ledge from 4 as 3 cannot access 4
+		 * 4 must be on a different ledge from 3 as 4 cannot access 3
+		 * 
+		 * According to my network diagram, the lines that are there cannot be changed
+		 * We want every node to be accessible from every other node
+		 * The only change we can make is we can create one extra branch from every accessible node
+		 * This means that each node must be accessible either from a pre-existing branch, or a branch we create
+		 * We need enough nodes to create enough branches for this
+		 * We also need to make sure that each time there is 1-way travel between nodes, there is an alternate path backwards
+		 * 
+		 * In the case of blackthorn, we can see that 3 can access 4, 1 can access 2 & 3, and 2 can access 1 & 3
+		 * Therefore if 4 can follow branches to 1 or 2, the 1-ways to 3 will be accessible
+		 * 
+		 * For each node, every path that you leave from must be able to return to the node
+		 * Consider branches that leave the node and branches that join the node when adding branches
+		 * 
+		 * Delegate the solving of each one way branch to the lowest free nodes on the branch
+		 * A fork solves a split because it turns 2 1-way systems into 1 1-way system
+		 */
+		
 		//Get the sum of each group size minus 2. If it's greater than or equal to zero we have a rom
-		//except in the case where there's literally no one-way warps and then we can add 2 to the total heh
-		if (warpGroupGroups.stream().mapToInt(g -> g.size() - 2).sum() < 0) throw new IllegalArgumentException("Not enough warps are accessible to make a single overworld map.");
+		//More complicated:
+		/*
+		 * If there are literally zero one-way movements, add 2 to the sum (make a tree instead of a circle)
+		 * For each warp group that is inaccessible from all other warp groups within the warp group group, remove another 2 from the sum
+		 */
+		//int accessibleSum = warpGroupGroups.stream().mapToInt(g -> g.size() - 2).sum();
+		//if (accessibleSum < 0) throw new IllegalArgumentException("Sum of accessible warps in an optimal map is less than zero: " + accessibleSum);
+		
+		/*
+		 * Wanna do two things
+		 * Not link within overworld fragments until all fragments are connected
+		 * Orientate fragments so they all go around in a circle
+		 * 
+		 * Each time you link warps within overworld fragments instead of between overworld fragments, you're removing warps from the pool
+		 * Each time you split a one way system or join two different one way systems, you're removing warps from the pool
+		 * Wait, we're literally trying to count the number of loops, right?
+		 * 
+		 * If we calc this sum, then we know exactly the number of loops we are forced to make, 1-way or 2-way.
+		 * More importantly, sometimes loops are optional and other times they are forced
+		 * 
+		 * One loop is forced if any single map or warp is 1-way
+		 * An extra loop is forced for every additional fork of 1-way system (as defined by accessibleGroups)
+		 * 
+		 * An optional loop is made each time a connection is made within an overworld fragment
+		 * An optional loop is made each time a fork is artificially generated in a 1-way system, by placing 1-way maps
+		 * 
+		 * Wait okay we didn't technically create an extra loop by placing 1-way maps but the theory still works.
+		 * Basically, doing this means we need an extra loop for a completable rom.
+		 * 
+		 * Let's do this differently
+		 * Count the number of loops we're forced to make
+		 * Does a house count as a loop in 2-way rando? Yes
+		 * The ledge stuff also contributes. EG. the typical splitter has 3 warps but opens 2 loops.
+		 * 
+		 * What hapens if we think about branches instead?
+		 * In 2-way rando:
+		 * Houses kill a branch
+		 * Corridors continue a branch
+		 * Anything with more than 2 warps creates branches
+		 * The presence of any 1-way progression requires 2 branches to join up
+		 * 
+		 * What if we count the number of branches created and the number of branches required?
+		 * Probably better to consider paths?
+		 * 
+		 * What about creating and consuming 1-way branches?
+		 * A 2-way branch is just a possibility of a 1-way rando that we can account for
+		 * Warps that are pits or are blocked by ledges either cannot create or consume a 1-way branch
+		 */
+		
+		/*
+		 * I want a way to store the delegation of 1-way solving
+		 * For each 1-way we have to solve, record what warps below can solve it, and what warps above can solve it
+		 */
+		
+		for (List<Warp> warpGroup : warpGroups) for (List<Warp> accessibleGroup : accessibleGroups.get(warpGroup)) if (!accessibleGroups.get(accessibleGroup).contains(warpGroup))
+		{
+			//Exhaustive search algorithm to find free warps... above and below?
+			List<List<Warp>> groupsToTest = new ArrayList<>(Arrays.asList(accessibleGroup));
+			List<List<Warp>> groupsBelow = new ArrayList<>(groupsToTest);
+			while (!groupsToTest.isEmpty())
+			{
+				List<Warp> testGroup = groupsToTest.remove(0);
+				List<? extends List<Warp>> newGroups = accessibleGroups.get(testGroup).stream()
+						.filter(g -> !groupsBelow.contains(g))
+						.collect(Collectors.toList());
+				
+				groupsBelow.addAll(newGroups);
+				groupsToTest.addAll(newGroups);
+			}
+			
+			groupsToTest = new ArrayList<>(Arrays.asList(warpGroup));
+			List<List<Warp>> groupsAbove = new ArrayList<>(groupsToTest);
+			while (!groupsToTest.isEmpty())
+			{
+				List<Warp> testGroup = groupsToTest.remove(0);
+				List<? extends List<Warp>> newGroups = accessibleGroups.entrySet().stream()
+						.filter(e -> e.getValue().contains(testGroup) && !groupsAbove.contains(e.getKey()))
+						.map(e -> e.getKey())
+						.collect(Collectors.toList());
+				
+				groupsAbove.addAll(newGroups);
+				groupsToTest.addAll(newGroups);
+			}
+			
+			System.out.println(warpGroup.get(0).getPosition() + "\t" +
+			groupsAbove.stream().map(g -> g.get(0).getPosition()).collect(Collectors.toList()) + "\t" +
+					groupsBelow.stream().map(g -> g.get(0).getPosition()).collect(Collectors.toList()));
+		}
+		
+		/*
+		 * this is great
+		 * How do we know the number of loops this will make?
+		 * idk tbh
+		 * We can group these
+		 * Any connection with the same warps below and above is all part of the same ledge
+		 * When this happens, merge the groups
+		 * 
+		 * When a 1-way branch has the same warps above and below, it's already accessible
+		 * Actually more generally it's solved when any single warp is present both above and below
+		 * This occurrs when one of the warps below is connected to one of the warps above
+		 * This is also when we know the 1-way path is solved after randomisation
+		 * Once this happens, remove the branch
+		 * This could also be provided through accessibleGroups, but won't be using the way I make it
+		 * 
+		 * There is a merger when none of the warps above are the same, but all of the warps below are the same
+		 * There is a fork when all of the warps above are the same, but none of the warps below are the same
+		 * 
+		 * Multiple branches can be solved (like, solved solved) at once if they share a warp below and above (by connecting them)
+		 * That can be done with a simple set of if statements, but finding solutions like that might require more work
+		 */
 		
 		//Create a random list of groups
 		ArrayList<ArrayList<Warp>> shuffledGroups = new ArrayList<>(warpGroups);
