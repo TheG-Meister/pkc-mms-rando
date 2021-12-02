@@ -30,8 +30,6 @@ Replaces all occurrences of each sprite with a different sprite. In practice, th
 
 pkc-mms-rando is still early in development. It **cannot edit ROM files** and **has no user interface**. Instead, randomisers are accessed from a command-line terminal, and read and write Pokémon Crystal disassembly files. Fortunately, options for a full user interface and direct ROM editing are planned. Join us on [Discord](https://discord.gg/nE5nZVqgkE) for update notifications.
 
-Still interested? Check out the [Wiki](https://github.com/TheG-Meister/pkc-mms-rando/wiki) to get started.
-
 ## Getting Started
 
 All instructions are intended for Windows 10 users.
