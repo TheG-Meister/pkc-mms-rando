@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import com.gmeister.temp.pkcmmsrando.io.DisassemblyReader;
 import com.gmeister.temp.pkcmmsrando.io.DisassemblyWriter;
@@ -129,7 +130,7 @@ public class Notes
 			ArrayList<Warp> group = null;
 			
 			groupTesting:
-			for (ArrayList<Warp> testGroup : warpGroups) for (Warp testWarp : testGroup) if (warp.isAdjacentTo(testWarp))
+			for (ArrayList<Warp> testGroup : warpGroups) for (Warp testWarp : testGroup) if (warp.isPairedWith(testWarp))
 			{
 				group = testGroup;
 				break groupTesting;
@@ -164,7 +165,7 @@ public class Notes
 			ArrayList<Warp> group = null;
 			
 			groupTesting:
-			for (ArrayList<Warp> testGroup : warpGroups) for (Warp testWarp : testGroup) if (warp.isAdjacentTo(testWarp))
+			for (ArrayList<Warp> testGroup : warpGroups) for (Warp testWarp : testGroup) if (warp.isPairedWith(testWarp))
 			{
 				group = testGroup;
 				break groupTesting;
@@ -202,7 +203,7 @@ public class Notes
 				{
 					Map map = mapsToTest.remove(0);
 					
-					HashMap<Map, boolean[][]> accessibleCollisionFromMap = Player.getAccessibleCollision(map, accessibleCollision.get(map), flags);
+					HashMap<Map, boolean[][]> accessibleCollisionFromMap = Player.getAccessibleCollision(map, accessibleCollision.get(map), new ArrayList<>());
 					
 					for (Map updatedMap : accessibleCollisionFromMap.keySet())
 					{
@@ -238,15 +239,6 @@ public class Notes
 										accessibleCollision.get(otherWarp.getDestination().getMap())[otherWarp.getDestination().getY()][otherWarp.getDestination().getX()]))
 						{
 							accessibleGroups.get(warpGroup).add(otherGroup);
-							StringBuilder builder = new StringBuilder();
-							builder.append(warp.getMap().getConstName()).append(" ");
-							builder.append(warp.getX()).append(" ");
-							builder.append(warp.getY());
-							builder.append(" -> ");
-							builder.append(otherWarp.getMap().getConstName()).append(" ");
-							builder.append(otherWarp.getX()).append(" ");
-							builder.append(otherWarp.getY());
-							System.out.println(builder.toString());
 						}
 					}
 				}
@@ -254,25 +246,32 @@ public class Notes
 			}
 		}
 		
-		for (ArrayList<Warp> group : warpGroups) for (Warp warp : group) if (warp.getMap().getConstName().equals("ROUTE_29"))
-		{
-			rando.buildWarpGroups(warpGroups, accessibleGroups, group);
-			break;
-		}
+		//Manually add warps from and to the north cycling road gatehouse
+		Map route16 = maps.stream().filter(m -> m.getConstName().equals("ROUTE_16")).findFirst().orElseThrow();
+		ArrayList<Warp> route16ToGate = new ArrayList<>(route16.getWarps().stream()
+				.filter(w -> w.getPosition().getX() == 14 && (w.getPosition().getY() == 6 || w.getPosition().getY() == 7))
+				.collect(Collectors.toList()));
+		ArrayList<Warp> route7GateToSaffron = warpGroups.stream().filter(g -> g.stream().anyMatch(w -> w.getMap().getConstName().equals("ROUTE_7_SAFFRON_GATE"))).findFirst().orElseThrow();
+		
+		warpGroups.add(route16ToGate);
+		accessibleGroups.get(route7GateToSaffron).add(route16ToGate);
+		accessibleGroups.put(route16ToGate, new ArrayList<>(Arrays.asList(route7GateToSaffron)));
+		
+		Map route16Gate = maps.stream().filter(m -> m.getConstName().equals("ROUTE_16_GATE")).findFirst().orElseThrow();
+		ArrayList<Warp> route16GateToRoute = new ArrayList<>(route16Gate.getWarps().stream()
+				.filter(w -> w.getPosition().getX() == 9 && (w.getPosition().getY() == 4 || w.getPosition().getY() == 5))
+				.collect(Collectors.toList()));
+		ArrayList<Warp> route17GateToRoute = warpGroups.stream().filter(g -> g.stream().anyMatch(w -> w.getMap().getConstName().equals("ROUTE_17_ROUTE_18_GATE"))).findFirst().orElseThrow();
+		
+		warpGroups.add(route16GateToRoute);
+		accessibleGroups.get(route17GateToRoute).add(route16GateToRoute);
+		accessibleGroups.put(route16GateToRoute, new ArrayList<>(Arrays.asList(route17GateToRoute)));
+		
+		//Find the Route 29 gatehouse as the starting warp
+		ArrayList<Warp> startingGroup = warpGroups.stream().filter(g -> g.stream().anyMatch(w -> w.getMap().getConstName().equals("ROUTE_29"))).findFirst().orElseThrow();
+		
+		rando.buildWarpGroups(warpGroups, accessibleGroups, startingGroup);
 	}
-	
-	/*
-	 * We're trying to get all maps to be visitable right?
-	 * The way the new group rando works is by setting destinations directly instead of setting one destination to the destination of another
-	 * Any group that cannot be accessed via this code cannot be made the destination of another group that cannot be accessed by the code
-	 * Furthermore, this continues if all of the warps leading to a map cannot be accessed
-	 * Oh, rather than all maps being accessed, make it so all warps can be accessed (groups, I mean)
-	 * 
-	 * Start at new bark
-	 * Pick a random warp group
-	 * Only place it down if the number of remaining accessible warps is greater than 1
-	 * Have to build off of new bark though
-	 */
 	
 	public static ArrayList<Map> getMapsByNames(ArrayList<Map> maps, String... constNames)
 	{
@@ -284,127 +283,87 @@ public class Notes
 	
 	public static void randomiseWarps(ArrayList<Map> maps, Randomiser rando) throws IOException
 	{
-		ArrayList<Warp> warps = new ArrayList<>();
+		//Collect a bunch of maps to manually edit warps
+		Map victoryRoadGate = maps.stream().filter(m -> m.getConstName().equals("VICTORY_ROAD_GATE")).findFirst().orElseThrow();
+		Map victoryRoad = maps.stream().filter(m -> m.getConstName().equals("VICTORY_ROAD")).findFirst().orElseThrow();
+		Map route22 = maps.stream().filter(m -> m.getConstName().equals("ROUTE_22")).findFirst().orElseThrow();
+		Map route23 = maps.stream().filter(m -> m.getConstName().equals("ROUTE_23")).findFirst().orElseThrow();
+		Map route28 = maps.stream().filter(m -> m.getConstName().equals("ROUTE_28")).findFirst().orElseThrow();
+		Map indigoPlateau = maps.stream().filter(m -> m.getConstName().equals("INDIGO_PLATEAU_POKECENTER_1F")).findFirst().orElseThrow();
+		Map silverCaveRoom2 = maps.stream().filter(m -> m.getConstName().equals("SILVER_CAVE_ROOM_2")).findFirst().orElseThrow();
+		Map redsRoom = maps.stream().filter(m -> m.getConstName().equals("SILVER_CAVE_ROOM_3")).findFirst().orElseThrow();
+		
+		//Link all the warps on the right side of victory road gate to themselves
+		victoryRoadGate.getWarps().get(0).setDestination(victoryRoadGate.getWarps().get(0));
+		victoryRoadGate.getWarps().get(1).setDestination(victoryRoadGate.getWarps().get(1));
+		route22.getWarps().get(0).setDestination(route22.getWarps().get(0));
+		
+		//Link victory road and indigo plateau
+		victoryRoadGate.getWarps().get(4).setDestination(indigoPlateau.getWarps().get(0));
+		victoryRoadGate.getWarps().get(5).setDestination(indigoPlateau.getWarps().get(1));
+		indigoPlateau.getWarps().get(0).setDestination(victoryRoadGate.getWarps().get(4));
+		indigoPlateau.getWarps().get(1).setDestination(victoryRoadGate.getWarps().get(5));
+		
+		//Link route 23 and victory road (creates a cycle that should get un-done by the randomiser)
+		victoryRoad.getWarps().get(0).setDestination(route23.getWarps().get(0));
+		route23.getWarps().get(0).setDestination(victoryRoad.getWarps().get(0));
+		route23.getWarps().get(1).setDestination(victoryRoad.getWarps().get(0));
+		
+		//Link victory road gate and Red's room
+		victoryRoadGate.getWarps().get(6).setDestination(redsRoom.getWarps().get(0));
+		victoryRoadGate.getWarps().get(7).setDestination(redsRoom.getWarps().get(0));
+		redsRoom.getWarps().get(0).setDestination(victoryRoadGate.getWarps().get(6));
+		
+		//Link silver cave room 2 and route 28 (creates a cycle that should get un-done by the randomiser)
+		route28.getWarps().get(1).setDestination(silverCaveRoom2.getWarps().get(1));
+		silverCaveRoom2.getWarps().get(1).setDestination(route28.getWarps().get(1));
+		
+		//Create groups of warps which all lead to the same warp
+		HashMap<Warp, ArrayList<Warp>> warpSourcess = new HashMap<>();
+		for (Map map : maps) for (Warp warp : map.getWarps()) warpSourcess.put(warp, new ArrayList<>());
+		for (Map map : maps) for (Warp warp : map.getWarps()) if (warp.getDestination() != null) warpSourcess.get(warp.getDestination()).add(warp);
+		
+		//Make a list of maps to unrandomise warps within
+		ArrayList<String> unrandomisedMapNames = new ArrayList<>(
+				Arrays.asList("NEW_BARK_TOWN", "ELMS_LAB", "PLAYERS_HOUSE_1F", "PLAYERS_HOUSE_2F",
+						"PLAYERS_NEIGHBORS_HOUSE", "ELMS_HOUSE", "BATTLE_TOWER_BATTLE_ROOM", "BATTLE_TOWER_ELEVATOR",
+						"BATTLE_TOWER_HALLWAY", "INDIGO_PLATEAU_POKECENTER_1F", "WILLS_ROOM", "KOGAS_ROOM",
+						"BRUNOS_ROOM", "KARENS_ROOM", "LANCES_ROOM", "HALL_OF_FAME", "POKECENTER_2F", "TRADE_CENTER",
+						"COLOSSEUM", "TIME_CAPSULE", "MOBILE_TRADE_ROOM", "MOBILE_BATTLE_ROOM", "SILVER_CAVE_ROOM_3"));
+		
+		ArrayList<ArrayList<Warp>> warpGroups = new ArrayList<>();
 		for (Map map : maps)
+			if (!unrandomisedMapNames.contains(map.getConstName()) && !map.getConstName().contains("BETA"))
+				for (Warp warp : map.getWarps())
 		{
-			/*
-			//Force the badge checks before E4 and Red by linking certain warps
-			if (map.getConstName().equals("VICTORY_ROAD_GATE"))
-			{
-				Map route22 = map.getWarps().get(0).getDestination().getMap();
-				
-				//Link the warps to Route 22 to each other
-				map.getWarps().get(0).setDestination(map.getWarps().get(1));
-				map.getWarps().get(1).setDestination(map.getWarps().get(0));
-				
-				//Link route 22 to itself
-				route22.getWarps().get(0).setDestination(route22.getWarps().get(0));
-				
-				for (Map indigoPlateau : maps) if (indigoPlateau.getConstName().equals("INDIGO_PLATEAU_POKECENTER_1F"))
-				{
-					Map victoryRoad = map.getWarps().get(4).getDestination().getMap();
-					Map route23 = indigoPlateau.getWarps().get(0).getDestination().getMap();
-					
-					//Link victory road and indigo plateau
-					map.getWarps().get(4).setDestination(indigoPlateau.getWarps().get(0));
-					map.getWarps().get(5).setDestination(indigoPlateau.getWarps().get(1));
-					
-					indigoPlateau.getWarps().get(0).setDestination(map.getWarps().get(4));
-					indigoPlateau.getWarps().get(1).setDestination(map.getWarps().get(5));
-					
-					//Link route 23 and victory road (creates a cycle that should get un-done by the randomiser)
-					victoryRoad.getWarps().get(0).setDestination(route23.getWarps().get(0));
-					
-					route23.getWarps().get(0).setDestination(victoryRoad.getWarps().get(0));
-					route23.getWarps().get(1).setDestination(victoryRoad.getWarps().get(0));
-				}
-				
-				for (Map redsRoom : maps) if (redsRoom.getConstName().equals("SILVER_CAVE_ROOM_3"))
-				{
-					Map route28 = map.getWarps().get(6).getDestination().getMap();
-					Map silverCaveRoom2 = redsRoom.getWarps().get(0).getDestination().getMap();
-					
-					//Link victory road gate and Red's room
-					map.getWarps().get(6).setDestination(redsRoom.getWarps().get(0));
-					map.getWarps().get(7).setDestination(redsRoom.getWarps().get(0));
-					
-					redsRoom.getWarps().get(0).setDestination(map.getWarps().get(6));
-					
-					//Link silver cave room 2 and route 28 (creates a cycle that should get un-done by the randomiser)
-					route28.getWarps().get(1).setDestination(silverCaveRoom2.getWarps().get(1));
-					
-					silverCaveRoom2.getWarps().get(1).setDestination(route28.getWarps().get(1));
-				}
-			}*/
+			Warp dest = warp.getDestination();
+			if (dest == null) continue;
+			else if (unrandomisedMapNames.contains(dest.getMap().getConstName())) continue;
+			else if (dest.getMap().getConstName().contains("BETA")) continue;
+			else if (dest.equals(warp)) continue;
+			else if (!warp.hasAccessibleDestination()) continue;
+			else if (dest.getDestination() == null) continue;
+			else if (!dest.hasAccessibleDestination()) continue;
 			
-			//ignore all beta maps
-			if (map.getConstName().contains("BETA")) continue;
+			ArrayList<Warp> group = null;
 			
-			switch (map.getConstName())
+			groupTesting:
+			for (ArrayList<Warp> testGroup : warpGroups) for (Warp testWarp : testGroup) if (warp.isPairedWith(testWarp))
 			{
-				//Unrandomise new bark town to force the player to get a pokemon
-				case "NEW_BARK_TOWN":
-				case "ELMS_LAB":
-				case "PLAYERS_HOUSE_1F":
-				case "PLAYERS_HOUSE_2F":
-				case "PLAYERS_NEIGHBORS_HOUSE":
-				case "ELMS_HOUSE":
-				
-				//unrandomise most battle tower areas as they are all cutscenes
-				case "BATTLE_TOWER_BATTLE_ROOM":
-				case "BATTLE_TOWER_ELEVATOR":
-				case "BATTLE_TOWER_HALLWAY":
-				
-				//unrandomise indigo plateau
-				case "INDIGO_PLATEAU_POKECENTER_1F":
-				case "WILLS_ROOM":
-				case "KOGAS_ROOM":
-				case "BRUNOS_ROOM":
-				case "KARENS_ROOM":
-				case "LANCES_ROOM":
-				case "HALL_OF_FAME":
-				
-				//Unrandomise red's room from the changes above
-				//case "SILVER_CAVE_ROOM_3":
-				
-				//Unrandomise the cable club and its rooms
-				case "POKECENTER_2F":
-				case "TRADE_CENTER":
-				case "COLOSSEUM":
-				case "TIME_CAPSULE":
-				case "MOBILE_TRADE_ROOM":
-				case "MOBILE_BATTLE_ROOM":
-					continue;
+				group = testGroup;
+				break groupTesting;
 			}
 			
-			for (Warp warp : map.getWarps())
+			if (group == null)
 			{
-				if (warp.getDestination() != null)
-				{
-					//String mapName = warp.getMap().getConstName();
-					String destMapName = warp.getDestination().getMap().getConstName();
-					//Remove warps that lead to some of the above maps
-					if (destMapName.contains("BETA")) continue;
-					
-					switch (destMapName)
-					{
-						case "BATTLE_TOWER_ELEVATOR":
-						case "POKECENTER_2F":
-						case "INDIGO_PLATEAU_POKECENTER_1F":
-						//case "SILVER_CAVE_ROOM_3":
-							continue;
-					}
-					
-					//Unrandomise the changed route22 and Victory Road gate warps
-					//if (mapName.equals("VICTORY_ROAD_GATE") && destMapName.equals("VICTORY_ROAD_GATE")) continue;
-					//if (warp.getMap().getConstName().equals("ROUTE_22") && warp.getDestination().getMap().getConstName().equals("ROUTE_22")) continue;
-				}
-				
-				warps.add(warp);
+				group = new ArrayList<>();
+				warpGroups.add(group);
 			}
+			
+			group.add(warp);
 		}
 		
-		rando.shuffleWarpDestinations(warps, false, true, true);
+		rando.shuffleWarpGroups(warpGroups, false, true);
 	}
 	
 	public static ArrayList<String> randomiseMusicPointers(DisassemblyReader reader, Randomiser rando) throws FileNotFoundException, IOException

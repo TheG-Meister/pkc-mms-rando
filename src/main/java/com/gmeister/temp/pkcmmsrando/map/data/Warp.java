@@ -105,6 +105,6 @@ public class Warp
 
 	@Override
 	public String toString()
-	{ return "Warp [from=" + this.position + ", to=" + this.destination.position + "]"; }
+	{ return "Warp [from=" + this.position + ", to=" + (this.destination == null ? this.destination : this.destination.position) + "]"; }
 	
 }
