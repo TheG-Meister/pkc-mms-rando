@@ -281,13 +281,8 @@ public class Notes
 		return selectedMaps;
 	}
 	
-	public static void randomiseWarps(DisassemblyReader disReader, DisassemblyWriter disWriter, Randomiser rando) throws IOException
+	public static void randomiseWarps(ArrayList<Map> maps, Randomiser rando) throws IOException
 	{
-		ArrayList<CollisionConstant> collisionConstants = disReader.readCollisionConstants();
-		ArrayList<TileSet> tileSets = disReader.readTileSets(collisionConstants);
-		for (TileSet tileSet : tileSets) tileSet.getBlockSet().updateCollGroups();
-		ArrayList<Map> maps = disReader.readMaps(tileSets);
-		
 		//Collect a bunch of maps to manually edit warps
 		Map victoryRoadGate = maps.stream().filter(m -> m.getConstName().equals("VICTORY_ROAD_GATE")).findFirst().orElseThrow();
 		Map victoryRoad = maps.stream().filter(m -> m.getConstName().equals("VICTORY_ROAD")).findFirst().orElseThrow();
