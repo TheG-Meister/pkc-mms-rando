@@ -17,8 +17,8 @@ import java.util.regex.Pattern;
 import com.gmeister.temp.pkcmmsrando.io.DisassemblyReader;
 import com.gmeister.temp.pkcmmsrando.io.DisassemblyWriter;
 import com.gmeister.temp.pkcmmsrando.io.EmpiricalDataReader;
-import com.gmeister.temp.pkcmmsrando.map.data.CollisionConstant;
 import com.gmeister.temp.pkcmmsrando.map.data.CollisionPermission;
+import com.gmeister.temp.pkcmmsrando.map.data.Disassembly;
 import com.gmeister.temp.pkcmmsrando.map.data.Flag;
 import com.gmeister.temp.pkcmmsrando.map.data.Map;
 import com.gmeister.temp.pkcmmsrando.map.data.Player;
@@ -113,13 +113,8 @@ public class Notes
 		}
 	}
 	
-	public static void randomiseWarpAreas(DisassemblyReader disReader, EmpiricalDataReader empReader, DisassemblyWriter disWriter, Randomiser rando) throws IOException, URISyntaxException
+	public static void randomiseWarpAreas(ArrayList<Map> maps, EmpiricalDataReader empReader, Randomiser rando) throws IOException, URISyntaxException
 	{
-		ArrayList<CollisionConstant> collisionConstants = disReader.readCollisionConstants();
-		ArrayList<TileSet> tileSets = disReader.readTileSets(collisionConstants);
-		for (TileSet tileSet : tileSets) tileSet.getBlockSet().updateCollGroups();
-		ArrayList<Map> maps = disReader.readMaps(tileSets);
-		
 		ArrayList<ArrayList<Warp>> warpGroups = new ArrayList<>();
 		ArrayList<ArrayList<Map>> mapGroups = new ArrayList<>();
 		ArrayList<String[]> mapGroupNamess = empReader.readVanillaMapGroups();
@@ -150,26 +145,10 @@ public class Notes
 		}
 		
 		rando.shuffleWarpGroups(warpGroups, false, true);
-		
-		for (Map map : maps)
-		{
-			map.writeWarpsToScript();
-			disWriter.writeMapScript(map);
-		}
 	}
 	
-	public static void buildWarpAreas(DisassemblyReader disReader, EmpiricalDataReader empReader, DisassemblyWriter disWriter, Randomiser rando) throws FileNotFoundException, IOException, URISyntaxException
+	public static void buildWarpAreas(ArrayList<Map> maps, ArrayList<Flag> flags, EmpiricalDataReader empReader, Randomiser rando) throws FileNotFoundException, IOException, URISyntaxException
 	{
-		ArrayList<Flag> flags = new ArrayList<>();
-		flags.addAll(disReader.readEngineFlags());
-		flags.addAll(disReader.readEventFlags());
-		
-		ArrayList<CollisionPermission> collisionPermissions = empReader.readCollisionPermissions(flags);
-		ArrayList<CollisionConstant> collisionConstants = empReader.readCollisionConstants(collisionPermissions);
-		ArrayList<TileSet> tileSets = disReader.readTileSets(collisionConstants);
-		for (TileSet tileSet : tileSets) tileSet.getBlockSet().updateCollGroups();
-		ArrayList<Map> maps = disReader.readMaps(tileSets);
-		
 		ArrayList<ArrayList<Warp>> warpGroups = new ArrayList<>();
 		ArrayList<ArrayList<Map>> mapGroups = new ArrayList<>();
 		ArrayList<String[]> mapGroupNamess = empReader.readVanillaMapGroups();
@@ -280,12 +259,6 @@ public class Notes
 			rando.buildWarpGroups(warpGroups, accessibleGroups, group);
 			break;
 		}
-		
-		for (Map map : maps)
-		{
-			map.writeWarpsToScript();
-			disWriter.writeMapScript(map);
-		}
 	}
 	
 	/*
@@ -309,13 +282,8 @@ public class Notes
 		return selectedMaps;
 	}
 	
-	public static void warpRando(DisassemblyReader disReader, DisassemblyWriter disWriter, Randomiser rando) throws IOException
+	public static void randomiseWarps(ArrayList<Map> maps, Randomiser rando) throws IOException
 	{
-		ArrayList<CollisionConstant> collisionConstants = disReader.readCollisionConstants();
-		ArrayList<TileSet> tileSets = disReader.readTileSets(collisionConstants);
-		for (TileSet tileSet : tileSets) tileSet.getBlockSet().updateCollGroups();
-		ArrayList<Map> maps = disReader.readMaps(tileSets);
-		
 		ArrayList<Warp> warps = new ArrayList<>();
 		for (Map map : maps)
 		{
@@ -437,29 +405,126 @@ public class Notes
 		}
 		
 		rando.shuffleWarpDestinations(warps, false, true, true);
-		
-		for (Map map : maps)
-		{
-			map.writeWarpsToScript();
-			disWriter.writeMapScript(map);
-		}
 	}
 	
-	public static void randomiseMusicPointers(DisassemblyReader reader, DisassemblyWriter writer, Randomiser rando) throws FileNotFoundException, IOException
+	public static ArrayList<String> randomiseMusicPointers(DisassemblyReader reader, Randomiser rando) throws FileNotFoundException, IOException
 	{
-		writer.writeMusicPointers(rando.shuffleMusicPointers(reader.readMusicPointers()));
+		return rando.shuffleMusicPointers(reader.readMusicPointers());
 	}
 	
-	public static void randomiseSFXPointers(DisassemblyReader reader, DisassemblyWriter writer, Randomiser rando) throws FileNotFoundException, IOException
+	public static ArrayList<String> randomiseSFXPointers(DisassemblyReader reader, Randomiser rando) throws FileNotFoundException, IOException
 	{
-		writer.writeSFXPointers(rando.shuffleSFXPointers(reader.readSFXPointers()));
+		return rando.shuffleSFXPointers(reader.readSFXPointers());
+	}
+	
+	public static ArrayList<String> randomiseOverworldSpritePointers(DisassemblyReader reader, Randomiser rando) throws FileNotFoundException, IOException
+	{
+		return rando.shuffleOverworldSpritePointers(reader.readOverworldSpritePointers());
 	}
 	
 	public static void main(String... args) throws IOException, URISyntaxException
 	{
-		if (args.length != 5)
+		List<String> argsList = new ArrayList<>(Arrays.asList(args));
+		
+		boolean help = false;
+		boolean version = false;
+		
+		String disIn = null;
+		String disOut = null;
+		boolean warps = false;
+		boolean warpAreas = false;
+		boolean overworldSpritePointers = false;
+		boolean musicPointers = false;
+		boolean sfxPointers = false;
+		boolean mapBlocks = false;
+		
+		while (argsList.size() > 0)
 		{
-			System.out.println("pkc-mms-rando");
+			String arg = argsList.remove(0);
+			
+			switch (arg)
+			{
+				case "-h":
+				case "--help":
+				{
+					help = true;
+					break;
+				}
+				
+				case "-v":
+				case "--version":
+				{
+					version = true;
+					break;
+				}
+				
+				case "-d":
+				case "--disassembly-in":
+				{
+					if (argsList.isEmpty())
+					{
+						System.err.println(arg + " requires a path argument.");
+						return;
+					}
+					
+					disIn = argsList.remove(0);
+					break;
+				}
+				
+				case "-D":
+				case "--disassembly-out":
+				{
+					if (argsList.isEmpty())
+					{
+						System.err.println(arg + " requires a path argument.");
+						return;
+					}
+					
+					disOut = argsList.remove(0);
+					break;
+				}
+				
+				case "--warps":
+				{
+					warps = true;
+					break;
+				}
+				
+				case "--warp-areas":
+				{
+					warpAreas = true;
+					break;
+				}
+				
+				case "--overworld-sprite-pointers":
+				{
+					overworldSpritePointers = true;
+					break;
+				}
+				
+				case "--music-pointers":
+				{
+					musicPointers = true;
+					break;
+				}
+				
+				case "--sfx-pointers":
+				{
+					sfxPointers = true;
+					break;
+				}
+				
+				case "--map-blocks":
+				{
+					mapBlocks = true;
+					break;
+				}
+			}
+		}
+		
+		if (help)
+		{
+			System.out.println("pkc-mms-rando v0.0.2");
 			System.out.println();
 			System.out.println("requires the following arguments in order:");
 			System.out.println("Path to a pret/pokecrystal style disassembly input folder, eg. \"C:/user/documents/pokecrystal-speedchoice-7.2/\"");
@@ -467,20 +532,96 @@ public class Notes
 			System.out.println("true/false, whether to randomise music pointers (race safe)");
 			System.out.println("true/false, whether to randomise SFX pointers (race safe)");
 			System.out.println("true/false, whether to randomise warps (not race safe)");
+			
 			return;
 		}
 		
-		File inFolder = Paths.get(args[0]).normalize().toAbsolutePath().toFile();
-		File outFolder = Paths.get(args[1]).normalize().toAbsolutePath().toFile();
+		if (version)
+		{
+			System.out.println("pkc-mms-rando v0.0.2");
+			return;
+		}
 		
-		DisassemblyReader disReader = new DisassemblyReader(inFolder);
-		DisassemblyWriter disWriter = new DisassemblyWriter(outFolder);
+		DisassemblyReader disReader = null;
+		DisassemblyWriter disWriter = null;
+		
+		if (disIn != null) disReader = new DisassemblyReader(Paths.get(disIn).normalize().toAbsolutePath().toFile());
+		if (disOut != null) disWriter = new DisassemblyWriter(Paths.get(disOut).normalize().toAbsolutePath().toFile());
+		
 		EmpiricalDataReader empReader = new EmpiricalDataReader(null);
 		Randomiser rando = new Randomiser();
+		Disassembly disassembly = new Disassembly();
+		ArrayList<Flag> allFlags = new ArrayList<>();
 		
-		if (Boolean.parseBoolean(args[2])) Notes.randomiseMusicPointers(disReader, disWriter, rando);
-		if (Boolean.parseBoolean(args[3])) Notes.randomiseSFXPointers(disReader, disWriter, rando);
-		if (Boolean.parseBoolean(args[4])) Notes.randomiseWarpAreas(disReader, empReader, disWriter, rando);
+		if (warps || warpAreas || mapBlocks)
+		{
+			disassembly.setEngineFlags(disReader.readEngineFlags());
+			disassembly.setEventFlags(disReader.readEventFlags());
+			allFlags.addAll(disassembly.getEngineFlags());
+			allFlags.addAll(disassembly.getEventFlags());
+			
+			ArrayList<CollisionPermission> perms = empReader.readCollisionPermissions(allFlags);
+			
+			disassembly.setCollisionConstants(empReader.readCollisionConstants(perms));
+			disassembly.setTileSets(disReader.readTileSets(disassembly.getCollisionConstants()));
+			disassembly.setMaps(disReader.readMaps(disassembly.getTileSets()));
+		}
+		
+		if (warps && warpAreas) System.err.println("Error: choose one of --warps and --warp-areas");
+		else if (warps)
+		{
+			if (disReader == null) System.out.println("Error: Randomisers require -d");
+			Notes.randomiseWarps(disassembly.getMaps(), rando);
+			
+			if (disWriter != null) for (Map map : disassembly.getMaps())
+			{
+				map.writeWarpsToScript();
+				disWriter.writeMapScript(map);
+			}
+		}
+		else if (warpAreas)
+		{
+			if (disReader == null) System.out.println("Error: Randomisers require -d");
+			Notes.randomiseWarpAreas(disassembly.getMaps(), empReader, rando);
+			
+			if (disWriter != null) for (Map map : disassembly.getMaps())
+			{
+				map.writeWarpsToScript();
+				disWriter.writeMapScript(map);
+			}
+		}
+		
+		if (overworldSpritePointers)
+		{
+			if (disReader == null) System.out.println("Error: Randomisers require -d");
+			ArrayList<String> pointers = Notes.randomiseOverworldSpritePointers(disReader, rando);
+			if (disWriter != null) disWriter.writeOverworldSpritePointers(pointers);
+		}
+		
+		if (musicPointers)
+		{
+			if (disReader == null) System.out.println("Error: Randomisers require -d");
+			ArrayList<String> pointers = Notes.randomiseMusicPointers(disReader, rando);
+			if (disWriter != null) disWriter.writeMusicPointers(pointers);
+		}
+		
+		if (sfxPointers)
+		{
+			if (disReader == null) System.out.println("Error: Randomisers require -d");
+			ArrayList<String> pointers = Notes.randomiseSFXPointers(disReader, rando);
+			if (disWriter != null) disWriter.writeSFXPointers(pointers);
+		}
+		
+		if (mapBlocks)
+		{
+			if (disReader == null) System.out.println("Error: Randomisers require -d");
+			
+			for (TileSet tileSet : disassembly.getTileSets()) tileSet.getBlockSet().updateCollGroups();
+			
+			for (Map map : disassembly.getMaps()) map.getBlocks().setBlocks(rando.randomiseBlocksByCollision(map.getTileSet().getBlockSet(), map.getBlocks().getBlocks()));
+			
+			if (disWriter != null) disWriter.writeAllMapBlocks(disassembly.getMaps());
+		}
 	}
 	
 }
