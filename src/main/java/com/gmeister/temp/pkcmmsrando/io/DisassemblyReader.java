@@ -422,6 +422,13 @@ public class DisassemblyReader
 		return this.readScript(file);
 	}
 	
+	public ArrayList<String> readOverworldSpritePointers() throws FileNotFoundException, IOException
+	{
+		File file = dir.toPath().resolve("data/sprites/sprites.asm").toFile();
+		if (!file.exists()) throw new FileNotFoundException(file.getAbsolutePath() + " could not be found.");
+		return this.readScript(file);
+	}
+	
 	public ArrayList<String> readScript(File file) throws FileNotFoundException, IOException
 	{
 		ArrayList<String> script = new ArrayList<>();
