@@ -1,0 +1,22 @@
+name: "Developer bug report"
+description: "Already know causes of and solutions to your issue? Start here."
+labels: "bug"
+body:
+  - type: textarea
+    attributes:
+      label: "Background"
+      description: Describe the problem, the more details the better.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: "Causes"
+      description: Describe potential causes of this issue. Include links to code if possible.
+    validations:
+      required: false
+  - type: textarea
+    attributes:
+      label: "Solutions"
+      description: Describe possible solutions and how to approach them.
+    validations:
+      required: false
