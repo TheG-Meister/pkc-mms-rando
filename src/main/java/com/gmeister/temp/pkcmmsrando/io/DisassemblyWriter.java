@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.List;
 
 import com.gmeister.temp.pkcmmsrando.map.data.BlockSet;
 import com.gmeister.temp.pkcmmsrando.map.data.Map;
@@ -68,7 +69,13 @@ public class DisassemblyWriter
 		this.writeScript(script, file);
 	}
 	
-	private void writeScript(ArrayList<String> script, File file) throws IOException
+	public void writeOverworldSpritePointers(List<String> script) throws IOException
+	{
+		File file = this.getSubDir("data/sprites/").toPath().resolve("sprites.asm").toFile();
+		this.writeScript(script, file);
+	}
+	
+	private void writeScript(List<String> script, File file) throws IOException
 	{
 		try (BufferedWriter writer = new BufferedWriter(new FileWriter(file, Charset.forName("UTF-8"))))
 		{

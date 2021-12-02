@@ -95,6 +95,28 @@ public class Randomiser
 	}
 	
 	/**
+	 * Shuffles selected lines in a script.
+	 * @param script the script
+	 * @param toShuffle a list of the same length of the script, denoting the lines to shuffle
+	 * @return a shuffled script
+	 */
+	public ArrayList<String> shuffleScriptLines(ArrayList<String> script, List<Boolean> toShuffle)
+	{
+		Random random = new Random(this.random.nextLong());
+		ArrayList<String> shuffledScript = new ArrayList<>();
+		
+		for (int i = 0; i < toShuffle.size() && i < script.size(); i++) if (toShuffle.get(i)) shuffledScript.add(script.get(i));
+		Collections.shuffle(shuffledScript, random);
+		for (int i = 0; i < script.size(); i++)
+		{
+			if (i >= toShuffle.size()) shuffledScript.add(script.get(i));
+			else if (!toShuffle.get(i)) shuffledScript.add(i, script.get(i));
+		}
+		
+		return shuffledScript;
+	}
+	
+	/**
 	 * Shuffles the pointers of all music tracks, such that every incidence of one track is replaced with a different track.
 	 * <br><br>
 	 * This randomiser is safe for races.
@@ -119,6 +141,20 @@ public class Randomiser
 	{
 		boolean[] toShuffle = new boolean[script.size()];
 		for (int i = 0; i < script.size(); i++) toShuffle[i] = script.get(i).startsWith("\tdba");
+		return this.shuffleScriptLines(script, toShuffle);
+	}
+	
+	/**
+	 * Shuffles the pointers to all overworld sprites, such that all occurrences of each sprite are replaced with a different sprite.
+	 * <br><br>
+	 * This randomiser is currently untested.
+	 * @param script the overworld sprite script to shuffle
+	 * @return a shuffled version of the provided script
+	 */
+	public ArrayList<String> shuffleOverworldSpritePointers(ArrayList<String> script)
+	{
+		Pattern constPattern = Pattern.compile("^\\toverworld_sprite ");
+		List<Boolean> toShuffle = script.stream().map(s -> constPattern.matcher(s).find()).collect(Collectors.toList());
 		return this.shuffleScriptLines(script, toShuffle);
 	}
 	
