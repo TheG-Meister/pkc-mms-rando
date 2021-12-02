@@ -4,11 +4,13 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.gmeister.temp</groupId>
 	<artifactId>pkc-mms-rando</artifactId>
-	<version>0.0.3</version>
+	<version>0.1.0</version>
 	<name>Pokecrystal Map, Music and Story Randomiser</name>
 
 	<properties>
 		<maven.compiler.release>15</maven.compiler.release>
+     	<maven.compiler.source>15</maven.compiler.source>
+     	<maven.compiler.target>15</maven.compiler.target>
 	</properties>
 
 	<build>
