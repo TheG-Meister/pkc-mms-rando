@@ -483,21 +483,29 @@ public class Notes
 		
 		if (help)
 		{
-			System.out.println("pkc-mms-rando v0.0.2");
+			System.out.println("pkc-mms-rando v0.1.0");
 			System.out.println();
-			System.out.println("requires the following arguments in order:");
-			System.out.println("Path to a pret/pokecrystal style disassembly input folder, eg. \"C:/user/documents/pokecrystal-speedchoice-7.2/\"");
-			System.out.println("Path to an output folder, eg. \"C:/user/documents/output/\"");
-			System.out.println("true/false, whether to randomise music pointers (race safe)");
-			System.out.println("true/false, whether to randomise SFX pointers (race safe)");
-			System.out.println("true/false, whether to randomise warps (not race safe)");
+			System.out.println("Usage example: java -jar pkc-mms-rando-0.1.0.jar -d pokecrystal/ -D output/ --warps --music-pointers --map-blocks");
+			System.out.println();
+			System.out.println("Options:");
+			System.out.println("-h, --help                        - prints help information and exits");
+			System.out.println("-v, --version                     - prints program version and exits");
+			System.out.println("-d <dir>, --disassembly-in <dir>  - reads a disassembly from the provided directory");
+			System.out.println("-D <dir>, --disassembly-out <dir> - writes out modified disassembly files to the");
+			System.out.println("                                      provided directory (requires -d)");
+			System.out.println("--warps                           - shuffles all warp destinations (requires -d)");
+			System.out.println("--warp-areas                      - shuffles some warp destinations (requires -d)");
+			System.out.println("--overworld-sprite-pointers       - shuffles overworld sprite pointers (requires -d)");
+			System.out.println("--music-pointers                  - shuffles music pointers (requires -d)");
+			System.out.println("--sfx-pointers                    - shuffles sound effect pointers (requires -d)");
+			System.out.println("--map-blocks                      - randomises map blocks (requires -d)");
 			
 			return;
 		}
 		
 		if (version)
 		{
-			System.out.println("pkc-mms-rando v0.0.2");
+			System.out.println("pkc-mms-rando v0.1.0");
 			return;
 		}
 		
@@ -511,6 +519,15 @@ public class Notes
 		Randomiser rando = new Randomiser();
 		Disassembly disassembly = new Disassembly();
 		ArrayList<Flag> allFlags = new ArrayList<>();
+		
+		if (warps || warpAreas || mapBlocks || overworldSpritePointers || sfxPointers || musicPointers)
+		{
+			if (disReader == null)
+			{
+				System.out.println("Error: Randomisers require -d");
+				return;
+			}
+		}
 		
 		if (warps || warpAreas || mapBlocks)
 		{
@@ -529,7 +546,6 @@ public class Notes
 		if (warps && warpAreas) System.err.println("Error: choose one of --warps and --warp-areas");
 		else if (warps)
 		{
-			if (disReader == null) System.out.println("Error: Randomisers require -d");
 			Notes.randomiseWarps(disassembly.getMaps(), rando);
 			
 			if (disWriter != null) for (Map map : disassembly.getMaps())
@@ -540,7 +556,6 @@ public class Notes
 		}
 		else if (warpAreas)
 		{
-			if (disReader == null) System.out.println("Error: Randomisers require -d");
 			Notes.randomiseWarpAreas(disassembly.getMaps(), empReader, rando);
 			
 			if (disWriter != null) for (Map map : disassembly.getMaps())
@@ -552,29 +567,24 @@ public class Notes
 		
 		if (overworldSpritePointers)
 		{
-			if (disReader == null) System.out.println("Error: Randomisers require -d");
 			ArrayList<String> pointers = Notes.randomiseOverworldSpritePointers(disReader, rando);
 			if (disWriter != null) disWriter.writeOverworldSpritePointers(pointers);
 		}
 		
 		if (musicPointers)
 		{
-			if (disReader == null) System.out.println("Error: Randomisers require -d");
 			ArrayList<String> pointers = Notes.randomiseMusicPointers(disReader, rando);
 			if (disWriter != null) disWriter.writeMusicPointers(pointers);
 		}
 		
 		if (sfxPointers)
 		{
-			if (disReader == null) System.out.println("Error: Randomisers require -d");
 			ArrayList<String> pointers = Notes.randomiseSFXPointers(disReader, rando);
 			if (disWriter != null) disWriter.writeSFXPointers(pointers);
 		}
 		
 		if (mapBlocks)
 		{
-			if (disReader == null) System.out.println("Error: Randomisers require -d");
-			
 			for (TileSet tileSet : disassembly.getTileSets()) tileSet.getBlockSet().updateCollGroups();
 			
 			for (Map map : disassembly.getMaps()) map.getBlocks().setBlocks(rando.randomiseBlocksByCollision(map.getTileSet().getBlockSet(), map.getBlocks().getBlocks()));
