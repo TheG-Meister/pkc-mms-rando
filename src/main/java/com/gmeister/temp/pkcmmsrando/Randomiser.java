@@ -386,6 +386,81 @@ public class Randomiser
 		 * For each 1-way we have to solve, record what warps below can solve it, and what warps above can solve it
 		 */
 		
+		/*
+		 * What does the existence of any branch do to the loop count in a created rom?
+		 * Hmmm what if we think of the minimum number of branches required to solve the rom?
+		 * 
+		 * Hard coded restrictions:
+		 * Number of creatable branches is equal to the number of nodes (all modes)
+		 * Each node can only have one new branch originate from it (all modes)
+		 * Each node can only have one new branch lead to it (one-in one-out and two-way mode)
+		 * Each time a node's branch is created, the equal and opposite branch must also be created (two-way mode)
+		 * Every node needs a branch from and to it (no softlock mode)
+		 * 
+		 * Technically we get to remove a set of branches and re-assign each one, but this will do
+		 * I think I'm trying to use stats from individual branches to calculate stats for the network as a whole
+		 * 
+		 * Stats of a network:
+		 * Number of nodes
+		 * Number of existing branches
+		 * Number of non-redundant existing branches
+		 * 
+		 * The most effective branch to add solves the most of these branches at once
+		 * Any branch you add also needs to obey these criteria
+		 * Branches don't add anything of use to an optimal network if they are possible via another path
+		 * Branches cause bad overworlds if you can't reverse them via another path
+		 * 
+		 * In addition, every node needs a branch going from it and a branch going to it
+		 * 
+		 * One thing we could do is keep track of all nodes that can be accessed by any other node, including via multiple branches
+		 * Essentially we "compress" multiple branches into a single branch just for analysis purposes
+		 * The ROM is complete when the list of accessible nodes from each node contains every node
+		 * 
+		 * However, with over 800 warps this will be a funckin huge table that eats up very unnecessary amounts of memory
+		 * 
+		 * Actually to save memory it might be a good idea to cut down on the numbers of branches.
+		 */
+		
+		/*
+		 * Probably make a copy of accessible warps
+		 * For every node
+		 * Follow through every branch from the node
+		 * For each branch
+		 * If its destination node is accessible from any other branch, delete this branch
+		 */
+		
+		for (List<Warp> warpGroup : warpGroups)
+		{
+			java.util.Map<List<Warp>, List<List<Warp>>> downstreamGroupsMap = new HashMap<>();
+			for (List<Warp> accessibleGroup : accessibleGroups.get(warpGroup))
+			{
+				List<List<Warp>> downstreamGroups = new ArrayList<>();
+				downstreamGroups.addAll(accessibleGroups.get(accessibleGroup));
+				
+				//BEWARE, the size of the list changes during this loop
+				for (int i = 0; i < downstreamGroups.size(); i++)
+					downstreamGroups.addAll(accessibleGroups.get(downstreamGroups.get(i)).stream()
+							.filter(g -> !downstreamGroups.contains(g))
+							.collect(Collectors.toList()));
+				
+				downstreamGroupsMap.put(accessibleGroup, downstreamGroups);
+			}
+			
+			List<List<Warp>> currentlyAccessibleGroups = new ArrayList<>(accessibleGroups.get(warpGroup));
+			for (List<Warp> accessibleGroup : currentlyAccessibleGroups)
+			{
+				if (downstreamGroupsMap.entrySet().stream()
+						.filter(e -> !e.getKey().equals(accessibleGroup))
+						.anyMatch(e -> e.getValue().contains(accessibleGroup)))
+				{
+					//This group is accessible via any other combination of branches
+					System.out.println(warpGroup.get(0).getPosition() + "\t" + accessibleGroup.get(0).getPosition());
+					accessibleGroups.get(warpGroup).remove(accessibleGroup);
+					downstreamGroupsMap.remove(accessibleGroup);
+				}
+			}
+		}
+		
 		for (List<Warp> warpGroup : warpGroups) for (List<Warp> accessibleGroup : accessibleGroups.get(warpGroup)) if (!accessibleGroups.get(accessibleGroup).contains(warpGroup))
 		{
 			//Exhaustive search algorithm to find free warps... above and below?
