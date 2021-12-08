@@ -419,6 +419,10 @@ public class Randomiser
 		 * However, with over 800 warps this will be a funckin huge table that eats up very unnecessary amounts of memory
 		 * 
 		 * Actually to save memory it might be a good idea to cut down on the numbers of branches.
+		 * 
+		 * Every node must have a branch arrive at it and leave from it
+		 * Each branch must be able to be reversed by any other path
+		 * Every node must be part of the same component
 		 */
 		
 		/*
@@ -454,46 +458,43 @@ public class Randomiser
 						.anyMatch(e -> e.getValue().contains(accessibleGroup)))
 				{
 					//This group is accessible via any other combination of branches
-					System.out.println(warpGroup.get(0).getPosition() + "\t" + accessibleGroup.get(0).getPosition());
+					//System.out.println(warpGroup.get(0).getPosition() + "\t" + accessibleGroup.get(0).getPosition());
 					accessibleGroups.get(warpGroup).remove(accessibleGroup);
 					downstreamGroupsMap.remove(accessibleGroup);
 				}
 			}
 		}
 		
-		for (List<Warp> warpGroup : warpGroups) for (List<Warp> accessibleGroup : accessibleGroups.get(warpGroup)) if (!accessibleGroups.get(accessibleGroup).contains(warpGroup))
+		for (List<Warp> groupAbove : warpGroups)
 		{
-			//Exhaustive search algorithm to find free warps... above and below?
-			List<List<Warp>> groupsToTest = new ArrayList<>(Arrays.asList(accessibleGroup));
-			List<List<Warp>> groupsBelow = new ArrayList<>(groupsToTest);
-			while (!groupsToTest.isEmpty())
+			branch:
+			for (List<Warp> groupBelow : accessibleGroups.get(groupAbove)) if (!accessibleGroups.get(groupBelow).contains(groupAbove))
 			{
-				List<Warp> testGroup = groupsToTest.remove(0);
-				List<? extends List<Warp>> newGroups = accessibleGroups.get(testGroup).stream()
-						.filter(g -> !groupsBelow.contains(g))
-						.collect(Collectors.toList());
+				//Exhaustive search algorithm to find free warps... above and below?
+				List<List<Warp>> groupsBelow = new ArrayList<>(Arrays.asList(groupBelow));
+				for (int i = 0; i < groupsBelow.size(); i++)
+				{
+					groupsBelow.addAll(accessibleGroups.get(groupsBelow.get(i)).stream()
+							.filter(g -> !groupsBelow.contains(g))
+							.collect(Collectors.toList()));
+					if (groupsBelow.contains(groupAbove)) break branch; 
+				}
+
+				List<List<Warp>> groupsAbove = new ArrayList<>(Arrays.asList(groupAbove));
+				for (int i = 0; i < groupsAbove.size(); i++)
+				{
+					final int j = i;
+					groupsAbove.addAll(accessibleGroups.entrySet().stream()
+							.filter(e -> e.getValue().contains(groupsAbove.get(j)) && !groupsAbove.contains(e.getKey()))
+							.map(e -> e.getKey())
+							.collect(Collectors.toList()));
+					if (groupsAbove.contains(groupBelow)) break branch; 
+				}
 				
-				groupsBelow.addAll(newGroups);
-				groupsToTest.addAll(newGroups);
+				System.out.println(groupAbove.get(0).getPosition() + "\t" +
+				groupsAbove.stream().map(g -> g.get(0).getPosition()).collect(Collectors.toList()) + "\t" +
+						groupsBelow.stream().map(g -> g.get(0).getPosition()).collect(Collectors.toList()));
 			}
-			
-			groupsToTest = new ArrayList<>(Arrays.asList(warpGroup));
-			List<List<Warp>> groupsAbove = new ArrayList<>(groupsToTest);
-			while (!groupsToTest.isEmpty())
-			{
-				List<Warp> testGroup = groupsToTest.remove(0);
-				List<? extends List<Warp>> newGroups = accessibleGroups.entrySet().stream()
-						.filter(e -> e.getValue().contains(testGroup) && !groupsAbove.contains(e.getKey()))
-						.map(e -> e.getKey())
-						.collect(Collectors.toList());
-				
-				groupsAbove.addAll(newGroups);
-				groupsToTest.addAll(newGroups);
-			}
-			
-			System.out.println(warpGroup.get(0).getPosition() + "\t" +
-			groupsAbove.stream().map(g -> g.get(0).getPosition()).collect(Collectors.toList()) + "\t" +
-					groupsBelow.stream().map(g -> g.get(0).getPosition()).collect(Collectors.toList()));
 		}
 		
 		/*
