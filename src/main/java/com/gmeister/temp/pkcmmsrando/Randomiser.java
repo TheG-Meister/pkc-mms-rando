@@ -433,6 +433,7 @@ public class Randomiser
 		 * If its destination node is accessible from any other branch, delete this branch
 		 */
 		
+		/*
 		for (List<Warp> warpGroup : warpGroups)
 		{
 			java.util.Map<List<Warp>, List<List<Warp>>> downstreamGroupsMap = new HashMap<>();
@@ -464,11 +465,22 @@ public class Randomiser
 				}
 			}
 		}
+		*/
 		
+		//Collect all nodes that have no branches leave from them
+		List<List<Warp>> deadEndGroups = accessibleGroups.entrySet().stream().filter(e -> e.getValue().isEmpty()).map(e -> e.getKey()).collect(Collectors.toList());
+		//deadEndGroups.forEach(g -> System.out.println(g.get(0).getPosition()));
+		
+		//Collect all nodes that have nothing arrive at them
+		List<List<Warp>> inaccessibleGroups = new ArrayList<>(warpGroups);
+		accessibleGroups.entrySet().stream().map(e -> e.getValue()).forEach(g -> inaccessibleGroups.removeAll(g));
+		inaccessibleGroups.forEach(g -> System.out.println(g.get(0).getPosition()));
+		
+		//Collect any unreturnable branches and the criteria for solving them
 		for (List<Warp> groupAbove : warpGroups)
 		{
 			branch:
-			for (List<Warp> groupBelow : accessibleGroups.get(groupAbove)) if (!accessibleGroups.get(groupBelow).contains(groupAbove))
+			for (List<Warp> groupBelow : accessibleGroups.get(groupAbove))
 			{
 				//Exhaustive search algorithm to find free warps... above and below?
 				List<List<Warp>> groupsBelow = new ArrayList<>(Arrays.asList(groupBelow));
@@ -479,7 +491,7 @@ public class Randomiser
 							.collect(Collectors.toList()));
 					if (groupsBelow.contains(groupAbove)) break branch; 
 				}
-
+				
 				List<List<Warp>> groupsAbove = new ArrayList<>(Arrays.asList(groupAbove));
 				for (int i = 0; i < groupsAbove.size(); i++)
 				{
