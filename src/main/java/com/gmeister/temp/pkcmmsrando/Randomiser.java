@@ -468,13 +468,59 @@ public class Randomiser
 		*/
 		
 		//Collect all nodes that have no branches leave from them
+		//Tracking this might be useless as we'll always fulfil this criterion by randomising every provided warp group
 		List<List<Warp>> deadEndGroups = accessibleGroups.entrySet().stream().filter(e -> e.getValue().isEmpty()).map(e -> e.getKey()).collect(Collectors.toList());
 		//deadEndGroups.forEach(g -> System.out.println(g.get(0).getPosition()));
 		
 		//Collect all nodes that have nothing arrive at them
 		List<List<Warp>> inaccessibleGroups = new ArrayList<>(warpGroups);
 		accessibleGroups.entrySet().stream().map(e -> e.getValue()).forEach(g -> inaccessibleGroups.removeAll(g));
-		inaccessibleGroups.forEach(g -> System.out.println(g.get(0).getPosition()));
+		//inaccessibleGroups.forEach(g -> System.out.println(g.get(0).getPosition()));
+		
+		class Branch
+		{
+			List<Warp> sourceGroup;
+			List<Warp> destGroup;
+			List<List<Warp>> groupsAbove = new ArrayList<>();
+			List<List<Warp>> groupsBelow = new ArrayList<>();
+			
+			public Branch(List<Warp> sourceGroup, List<Warp> destGroup, List<List<Warp>> groupsAbove,
+					List<List<Warp>> groupsBelow)
+			{
+				this.sourceGroup = sourceGroup;
+				this.destGroup = destGroup;
+				this.groupsAbove = groupsAbove;
+				this.groupsBelow = groupsBelow;
+			}
+			
+			public List<Warp> getSourceGroup()
+			{ return this.sourceGroup; }
+			
+			public void setSourceGroup(List<Warp> sourceGroup)
+			{ this.sourceGroup = sourceGroup; }
+			
+			public List<Warp> getDestGroup()
+			{ return this.destGroup; }
+			
+			public void setDestGroup(List<Warp> destGroup)
+			{ this.destGroup = destGroup; }
+			
+			public List<List<Warp>> getGroupsAbove()
+			{ return this.groupsAbove; }
+			
+			public void setGroupsAbove(List<List<Warp>> groupsAbove)
+			{ this.groupsAbove = groupsAbove; }
+			
+			public List<List<Warp>> getGroupsBelow()
+			{ return this.groupsBelow; }
+			
+			public void setGroupsBelow(List<List<Warp>> groupsBelow)
+			{ this.groupsBelow = groupsBelow; }
+		}
+		
+		List<Branch> oneWayBranches = new ArrayList<>();
+		List<List<Branch>> forks = new ArrayList<>();
+		List<List<Branch>> merges = new ArrayList<>();
 		
 		//Collect any unreturnable branches and the criteria for solving them
 		for (List<Warp> groupAbove : warpGroups)
@@ -502,12 +548,81 @@ public class Randomiser
 							.collect(Collectors.toList()));
 					if (groupsAbove.contains(groupBelow)) break branch; 
 				}
-				
+				/*
 				System.out.println(groupAbove.get(0).getPosition() + "\t" +
 				groupsAbove.stream().map(g -> g.get(0).getPosition()).collect(Collectors.toList()) + "\t" +
 						groupsBelow.stream().map(g -> g.get(0).getPosition()).collect(Collectors.toList()));
+						*/
+				
+				Branch branch = new Branch(groupAbove, groupBelow, groupsAbove, groupsBelow);
+				
+				for (Branch otherBranch : oneWayBranches) if (
+						otherBranch.getGroupsBelow().containsAll(branch.getGroupsBelow()) &&
+						branch.getGroupsBelow().containsAll(otherBranch.getGroupsBelow()) &&
+						branch.getGroupsAbove().equals(otherBranch.getGroupsAbove()) &&
+						otherBranch.getGroupsAbove().equals(branch.getGroupsAbove()))
+				{
+					System.out.println(groupAbove.get(0).getPosition() + "\t" +
+							groupsAbove.stream().map(g -> g.get(0).getPosition()).collect(Collectors.toList()) + "\t" +
+									groupsBelow.stream().map(g -> g.get(0).getPosition()).collect(Collectors.toList()));
+					break branch;
+				}
+				
+				for (Branch otherBranch : oneWayBranches)
+				{
+					if (otherBranch.getGroupsBelow().containsAll(branch.getGroupsBelow()) &&
+							branch.getGroupsBelow().containsAll(otherBranch.getGroupsBelow()) &&
+							!branch.getGroupsAbove().stream().anyMatch(g -> otherBranch.getGroupsAbove().contains(g)))
+					{
+						List<Branch> merge = merges.stream().filter(m -> m.contains(otherBranch)).findFirst().orElse(new ArrayList<>());
+						merge.add(branch);
+						if (!merge.contains(otherBranch)) merge.add(otherBranch);
+						if (!merges.contains(merge)) merges.add(merge);
+					}
+					
+					if (branch.getGroupsAbove().equals(otherBranch.getGroupsAbove()) &&
+							otherBranch.getGroupsAbove().equals(branch.getGroupsAbove()) &&
+							!branch.getGroupsBelow().stream().anyMatch(g -> otherBranch.getGroupsBelow().contains(g)))
+					{
+						List<Branch> fork = forks.stream().filter(f -> f.contains(otherBranch)).findFirst().orElse(new ArrayList<>());
+						fork.add(branch);
+						if (!fork.contains(otherBranch)) fork.add(otherBranch);
+						if (!forks.contains(fork)) forks.add(fork);
+					}
+				}
+				
+				oneWayBranches.add(branch);
 			}
 		}
+		
+		/*
+		for (Branch branch : oneWayBranches)
+		{
+			System.out.print(branch.sourceGroup.get(0).getPosition() + "\t");
+			System.out.print(branch.destGroup.get(0).getPosition() + "\t");
+			System.out.print(branch.getGroupsAbove().stream().map(g -> g.get(0).getPosition()).collect(Collectors.toList()) + "\t");
+			System.out.print(branch.getGroupsBelow().stream().map(g -> g.get(0).getPosition()).collect(Collectors.toList()));
+			System.out.println();
+		}
+		
+		for (List<Branch> fork : forks)
+		{
+			System.out.print("fork");
+			for (Branch branch : fork) System.out.print("\t" + branch.sourceGroup.get(0).getPosition() + " -> " + branch.destGroup.get(0).getPosition());
+			System.out.println();
+		}
+		
+		for (List<Branch> merge : merges)
+		{
+			System.out.print("merge");
+			for (Branch branch : merge) System.out.print("\t" + branch.sourceGroup.get(0).getPosition() + " -> " + branch.destGroup.get(0).getPosition());
+			System.out.println();
+		}
+		*/
+		
+		int oneWaySystems = Math.max(forks.stream().mapToInt(f -> f.size() - 1).sum(), merges.stream().mapToInt(m -> m.size() - 1).sum()) + ((oneWayBranches.size() > 0) ? 1 : 0);
+		if (warpGroupGroups.stream().mapToInt(g -> g.size() - 2).sum() + 2 - oneWaySystems * 2 < 0)
+			throw new IllegalArgumentException("accessibleGroups does not contain enough connections for a completable 2-way randomiser");
 		
 		/*
 		 * this is great
@@ -529,6 +644,25 @@ public class Randomiser
 		 * 
 		 * Multiple branches can be solved (like, solved solved) at once if they share a warp below and above (by connecting them)
 		 * That can be done with a simple set of if statements, but finding solutions like that might require more work
+		 */
+		
+		/*
+		 * Skip the next possible branch
+		 * if any tracked 1-way branch loses its last node above or below without being solved
+		 * if any node or set of nodes creates a self-containd component (no free branches in and out) unless everything is part of the same component
+		 * if it is a two-way randomiser and there are 
+		 * not enough branches are left? 
+		 * 
+		 * Each time a branch is created
+		 * if the branch originates from a dead end group, remove the dead end group
+		 * if the branch leads to an inacessible group, remove the inaccessible group
+		 * if the branch originates from a node below and leads to a node above a tracked 1-way branch, remove the 1-way branch
+		 * else, if the branch leads to a node above a 1-way branch, remove the destination node from the nodes above and add the source node if it is open as a destination
+		 * if the branch originates from a node below a 1-way branch, remove the source node from nodes below and add the destination node if it has a free branch
+		 * if it does not do the above and it cannot already be undone, add it to the 1-way branches
+		 * 
+		 * minimise the number of one way chains. Each necessary chain means we can join two less houses into the overworld
+		 * min # of 1-way chains is the max of the number of unchainable forks or mergers
 		 */
 		
 		//Create a random list of groups
