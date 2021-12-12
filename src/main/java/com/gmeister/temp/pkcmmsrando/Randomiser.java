@@ -302,108 +302,12 @@ public class Randomiser
 		}
 		
 		/*
-		 * How to we know that in blackthorn, 4 must connect to 1 or 2?
-		 * Well, we know that 4 is below the ledge as it can't access 1, 2 and 3, which can all access it
-		 * We know that 3 must be below a ledge from 1 and 2, as it can't access them but they can access it
-		 * We know that 1 and 2 can access each other and therefore aren't considered to be separate (imagine tin tower ledge hopping)
-		 * 3 must be de-throned by 1 and 2 as they can both access it
-		 * We then employ the rule where both of the ones at the top cannot open a one way path and one at the bottom cannot close a 1-way path
-		 * 
-		 * In alph outside, how do we know that 1 and 2 must connect to 3 and 4?
-		 * 1 and 2 must be below a ledge from 3 and 4 from the same reasons as above
-		 * 3 must be on a different ledge from 4 as 3 cannot access 4
-		 * 4 must be on a different ledge from 3 as 4 cannot access 3
-		 * 
-		 * According to my network diagram, the lines that are there cannot be changed
-		 * We want every node to be accessible from every other node
-		 * The only change we can make is we can create one extra branch from every accessible node
-		 * This means that each node must be accessible either from a pre-existing branch, or a branch we create
-		 * We need enough nodes to create enough branches for this
-		 * We also need to make sure that each time there is 1-way travel between nodes, there is an alternate path backwards
-		 * 
-		 * In the case of blackthorn, we can see that 3 can access 4, 1 can access 2 & 3, and 2 can access 1 & 3
-		 * Therefore if 4 can follow branches to 1 or 2, the 1-ways to 3 will be accessible
-		 * 
-		 * For each node, every path that you leave from must be able to return to the node
-		 * Consider branches that leave the node and branches that join the node when adding branches
-		 * 
-		 * Delegate the solving of each one way branch to the lowest free nodes on the branch
-		 * A fork solves a split because it turns 2 1-way systems into 1 1-way system
-		 */
-		
-		//Get the sum of each group size minus 2. If it's greater than or equal to zero we have a rom
-		//More complicated:
-		/*
-		 * If there are literally zero one-way movements, add 2 to the sum (make a tree instead of a circle)
-		 * For each warp group that is inaccessible from all other warp groups within the warp group group, remove another 2 from the sum
-		 */
-		//int accessibleSum = warpGroupGroups.stream().mapToInt(g -> g.size() - 2).sum();
-		//if (accessibleSum < 0) throw new IllegalArgumentException("Sum of accessible warps in an optimal map is less than zero: " + accessibleSum);
-		
-		/*
-		 * Wanna do two things
-		 * Not link within overworld fragments until all fragments are connected
-		 * Orientate fragments so they all go around in a circle
-		 * 
-		 * Each time you link warps within overworld fragments instead of between overworld fragments, you're removing warps from the pool
-		 * Each time you split a one way system or join two different one way systems, you're removing warps from the pool
-		 * Wait, we're literally trying to count the number of loops, right?
-		 * 
-		 * If we calc this sum, then we know exactly the number of loops we are forced to make, 1-way or 2-way.
-		 * More importantly, sometimes loops are optional and other times they are forced
-		 * 
-		 * One loop is forced if any single map or warp is 1-way
-		 * An extra loop is forced for every additional fork of 1-way system (as defined by accessibleGroups)
-		 * 
-		 * An optional loop is made each time a connection is made within an overworld fragment
-		 * An optional loop is made each time a fork is artificially generated in a 1-way system, by placing 1-way maps
-		 * 
-		 * Wait okay we didn't technically create an extra loop by placing 1-way maps but the theory still works.
-		 * Basically, doing this means we need an extra loop for a completable rom.
-		 * 
-		 * Let's do this differently
-		 * Count the number of loops we're forced to make
-		 * Does a house count as a loop in 2-way rando? Yes
-		 * The ledge stuff also contributes. EG. the typical splitter has 3 warps but opens 2 loops.
-		 * 
-		 * What hapens if we think about branches instead?
-		 * In 2-way rando:
-		 * Houses kill a branch
-		 * Corridors continue a branch
-		 * Anything with more than 2 warps creates branches
-		 * The presence of any 1-way progression requires 2 branches to join up
-		 * 
-		 * What if we count the number of branches created and the number of branches required?
-		 * Probably better to consider paths?
-		 * 
-		 * What about creating and consuming 1-way branches?
-		 * A 2-way branch is just a possibility of a 1-way rando that we can account for
-		 * Warps that are pits or are blocked by ledges either cannot create or consume a 1-way branch
-		 */
-		
-		/*
-		 * I want a way to store the delegation of 1-way solving
-		 * For each 1-way we have to solve, record what warps below can solve it, and what warps above can solve it
-		 */
-		
-		/*
-		 * What does the existence of any branch do to the loop count in a created rom?
-		 * Hmmm what if we think of the minimum number of branches required to solve the rom?
-		 * 
 		 * Hard coded restrictions:
 		 * Number of creatable branches is equal to the number of nodes (all modes)
 		 * Each node can only have one new branch originate from it (all modes)
 		 * Each node can only have one new branch lead to it (one-in one-out and two-way mode)
 		 * Each time a node's branch is created, the equal and opposite branch must also be created (two-way mode)
 		 * Every node needs a branch from and to it (no softlock mode)
-		 * 
-		 * Technically we get to remove a set of branches and re-assign each one, but this will do
-		 * I think I'm trying to use stats from individual branches to calculate stats for the network as a whole
-		 * 
-		 * Stats of a network:
-		 * Number of nodes
-		 * Number of existing branches
-		 * Number of non-redundant existing branches
 		 * 
 		 * The most effective branch to add solves the most of these branches at once
 		 * Any branch you add also needs to obey these criteria
@@ -412,25 +316,9 @@ public class Randomiser
 		 * 
 		 * In addition, every node needs a branch going from it and a branch going to it
 		 * 
-		 * One thing we could do is keep track of all nodes that can be accessed by any other node, including via multiple branches
-		 * Essentially we "compress" multiple branches into a single branch just for analysis purposes
-		 * The ROM is complete when the list of accessible nodes from each node contains every node
-		 * 
-		 * However, with over 800 warps this will be a funckin huge table that eats up very unnecessary amounts of memory
-		 * 
-		 * Actually to save memory it might be a good idea to cut down on the numbers of branches.
-		 * 
 		 * Every node must have a branch arrive at it and leave from it
 		 * Each branch must be able to be reversed by any other path
 		 * Every node must be part of the same component
-		 */
-		
-		/*
-		 * Probably make a copy of accessible warps
-		 * For every node
-		 * Follow through every branch from the node
-		 * For each branch
-		 * If its destination node is accessible from any other branch, delete this branch
 		 */
 		
 		/*
@@ -470,12 +358,10 @@ public class Randomiser
 		//Collect all nodes that have no branches leave from them
 		//Tracking this might be useless as we'll always fulfil this criterion by randomising every provided warp group
 		List<List<Warp>> deadEndGroups = accessibleGroups.entrySet().stream().filter(e -> e.getValue().isEmpty()).map(e -> e.getKey()).collect(Collectors.toList());
-		//deadEndGroups.forEach(g -> System.out.println(g.get(0).getPosition()));
 		
 		//Collect all nodes that have nothing arrive at them
 		List<List<Warp>> inaccessibleGroups = new ArrayList<>(warpGroups);
 		accessibleGroups.entrySet().stream().map(e -> e.getValue()).forEach(g -> inaccessibleGroups.removeAll(g));
-		//inaccessibleGroups.forEach(g -> System.out.println(g.get(0).getPosition()));
 		
 		class Branch
 		{
@@ -492,30 +378,6 @@ public class Randomiser
 				this.groupsAbove = groupsAbove;
 				this.groupsBelow = groupsBelow;
 			}
-			
-			public List<Warp> getSourceGroup()
-			{ return this.sourceGroup; }
-			
-			public void setSourceGroup(List<Warp> sourceGroup)
-			{ this.sourceGroup = sourceGroup; }
-			
-			public List<Warp> getDestGroup()
-			{ return this.destGroup; }
-			
-			public void setDestGroup(List<Warp> destGroup)
-			{ this.destGroup = destGroup; }
-			
-			public List<List<Warp>> getGroupsAbove()
-			{ return this.groupsAbove; }
-			
-			public void setGroupsAbove(List<List<Warp>> groupsAbove)
-			{ this.groupsAbove = groupsAbove; }
-			
-			public List<List<Warp>> getGroupsBelow()
-			{ return this.groupsBelow; }
-			
-			public void setGroupsBelow(List<List<Warp>> groupsBelow)
-			{ this.groupsBelow = groupsBelow; }
 		}
 		
 		List<Branch> oneWayBranches = new ArrayList<>();
@@ -548,31 +410,21 @@ public class Randomiser
 							.collect(Collectors.toList()));
 					if (groupsAbove.contains(groupBelow)) break branch; 
 				}
-				/*
-				System.out.println(groupAbove.get(0).getPosition() + "\t" +
-				groupsAbove.stream().map(g -> g.get(0).getPosition()).collect(Collectors.toList()) + "\t" +
-						groupsBelow.stream().map(g -> g.get(0).getPosition()).collect(Collectors.toList()));
-						*/
 				
 				Branch branch = new Branch(groupAbove, groupBelow, groupsAbove, groupsBelow);
 				
 				for (Branch otherBranch : oneWayBranches) if (
-						otherBranch.getGroupsBelow().containsAll(branch.getGroupsBelow()) &&
-						branch.getGroupsBelow().containsAll(otherBranch.getGroupsBelow()) &&
-						branch.getGroupsAbove().equals(otherBranch.getGroupsAbove()) &&
-						otherBranch.getGroupsAbove().equals(branch.getGroupsAbove()))
-				{
-					System.out.println(groupAbove.get(0).getPosition() + "\t" +
-							groupsAbove.stream().map(g -> g.get(0).getPosition()).collect(Collectors.toList()) + "\t" +
-									groupsBelow.stream().map(g -> g.get(0).getPosition()).collect(Collectors.toList()));
+						otherBranch.groupsBelow.containsAll(branch.groupsBelow) &&
+						branch.groupsBelow.containsAll(otherBranch.groupsBelow) &&
+						otherBranch.groupsAbove.equals(branch.groupsAbove) &&
+						branch.groupsAbove.equals(otherBranch.groupsAbove))
 					break branch;
-				}
 				
 				for (Branch otherBranch : oneWayBranches)
 				{
-					if (otherBranch.getGroupsBelow().containsAll(branch.getGroupsBelow()) &&
-							branch.getGroupsBelow().containsAll(otherBranch.getGroupsBelow()) &&
-							!branch.getGroupsAbove().stream().anyMatch(g -> otherBranch.getGroupsAbove().contains(g)))
+					if (otherBranch.groupsBelow.containsAll(branch.groupsBelow) &&
+							branch.groupsBelow.containsAll(otherBranch.groupsBelow) &&
+							!branch.groupsAbove.stream().anyMatch(g -> otherBranch.groupsAbove.contains(g)))
 					{
 						List<Branch> merge = merges.stream().filter(m -> m.contains(otherBranch)).findFirst().orElse(new ArrayList<>());
 						merge.add(branch);
@@ -580,9 +432,9 @@ public class Randomiser
 						if (!merges.contains(merge)) merges.add(merge);
 					}
 					
-					if (branch.getGroupsAbove().equals(otherBranch.getGroupsAbove()) &&
-							otherBranch.getGroupsAbove().equals(branch.getGroupsAbove()) &&
-							!branch.getGroupsBelow().stream().anyMatch(g -> otherBranch.getGroupsBelow().contains(g)))
+					if (branch.groupsAbove.equals(otherBranch.groupsAbove) &&
+							otherBranch.groupsAbove.equals(branch.groupsAbove) &&
+							!branch.groupsBelow.stream().anyMatch(g -> otherBranch.groupsBelow.contains(g)))
 					{
 						List<Branch> fork = forks.stream().filter(f -> f.contains(otherBranch)).findFirst().orElse(new ArrayList<>());
 						fork.add(branch);
@@ -595,55 +447,17 @@ public class Randomiser
 			}
 		}
 		
-		/*
-		for (Branch branch : oneWayBranches)
-		{
-			System.out.print(branch.sourceGroup.get(0).getPosition() + "\t");
-			System.out.print(branch.destGroup.get(0).getPosition() + "\t");
-			System.out.print(branch.getGroupsAbove().stream().map(g -> g.get(0).getPosition()).collect(Collectors.toList()) + "\t");
-			System.out.print(branch.getGroupsBelow().stream().map(g -> g.get(0).getPosition()).collect(Collectors.toList()));
-			System.out.println();
-		}
-		
-		for (List<Branch> fork : forks)
-		{
-			System.out.print("fork");
-			for (Branch branch : fork) System.out.print("\t" + branch.sourceGroup.get(0).getPosition() + " -> " + branch.destGroup.get(0).getPosition());
-			System.out.println();
-		}
-		
-		for (List<Branch> merge : merges)
-		{
-			System.out.print("merge");
-			for (Branch branch : merge) System.out.print("\t" + branch.sourceGroup.get(0).getPosition() + " -> " + branch.destGroup.get(0).getPosition());
-			System.out.println();
-		}
-		*/
-		
-		int oneWaySystems = Math.max(forks.stream().mapToInt(f -> f.size() - 1).sum(), merges.stream().mapToInt(m -> m.size() - 1).sum()) + ((oneWayBranches.size() > 0) ? 1 : 0);
-		if (warpGroupGroups.stream().mapToInt(g -> g.size() - 2).sum() + 2 - oneWaySystems * 2 < 0)
-			throw new IllegalArgumentException("accessibleGroups does not contain enough connections for a completable 2-way randomiser");
+		int requiredLoops = Math.max(forks.stream().mapToInt(f -> f.size() - 1).sum(), merges.stream().mapToInt(m -> m.size() - 1).sum()) + ((oneWayBranches.size() > 0) ? 1 : 0);
+		int availableLoops = Math.floorDiv(warpGroupGroups.stream().mapToInt(g -> g.size() - 2).sum() + 2, 2);
+		if (availableLoops < requiredLoops) throw new IllegalArgumentException("accessibleGroups does not contain enough connections for a completable 2-way randomiser");
 		
 		/*
-		 * this is great
-		 * How do we know the number of loops this will make?
-		 * idk tbh
-		 * We can group these
-		 * Any connection with the same warps below and above is all part of the same ledge
-		 * When this happens, merge the groups
-		 * 
 		 * When a 1-way branch has the same warps above and below, it's already accessible
 		 * Actually more generally it's solved when any single warp is present both above and below
 		 * This occurrs when one of the warps below is connected to one of the warps above
 		 * This is also when we know the 1-way path is solved after randomisation
 		 * Once this happens, remove the branch
 		 * This could also be provided through accessibleGroups, but won't be using the way I make it
-		 * 
-		 * There is a merger when none of the warps above are the same, but all of the warps below are the same
-		 * There is a fork when all of the warps above are the same, but none of the warps below are the same
-		 * 
-		 * Multiple branches can be solved (like, solved solved) at once if they share a warp below and above (by connecting them)
-		 * That can be done with a simple set of if statements, but finding solutions like that might require more work
 		 */
 		
 		/*
@@ -660,9 +474,6 @@ public class Randomiser
 		 * else, if the branch leads to a node above a 1-way branch, remove the destination node from the nodes above and add the source node if it is open as a destination
 		 * if the branch originates from a node below a 1-way branch, remove the source node from nodes below and add the destination node if it has a free branch
 		 * if it does not do the above and it cannot already be undone, add it to the 1-way branches
-		 * 
-		 * minimise the number of one way chains. Each necessary chain means we can join two less houses into the overworld
-		 * min # of 1-way chains is the max of the number of unchainable forks or mergers
 		 */
 		
 		//Create a random list of groups
