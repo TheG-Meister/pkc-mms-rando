@@ -114,23 +114,23 @@ public class Notes
 		}
 	}
 	
-	public static void randomiseWarpAreas(ArrayList<Map> maps, EmpiricalDataReader empReader, Randomiser rando) throws IOException, URISyntaxException
+	public static void randomiseWarpAreas(List<Map> maps, EmpiricalDataReader empReader, Randomiser rando) throws IOException, URISyntaxException
 	{
-		ArrayList<ArrayList<Warp>> warpGroups = new ArrayList<>();
-		ArrayList<ArrayList<Map>> mapGroups = new ArrayList<>();
-		ArrayList<String[]> mapGroupNamess = empReader.readVanillaMapGroups();
+		List<List<Warp>> warpGroups = new ArrayList<>();
+		List<List<Map>> mapGroups = new ArrayList<>();
+		List<String[]> mapGroupNamess = empReader.readVanillaMapGroups();
 		for (String[] mapGroupNames : mapGroupNamess) mapGroups.add(Notes.getMapsByNames(maps, mapGroupNames));
 		
-		for (ArrayList<Map> mapGroup : mapGroups)
+		for (List<Map> mapGroup : mapGroups)
 			for (Map map : mapGroup)
 				for (Warp warp : map.getWarps()) if (warp.getDestination() != null)
-					for (ArrayList<Map> mapGroup2 : mapGroups)
+					for (List<Map> mapGroup2 : mapGroups)
 						if (!mapGroup.equals(mapGroup2) && mapGroup2.contains(warp.getDestination().getMap()))
 		{
-			ArrayList<Warp> group = null;
+			List<Warp> group = null;
 			
 			groupTesting:
-			for (ArrayList<Warp> testGroup : warpGroups) for (Warp testWarp : testGroup) if (warp.isPairedWith(testWarp))
+			for (List<Warp> testGroup : warpGroups) for (Warp testWarp : testGroup) if (warp.isPairedWith(testWarp))
 			{
 				group = testGroup;
 				break groupTesting;
@@ -148,24 +148,24 @@ public class Notes
 		rando.shuffleWarpGroups(warpGroups, false, true);
 	}
 	
-	public static void buildWarpAreas(ArrayList<Map> maps, ArrayList<Flag> flags, EmpiricalDataReader empReader, Randomiser rando) throws FileNotFoundException, IOException, URISyntaxException
+	public static void buildWarpAreas(List<Map> maps, List<Flag> flags, EmpiricalDataReader empReader, Randomiser rando) throws FileNotFoundException, IOException, URISyntaxException
 	{
-		ArrayList<ArrayList<Warp>> warpGroups = new ArrayList<>();
-		ArrayList<ArrayList<Map>> mapGroups = new ArrayList<>();
-		ArrayList<String[]> mapGroupNamess = empReader.readVanillaMapGroups();
+		List<List<Warp>> warpGroups = new ArrayList<>();
+		List<List<Map>> mapGroups = new ArrayList<>();
+		List<String[]> mapGroupNamess = empReader.readVanillaMapGroups();
 		for (String[] mapGroupNames : mapGroupNamess) mapGroups.add(Notes.getMapsByNames(maps, mapGroupNames));
 		
-		for (ArrayList<Map> mapGroup : mapGroups)
+		for (List<Map> mapGroup : mapGroups)
 			for (Map map : mapGroup)
 				for (Warp warp : map.getWarps())
-					for (ArrayList<Map> mapGroup2 : mapGroups)
+					for (List<Map> mapGroup2 : mapGroups)
 						if (!mapGroup.equals(mapGroup2) && warp.getDestination() != null &&
 						mapGroup2.contains(warp.getDestination().getMap()))
 		{
-			ArrayList<Warp> group = null;
+			List<Warp> group = null;
 			
 			groupTesting:
-			for (ArrayList<Warp> testGroup : warpGroups) for (Warp testWarp : testGroup) if (warp.isPairedWith(testWarp))
+			for (List<Warp> testGroup : warpGroups) for (Warp testWarp : testGroup) if (warp.isPairedWith(testWarp))
 			{
 				group = testGroup;
 				break groupTesting;
@@ -180,30 +180,30 @@ public class Notes
 			group.add(warp);
 		}
 		
-		HashMap<ArrayList<Warp>, ArrayList<ArrayList<Warp>>> accessibleGroups = new HashMap<>();
-		for (ArrayList<Warp> group : warpGroups) accessibleGroups.put(group, new ArrayList<>());
+		java.util.Map<List<Warp>, List<List<Warp>>> accessibleGroups = new HashMap<>();
+		for (List<Warp> group : warpGroups) accessibleGroups.put(group, new ArrayList<>());
 		
-		for (ArrayList<Map> mapGroup : mapGroups)
+		for (List<Map> mapGroup : mapGroups)
 		{
-			ArrayList<ArrayList<Warp>> mapGroupWarpGroups = new ArrayList<>();
+			List<List<Warp>> mapGroupWarpGroups = new ArrayList<>();
 			
-			for (ArrayList<Warp> warpGroup : warpGroups) if (mapGroup.contains(warpGroup.get(0).getMap())) mapGroupWarpGroups.add(warpGroup);
+			for (List<Warp> warpGroup : warpGroups) if (mapGroup.contains(warpGroup.get(0).getMap())) mapGroupWarpGroups.add(warpGroup);
 			
-			for (ArrayList<Warp> warpGroup : mapGroupWarpGroups)
+			for (List<Warp> warpGroup : mapGroupWarpGroups)
 			{
 				Warp warp = warpGroup.get(0);
-				HashMap<Map, boolean[][]> accessibleCollision = new HashMap<>();
+				java.util.Map<Map, boolean[][]> accessibleCollision = new HashMap<>();
 				boolean[][] startCollision = new boolean[warp.getMap().getBlocks().getCollisionYCapacity()][warp.getMap().getBlocks().getCollisionXCapacity()];
 				startCollision[warp.getY()][warp.getX()] = true;
 				accessibleCollision.put(warp.getMap(), startCollision);
 				
-				ArrayList<Map> mapsToTest = new ArrayList<>(accessibleCollision.keySet());
+				List<Map> mapsToTest = new ArrayList<>(accessibleCollision.keySet());
 				
 				while (mapsToTest.size() > 0)
 				{
 					Map map = mapsToTest.remove(0);
 					
-					HashMap<Map, boolean[][]> accessibleCollisionFromMap = Player.getAccessibleCollision(map, accessibleCollision.get(map), new ArrayList<>());
+					java.util.Map<Map, boolean[][]> accessibleCollisionFromMap = Player.getAccessibleCollision(map, accessibleCollision.get(map), new ArrayList<>());
 					
 					for (Map updatedMap : accessibleCollisionFromMap.keySet())
 					{
@@ -228,7 +228,7 @@ public class Notes
 					}
 				}
 				
-				for (ArrayList<Warp> otherGroup : mapGroupWarpGroups)
+				for (List<Warp> otherGroup : mapGroupWarpGroups)
 				{
 					Warp otherWarp = otherGroup.get(0);
 					if (!warp.equals(otherWarp))
@@ -248,35 +248,35 @@ public class Notes
 		
 		//Manually add warps from and to the north cycling road gatehouse
 		Map route16 = maps.stream().filter(m -> m.getConstName().equals("ROUTE_16")).findFirst().orElseThrow();
-		ArrayList<Warp> route16ToGate = new ArrayList<>(route16.getWarps().stream()
+		List<Warp> route16ToGate = new ArrayList<>(route16.getWarps().stream()
 				.filter(w -> w.getPosition().getX() == 14 && (w.getPosition().getY() == 6 || w.getPosition().getY() == 7))
 				.collect(Collectors.toList()));
-		ArrayList<Warp> route7GateToSaffron = warpGroups.stream().filter(g -> g.stream().anyMatch(w -> w.getMap().getConstName().equals("ROUTE_7_SAFFRON_GATE"))).findFirst().orElseThrow();
+		List<Warp> route7GateToSaffron = warpGroups.stream().filter(g -> g.stream().anyMatch(w -> w.getMap().getConstName().equals("ROUTE_7_SAFFRON_GATE"))).findFirst().orElseThrow();
 		
 		warpGroups.add(route16ToGate);
 		accessibleGroups.get(route7GateToSaffron).add(route16ToGate);
 		accessibleGroups.put(route16ToGate, new ArrayList<>(Arrays.asList(route7GateToSaffron)));
 		
 		Map route16Gate = maps.stream().filter(m -> m.getConstName().equals("ROUTE_16_GATE")).findFirst().orElseThrow();
-		ArrayList<Warp> route16GateToRoute = new ArrayList<>(route16Gate.getWarps().stream()
+		List<Warp> route16GateToRoute = new ArrayList<>(route16Gate.getWarps().stream()
 				.filter(w -> w.getPosition().getX() == 9 && (w.getPosition().getY() == 4 || w.getPosition().getY() == 5))
 				.collect(Collectors.toList()));
-		ArrayList<Warp> route17GateToRoute = warpGroups.stream().filter(g -> g.stream().anyMatch(w -> w.getMap().getConstName().equals("ROUTE_17_ROUTE_18_GATE"))).findFirst().orElseThrow();
+		List<Warp> route17GateToRoute = warpGroups.stream().filter(g -> g.stream().anyMatch(w -> w.getMap().getConstName().equals("ROUTE_17_ROUTE_18_GATE"))).findFirst().orElseThrow();
 		
 		warpGroups.add(route16GateToRoute);
 		accessibleGroups.get(route17GateToRoute).add(route16GateToRoute);
 		accessibleGroups.put(route16GateToRoute, new ArrayList<>(Arrays.asList(route17GateToRoute)));
 		
 		//Find the Route 29 gatehouse as the starting warp
-		ArrayList<Warp> startingGroup = warpGroups.stream().filter(g -> g.stream().anyMatch(w -> w.getMap().getConstName().equals("ROUTE_29"))).findFirst().orElseThrow();
+		List<Warp> startingGroup = warpGroups.stream().filter(g -> g.stream().anyMatch(w -> w.getMap().getConstName().equals("ROUTE_29"))).findFirst().orElseThrow();
 		
 		rando.buildWarpGroups(warpGroups, accessibleGroups, startingGroup);
 	}
 	
-	public static ArrayList<Map> getMapsByNames(ArrayList<Map> maps, String... constNames)
+	public static List<Map> getMapsByNames(List<Map> maps, String... constNames)
 	{
-		ArrayList<Map> selectedMaps = new ArrayList<>();
-		ArrayList<String> constNamesList = new ArrayList<>(Arrays.asList(constNames));
+		List<Map> selectedMaps = new ArrayList<>();
+		List<String> constNamesList = new ArrayList<>(Arrays.asList(constNames));
 		for (Map map : maps) if (constNamesList.contains(map.getConstName())) selectedMaps.add(map);
 		return selectedMaps;
 	}
@@ -319,19 +319,19 @@ public class Notes
 		silverCaveRoom2.getWarps().get(1).setDestination(route28.getWarps().get(1));
 		
 		//Create groups of warps which all lead to the same warp
-		HashMap<Warp, ArrayList<Warp>> warpSourcess = new HashMap<>();
+		HashMap<Warp, List<Warp>> warpSourcess = new HashMap<>();
 		for (Map map : maps) for (Warp warp : map.getWarps()) warpSourcess.put(warp, new ArrayList<>());
 		for (Map map : maps) for (Warp warp : map.getWarps()) if (warp.getDestination() != null) warpSourcess.get(warp.getDestination()).add(warp);
 		
 		//Make a list of maps to unrandomise warps within
-		ArrayList<String> unrandomisedMapNames = new ArrayList<>(
+		List<String> unrandomisedMapNames = new ArrayList<>(
 				Arrays.asList("NEW_BARK_TOWN", "ELMS_LAB", "PLAYERS_HOUSE_1F", "PLAYERS_HOUSE_2F",
 						"PLAYERS_NEIGHBORS_HOUSE", "ELMS_HOUSE", "BATTLE_TOWER_BATTLE_ROOM", "BATTLE_TOWER_ELEVATOR",
 						"BATTLE_TOWER_HALLWAY", "INDIGO_PLATEAU_POKECENTER_1F", "WILLS_ROOM", "KOGAS_ROOM",
 						"BRUNOS_ROOM", "KARENS_ROOM", "LANCES_ROOM", "HALL_OF_FAME", "POKECENTER_2F", "TRADE_CENTER",
 						"COLOSSEUM", "TIME_CAPSULE", "MOBILE_TRADE_ROOM", "MOBILE_BATTLE_ROOM", "SILVER_CAVE_ROOM_3"));
 		
-		ArrayList<ArrayList<Warp>> warpGroups = new ArrayList<>();
+		List<List<Warp>> warpGroups = new ArrayList<>();
 		for (Map map : maps)
 			if (!unrandomisedMapNames.contains(map.getConstName()) && !map.getConstName().contains("BETA"))
 				for (Warp warp : map.getWarps())
@@ -345,10 +345,10 @@ public class Notes
 			else if (dest.getDestination() == null) continue;
 			else if (!dest.hasAccessibleDestination()) continue;
 			
-			ArrayList<Warp> group = null;
+			List<Warp> group = null;
 			
 			groupTesting:
-			for (ArrayList<Warp> testGroup : warpGroups) for (Warp testWarp : testGroup) if (warp.isPairedWith(testWarp))
+			for (List<Warp> testGroup : warpGroups) for (Warp testWarp : testGroup) if (warp.isPairedWith(testWarp))
 			{
 				group = testGroup;
 				break groupTesting;

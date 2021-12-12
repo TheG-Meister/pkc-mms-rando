@@ -3,7 +3,6 @@ package com.gmeister.temp.pkcmmsrando;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 import java.util.regex.Matcher;
@@ -203,7 +202,7 @@ public class Randomiser
 		}
 	}
 	
-	public void shuffleWarpGroups(ArrayList<ArrayList<Warp>> warpGroups, boolean allowSelfWarps, boolean twoWay)
+	public void shuffleWarpGroups(List<List<Warp>> warpGroups, boolean allowSelfWarps, boolean twoWay)
 	{
 		//Get a Random object
 		Random random = new Random(this.random.nextLong());
@@ -211,23 +210,23 @@ public class Randomiser
 		if (warpGroups.size() % 2 != 0 && twoWay && !allowSelfWarps) throw new IllegalArgumentException("Could not avoid self warps as there are an odd number of destinations");
 		
 		//Create a random list of destinations
-		ArrayList<ArrayList<Warp>> groups = new ArrayList<>(warpGroups);
-		ArrayList<ArrayList<Warp>> shuffledGroups = new ArrayList<>(warpGroups);
+		List<List<Warp>> groups = new ArrayList<>(warpGroups);
+		List<List<Warp>> shuffledGroups = new ArrayList<>(warpGroups);
 		Collections.shuffle(shuffledGroups, random);
 		
 		//Pull random destinations
-		ArrayList<ArrayList<Warp>> oldGroups = new ArrayList<>();
-		ArrayList<ArrayList<Warp>> newGroups = new ArrayList<>();
+		List<List<Warp>> oldGroups = new ArrayList<>();
+		List<List<Warp>> newGroups = new ArrayList<>();
 		
 		while (shuffledGroups.size() > 0)
 		{
-			ArrayList<Warp> newGroup = shuffledGroups.get(0);
+			List<Warp> newGroup = shuffledGroups.get(0);
 			boolean testedAllOldDestsForThisGroup = false;
 			
 			oldGroupLoops:
 			while (true)
 			{
-				for (ArrayList<Warp> oldGroup : groups) if (allowSelfWarps || ((!newGroups.contains(oldGroup) || testedAllOldDestsForThisGroup) && !oldGroup.equals(newGroup))) 
+				for (List<Warp> oldGroup : groups) if (allowSelfWarps || ((!newGroups.contains(oldGroup) || testedAllOldDestsForThisGroup) && !oldGroup.equals(newGroup))) 
 				{
 					groups.remove(oldGroup);
 					oldGroups.add(oldGroup);
@@ -258,29 +257,29 @@ public class Randomiser
 		
 		for (int i = 0; i < oldGroups.size(); i++)
 		{
-			ArrayList<Warp> oldGroup = oldGroups.get(i);
-			ArrayList<Warp> newGroup = newGroups.get(i);
+			List<Warp> oldGroup = oldGroups.get(i);
+			List<Warp> newGroup = newGroups.get(i);
 			for (int j = 0; j < oldGroup.size(); j++) oldGroup.get(j).setDestination(newGroup.get(j % newGroup.size()));
 		}
 	}
 	
-	public void buildWarpGroups(ArrayList<ArrayList<Warp>> warpGroups, HashMap<ArrayList<Warp>, ArrayList<ArrayList<Warp>>> accessibleGroups, ArrayList<Warp> startingGroup)
+	public void buildWarpGroups(List<List<Warp>> warpGroups, java.util.Map<List<Warp>, List<List<Warp>>> accessibleGroups, List<Warp> startingGroup)
 	{
 		
 		Random random = new Random(this.random.nextLong());
 		
-		for (ArrayList<Warp> warpGroup : warpGroups) if (!accessibleGroups.containsKey(warpGroup)) throw new IllegalArgumentException("accessibleGroups does not contain a key for every group");
-		for (ArrayList<Warp> warpGroup : accessibleGroups.keySet()) if (!warpGroups.contains(warpGroup)) throw new IllegalArgumentException("accessibleGroups contains groups that are not present in warpGroups");
+		for (List<Warp> warpGroup : warpGroups) if (!accessibleGroups.containsKey(warpGroup)) throw new IllegalArgumentException("accessibleGroups does not contain a key for every group");
+		for (List<Warp> warpGroup : accessibleGroups.keySet()) if (!warpGroups.contains(warpGroup)) throw new IllegalArgumentException("accessibleGroups contains groups that are not present in warpGroups");
 		if (!warpGroups.contains(startingGroup)) throw new IllegalArgumentException("warpGroups does not contain startingGroup");
 		
 		if (warpGroups.size() % 2 != 0) throw new IllegalArgumentException("Could not avoid self warps as there are an odd number of groups");
 		
 		//Make warp group groups
-		ArrayList<ArrayList<ArrayList<Warp>>> warpGroupGroups = new ArrayList<>();
-		for (ArrayList<Warp> warpGroup : warpGroups)
+		List<List<List<Warp>>> warpGroupGroups = new ArrayList<>();
+		for (List<Warp> warpGroup : warpGroups)
 		{
 			//Find an existing warp group group that contains this warp group, or any warp group that this warp group can access. Otherwise, make a new group 
-			ArrayList<ArrayList<Warp>> warpGroupGroup = warpGroupGroups.stream()
+			List<List<Warp>> warpGroupGroup = warpGroupGroups.stream()
 					.filter(g -> g.contains(warpGroup))
 					.findFirst()
 					.orElse(warpGroupGroups.stream()
@@ -477,27 +476,27 @@ public class Randomiser
 		 */
 		
 		//Create a random list of groups
-		ArrayList<ArrayList<Warp>> shuffledGroups = new ArrayList<>(warpGroups);
+		List<List<Warp>> shuffledGroups = new ArrayList<>(warpGroups);
 		Collections.shuffle(shuffledGroups, random);
-		ArrayList<ArrayList<Warp>> freeGroups = new ArrayList<>();
+		List<List<Warp>> freeGroups = new ArrayList<>();
 		freeGroups.add(startingGroup);
 		freeGroups.addAll(accessibleGroups.get(startingGroup));
 		
 		//Pull random destinations
-		ArrayList<ArrayList<Warp>> oldGroups = new ArrayList<>();
-		ArrayList<ArrayList<Warp>> newGroups = new ArrayList<>();
+		List<List<Warp>> oldGroups = new ArrayList<>();
+		List<List<Warp>> newGroups = new ArrayList<>();
 		
 		while (shuffledGroups.size() > 0)
 		{
-			ArrayList<Warp> oldGroup = freeGroups.get(0);
+			List<Warp> oldGroup = freeGroups.get(0);
 			
 			oldGroupLoops:
 			while (true)
 			{
-				for (ArrayList<Warp> newGroup : shuffledGroups) if (oldGroup != newGroup || shuffledGroups.size() < 2)
+				for (List<Warp> newGroup : shuffledGroups) if (oldGroup != newGroup || shuffledGroups.size() < 2)
 				{
-					ArrayList<ArrayList<Warp>> nextFreeGroups = new ArrayList<>(freeGroups);
-					for (ArrayList<Warp> freeGroup : accessibleGroups.get(newGroup)) if (shuffledGroups.contains(freeGroup)) nextFreeGroups.add(freeGroup);
+					List<List<Warp>> nextFreeGroups = new ArrayList<>(freeGroups);
+					for (List<Warp> freeGroup : accessibleGroups.get(newGroup)) if (shuffledGroups.contains(freeGroup)) nextFreeGroups.add(freeGroup);
 					nextFreeGroups.remove(oldGroup);
 					nextFreeGroups.remove(newGroup);
 					
@@ -524,8 +523,8 @@ public class Randomiser
 		
 		for (int i = 0; i < oldGroups.size(); i++)
 		{
-			ArrayList<Warp> oldGroup = oldGroups.get(i);
-			ArrayList<Warp> newGroup = newGroups.get(i);
+			List<Warp> oldGroup = oldGroups.get(i);
+			List<Warp> newGroup = newGroups.get(i);
 			for (int j = 0; j < oldGroup.size(); j++) oldGroup.get(j).setDestination(newGroup.get(j % newGroup.size()));
 		}
 	}
