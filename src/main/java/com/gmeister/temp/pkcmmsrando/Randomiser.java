@@ -464,7 +464,7 @@ public class Randomiser
 		 * if any tracked 1-way branch loses its last node above or below without being solved
 		 * if any node or set of nodes creates a self-containd component (no free branches in and out) unless everything is part of the same component
 		 * if it is a two-way randomiser and there are 
-		 * not enough branches are left? 
+		 * not enough loops are left
 		 * 
 		 * Each time a branch is created
 		 * if the branch originates from a dead end group, remove the dead end group
@@ -473,59 +473,135 @@ public class Randomiser
 		 * else, if the branch leads to a node above a 1-way branch, remove the destination node from the nodes above and add the source node if it is open as a destination
 		 * if the branch originates from a node below a 1-way branch, remove the source node from nodes below and add the destination node if it has a free branch
 		 * if it does not do the above and it cannot already be undone, add it to the 1-way branches
+		 * 
+		 * A loop is made when:
+		 * A connection is made within a warp cluster instead of between them
+		 * A one-way branch is placed in parallel to an existing one instead of in series with it
 		 */
 		
-		//Create a random list of groups
-		List<List<Warp>> shuffledGroups = new ArrayList<>(warpGroups);
-		Collections.shuffle(shuffledGroups, random);
-		List<List<Warp>> freeGroups = new ArrayList<>();
-		freeGroups.add(startingGroup);
-		freeGroups.addAll(accessibleGroups.get(startingGroup));
+		boolean allowSelfWarps = false;
+		boolean twoWay = true;
+		
+		List<List<List<Warp>>> warpClusters = new ArrayList<>();
+		warpGroupGroups.stream().forEach(g -> warpClusters.add(new ArrayList<>(g)));
+		int loopsCreated = 0;
+		
+		//Create a random list of destinations
+		List<List<Warp>> sources = new ArrayList<>(warpGroups);
+		List<List<Warp>> dests = new ArrayList<>(warpGroups);
+		Collections.shuffle(dests, random);
 		
 		//Pull random destinations
-		List<List<Warp>> oldGroups = new ArrayList<>();
-		List<List<Warp>> newGroups = new ArrayList<>();
+		List<List<Warp>> newSources = new ArrayList<>();
+		List<List<Warp>> newDests = new ArrayList<>();
 		
-		while (shuffledGroups.size() > 0)
+		int limit = 2;
+		if (twoWay) limit = 3;
+		
+		while (dests.size() > 0)
 		{
-			List<Warp> oldGroup = freeGroups.get(0);
+			List<Warp> dest = dests.get(0);
+			boolean testedAllOldDestsForThisGroup = false;
+			List<List<Warp>> destCluster = warpClusters.stream().filter(c -> c.contains(dest)).findFirst().orElseThrow();
 			
 			oldGroupLoops:
 			while (true)
 			{
-				for (List<Warp> newGroup : shuffledGroups) if (oldGroup != newGroup || shuffledGroups.size() < 2)
+				for (List<Warp> source : sources) if (allowSelfWarps || ((!newDests.contains(source) || testedAllOldDestsForThisGroup) && !source.equals(dest))) 
 				{
-					List<List<Warp>> nextFreeGroups = new ArrayList<>(freeGroups);
-					for (List<Warp> freeGroup : accessibleGroups.get(newGroup)) if (shuffledGroups.contains(freeGroup)) nextFreeGroups.add(freeGroup);
-					nextFreeGroups.remove(oldGroup);
-					nextFreeGroups.remove(newGroup);
+					List<List<Warp>> sourceCluster = warpClusters.stream().filter(c -> c.contains(source)).findFirst().orElseThrow();
 					
-					if (nextFreeGroups.size() > 0 || shuffledGroups.size() < 2)
+					if (warpClusters.size() > 1)
 					{
-						oldGroups.add(oldGroup);
-						newGroups.add(newGroup);
+						if (sourceCluster == destCluster) continue;
 						
-						oldGroups.add(newGroup);
-						newGroups.add(oldGroup);
-						
-						shuffledGroups.remove(newGroup);
-						shuffledGroups.remove(oldGroup);
-						
-						freeGroups = nextFreeGroups;
-						
-						break oldGroupLoops;
+						if (sourceCluster.stream().filter(g -> sources.contains(g)).count() + destCluster.stream().filter(g -> sources.contains(g)).count() < limit) continue;
+						if (sourceCluster.stream().filter(g -> dests.contains(g)).count() + destCluster.stream().filter(g -> dests.contains(g)).count() < limit) continue;
 					}
+					/*
+					 * To stop linking two single warp clusters together
+					 * either cluster needs another open source and destination
+					 * unless there's only two clusters left
+					 * 
+					 * continue if neither cluster has an additional open source or dest
+					 * count twice if two way? yeah
+					 */
+					
+					/*(if (warpClusters.size() > 2)
+					{
+						if (sourceCluster.stream().filter(g -> sources.contains(g)).count() < 2 &&
+								destCluster.stream().filter(g -> dests.contains(g)).count() < 2)
+							continue;
+					}
+					
+					if (sourceCluster == destCluster)
+					{
+						//If this is the last available source or last available dest in each cluster, continue
+						if (sourceCluster.stream().filter(g -> sources.contains(g)).count() < 2) continue;
+						if (destCluster.stream().filter(g -> dests.contains(g)).count() < 2) continue;
+						
+						if (loopsCreated >= availableLoops) continue;
+						else loopsCreated++;
+					}*/
+					
+					if (sourceCluster == destCluster) loopsCreated++;
+					
+					sources.remove(source);
+					dests.remove(dest);
+					newSources.add(source);
+					newDests.add(dest);
+					
+					if (twoWay)
+					{
+						sources.remove(dest);
+						newSources.add(dest);
+						dests.remove(source);
+						newDests.add(source);
+					}
+					
+					if (sourceCluster != destCluster)
+					{
+						sourceCluster.addAll(destCluster);
+						warpClusters.remove(destCluster);
+					}
+					
+					break oldGroupLoops;
 				}
 				
-				throw new IllegalStateException("Could not find a destination for " + oldGroup.get(0));
+				if (!testedAllOldDestsForThisGroup)
+				{
+					testedAllOldDestsForThisGroup = true;
+				}
+				else
+				{
+					throw new IllegalStateException("Could not find an old destination for the warp that links " + dest.get(0).getMap().getConstName() + " to " + dest.get(0).getDestination().getMap().getConstName());
+				}
 			}
 		}
 		
-		for (int i = 0; i < oldGroups.size(); i++)
+		/*for (List<Warp> warpGroup : warpGroups)
 		{
-			List<Warp> oldGroup = oldGroups.get(i);
-			List<Warp> newGroup = newGroups.get(i);
-			for (int j = 0; j < oldGroup.size(); j++) oldGroup.get(j).setDestination(newGroup.get(j % newGroup.size()));
+			List<List<Warp>> groupsBelow = new ArrayList<>();
+			groupsBelow.add(newDests.get(newSources.indexOf(warpGroup)));
+			
+			for (int i = 0; i < groupsBelow.size(); i++)
+			{
+				groupsBelow.addAll(accessibleGroups.get(groupsBelow.get(i)).stream()
+						.filter(g -> !groupsBelow.contains(g))
+						.collect(Collectors.toList()));
+				if (!groupsBelow.contains(newDests.get(newSources.indexOf(groupsBelow.get(i))))) groupsBelow.add(newDests.get(newSources.indexOf(groupsBelow.get(i))));
+			}
+			
+			System.out.print(warpGroup.get(0).getPosition());
+			for (List<Warp> otherGroup : warpGroups) System.out.print("\t" + (groupsBelow.contains(otherGroup) ? 1 : 0));
+			System.out.println();
+		}*/
+		
+		for (int i = 0; i < newSources.size(); i++)
+		{
+			List<Warp> source = newSources.get(i);
+			List<Warp> dest = newDests.get(i);
+			for (int j = 0; j < source.size(); j++) source.get(j).setDestination(dest.get(j % dest.size()));
 		}
 	}
 	
