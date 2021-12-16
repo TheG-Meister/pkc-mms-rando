@@ -471,35 +471,44 @@ public class Randomiser
 		
 		boolean allowSelfWarps = false;
 		boolean twoWay = true;
+		boolean oneIn = true;
 		
 		List<List<List<Warp>>> warpClusters = new ArrayList<>();
 		warpGroupGroups.stream().forEach(g -> warpClusters.add(new ArrayList<>(g)));
 		int loopsCreated = 0;
 		boolean pendingSelfWarp = false;
+		boolean testedAllSources = false;
 		
 		//Create a random list of destinations
 		List<List<Warp>> sources = new ArrayList<>(warpGroups);
 		List<List<Warp>> dests = new ArrayList<>(warpGroups);
-		Collections.shuffle(dests, random);
+		if (oneIn) Collections.shuffle(dests, random);
 		
 		//Pull random destinations
 		List<List<Warp>> newSources = new ArrayList<>();
 		List<List<Warp>> newDests = new ArrayList<>();
 		
-		while (dests.size() > 0)
+		for (int i = 0; i < sources.size();)
 		{
-			List<Warp> dest = dests.get(0);
-			boolean testedAllOldDestsForThisGroup = false;
-			List<List<Warp>> destCluster = warpClusters.stream().filter(c -> c.contains(dest)).findFirst().orElseThrow();
+			List<Warp> source = sources.get(i);
+			List<List<Warp>> sourceCluster = warpClusters.stream().filter(c -> c.contains(source)).findFirst().orElseThrow();
+			final List<List<Warp>> localDests;
+			
+			if (oneIn) localDests = dests;
+			else
+			{
+				localDests = new ArrayList<>(warpGroups);
+				Collections.shuffle(dests, random);
+			}
 			
 			sourceLoops:
 			while (true)
 			{
-				for (List<Warp> source : sources) 
+				for (List<Warp> dest : localDests) 
 				{
-					if (!allowSelfWarps && (source == dest || (!testedAllOldDestsForThisGroup && newDests.contains(source)))) continue;
+					if (!allowSelfWarps && source == dest) continue;
 					
-					List<List<Warp>> sourceCluster = warpClusters.stream().filter(c -> c.contains(source)).findFirst().orElseThrow();
+					List<List<Warp>> destCluster = warpClusters.stream().filter(c -> c.contains(dest)).findFirst().orElseThrow();
 					
 					if (warpClusters.size() > 1)
 					{
@@ -513,12 +522,12 @@ public class Randomiser
 							if (loopsCreated >= availableLoops) continue;
 							
 							if (sourceCluster.stream().filter(g -> sources.contains(g)).count() < limit) continue;
-							if (sourceCluster.stream().filter(g -> dests.contains(g)).count() < limit) continue;
+							if (sourceCluster.stream().filter(g -> localDests.contains(g)).count() < limit) continue;
 						}
 						else if (warpClusters.size() > 2)
 						{
 							if (sourceCluster.stream().filter(g -> sources.contains(g)).count() + destCluster.stream().filter(g -> sources.contains(g)).count() < limit) continue;
-							if (sourceCluster.stream().filter(g -> dests.contains(g)).count() + destCluster.stream().filter(g -> dests.contains(g)).count() < limit) continue;
+							if (sourceCluster.stream().filter(g -> localDests.contains(g)).count() + destCluster.stream().filter(g -> localDests.contains(g)).count() < limit) continue;
 						}
 					}
 					
@@ -530,7 +539,7 @@ public class Randomiser
 					else if (sourceCluster == destCluster) loopsCreated++;
 					
 					sources.remove(source);
-					dests.remove(dest);
+					localDests.remove(dest);
 					newSources.add(source);
 					newDests.add(dest);
 					
@@ -538,7 +547,7 @@ public class Randomiser
 					{
 						sources.remove(dest);
 						newSources.add(dest);
-						dests.remove(source);
+						localDests.remove(source);
 						newDests.add(source);
 					}
 					
@@ -551,12 +560,24 @@ public class Randomiser
 					break sourceLoops;
 				}
 				
-				if (!testedAllOldDestsForThisGroup) testedAllOldDestsForThisGroup = true;
-				else throw new IllegalStateException("Could not find a source warp for destination " + dest);
+				throw new IllegalStateException("Could not find a destionation warp for source " + source);
 			}
+			
+			if (!allowSelfWarps && !testedAllSources)
+			{
+				while (i < sources.size() && newDests.contains(sources.get(i))) i++;
+				if (i >= sources.size() && !testedAllSources)
+				{
+					i = 0;
+					testedAllSources = true;
+				}
+			}
+			//if you get here and sources is not empty, throw an error
+			else if (!sources.isEmpty()) throw new IllegalStateException("Could not find a destionation warps for sources " + sources);
+			
 		}
 		
-		/*for (List<Warp> warpGroup : warpGroups)
+		for (List<Warp> warpGroup : warpGroups)
 		{
 			List<List<Warp>> groupsBelow = new ArrayList<>();
 			groupsBelow.add(newDests.get(newSources.indexOf(warpGroup)));
@@ -572,7 +593,7 @@ public class Randomiser
 			System.out.print(warpGroup.get(0).getPosition());
 			for (List<Warp> otherGroup : warpGroups) System.out.print("\t" + (groupsBelow.contains(otherGroup) ? 1 : 0));
 			System.out.println();
-		}*/
+		}
 		
 		for (int i = 0; i < newSources.size(); i++)
 		{
