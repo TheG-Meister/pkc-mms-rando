@@ -320,8 +320,7 @@ public class Randomiser
 		 * Every node must be part of the same component
 		 */
 		
-		/*
-		for (List<Warp> warpGroup : warpGroups)
+		/*for (List<Warp> warpGroup : warpGroups)
 		{
 			java.util.Map<List<Warp>, List<List<Warp>>> downstreamGroupsMap = new HashMap<>();
 			for (List<Warp> accessibleGroup : accessibleGroups.get(warpGroup))
@@ -351,16 +350,7 @@ public class Randomiser
 					downstreamGroupsMap.remove(accessibleGroup);
 				}
 			}
-		}
-		*/
-		
-		//Collect all nodes that have no branches leave from them
-		//Tracking this might be useless as we'll always fulfil this criterion by randomising every provided warp group
-		List<List<Warp>> deadEndGroups = accessibleGroups.entrySet().stream().filter(e -> e.getValue().isEmpty()).map(e -> e.getKey()).collect(Collectors.toList());
-		
-		//Collect all nodes that have nothing arrive at them
-		List<List<Warp>> inaccessibleGroups = new ArrayList<>(warpGroups);
-		accessibleGroups.entrySet().stream().map(e -> e.getValue()).forEach(g -> inaccessibleGroups.removeAll(g));
+		}*/
 		
 		class Branch
 		{
@@ -485,6 +475,7 @@ public class Randomiser
 		List<List<List<Warp>>> warpClusters = new ArrayList<>();
 		warpGroupGroups.stream().forEach(g -> warpClusters.add(new ArrayList<>(g)));
 		int loopsCreated = 0;
+		boolean pendingSelfWarp = false;
 		
 		//Create a random list of destinations
 		List<List<Warp>> sources = new ArrayList<>(warpGroups);
@@ -495,56 +486,48 @@ public class Randomiser
 		List<List<Warp>> newSources = new ArrayList<>();
 		List<List<Warp>> newDests = new ArrayList<>();
 		
-		int limit = 2;
-		if (twoWay) limit = 3;
-		
 		while (dests.size() > 0)
 		{
 			List<Warp> dest = dests.get(0);
 			boolean testedAllOldDestsForThisGroup = false;
 			List<List<Warp>> destCluster = warpClusters.stream().filter(c -> c.contains(dest)).findFirst().orElseThrow();
 			
-			oldGroupLoops:
+			sourceLoops:
 			while (true)
 			{
-				for (List<Warp> source : sources) if (allowSelfWarps || ((!newDests.contains(source) || testedAllOldDestsForThisGroup) && !source.equals(dest))) 
+				for (List<Warp> source : sources) 
 				{
+					if (!allowSelfWarps && (source == dest || (!testedAllOldDestsForThisGroup && newDests.contains(source)))) continue;
+					
 					List<List<Warp>> sourceCluster = warpClusters.stream().filter(c -> c.contains(source)).findFirst().orElseThrow();
 					
 					if (warpClusters.size() > 1)
 					{
-						if (sourceCluster == destCluster) continue;
+						int limit;
+						if (source == dest) limit = 2;
+						else if (twoWay) limit = 3;
+						else limit = 2;
 						
-						if (sourceCluster.stream().filter(g -> sources.contains(g)).count() + destCluster.stream().filter(g -> sources.contains(g)).count() < limit) continue;
-						if (sourceCluster.stream().filter(g -> dests.contains(g)).count() + destCluster.stream().filter(g -> dests.contains(g)).count() < limit) continue;
-					}
-					/*
-					 * To stop linking two single warp clusters together
-					 * either cluster needs another open source and destination
-					 * unless there's only two clusters left
-					 * 
-					 * continue if neither cluster has an additional open source or dest
-					 * count twice if two way? yeah
-					 */
-					
-					/*(if (warpClusters.size() > 2)
-					{
-						if (sourceCluster.stream().filter(g -> sources.contains(g)).count() < 2 &&
-								destCluster.stream().filter(g -> dests.contains(g)).count() < 2)
-							continue;
+						if (sourceCluster == destCluster)
+						{
+							if (loopsCreated >= availableLoops) continue;
+							
+							if (sourceCluster.stream().filter(g -> sources.contains(g)).count() < limit) continue;
+							if (sourceCluster.stream().filter(g -> dests.contains(g)).count() < limit) continue;
+						}
+						else if (warpClusters.size() > 2)
+						{
+							if (sourceCluster.stream().filter(g -> sources.contains(g)).count() + destCluster.stream().filter(g -> sources.contains(g)).count() < limit) continue;
+							if (sourceCluster.stream().filter(g -> dests.contains(g)).count() + destCluster.stream().filter(g -> dests.contains(g)).count() < limit) continue;
+						}
 					}
 					
-					if (sourceCluster == destCluster)
+					if (source == dest)
 					{
-						//If this is the last available source or last available dest in each cluster, continue
-						if (sourceCluster.stream().filter(g -> sources.contains(g)).count() < 2) continue;
-						if (destCluster.stream().filter(g -> dests.contains(g)).count() < 2) continue;
-						
-						if (loopsCreated >= availableLoops) continue;
-						else loopsCreated++;
-					}*/
-					
-					if (sourceCluster == destCluster) loopsCreated++;
+						if (!pendingSelfWarp) loopsCreated++;
+						pendingSelfWarp = !pendingSelfWarp;
+					} 
+					else if (sourceCluster == destCluster) loopsCreated++;
 					
 					sources.remove(source);
 					dests.remove(dest);
@@ -565,17 +548,11 @@ public class Randomiser
 						warpClusters.remove(destCluster);
 					}
 					
-					break oldGroupLoops;
+					break sourceLoops;
 				}
 				
-				if (!testedAllOldDestsForThisGroup)
-				{
-					testedAllOldDestsForThisGroup = true;
-				}
-				else
-				{
-					throw new IllegalStateException("Could not find an old destination for the warp that links " + dest.get(0).getMap().getConstName() + " to " + dest.get(0).getDestination().getMap().getConstName());
-				}
+				if (!testedAllOldDestsForThisGroup) testedAllOldDestsForThisGroup = true;
+				else throw new IllegalStateException("Could not find a source warp for destination " + dest);
 			}
 		}
 		
