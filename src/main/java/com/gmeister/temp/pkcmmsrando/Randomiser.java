@@ -3,6 +3,7 @@ package com.gmeister.temp.pkcmmsrando;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 import java.util.regex.Matcher;
@@ -265,6 +266,9 @@ public class Randomiser
 	
 	public void buildWarpGroups(List<List<Warp>> warpGroups, java.util.Map<List<Warp>, List<List<Warp>>> accessibleGroups, List<Warp> startingGroup)
 	{
+		boolean allowSelfWarps = true;
+		boolean twoWay = false;
+		boolean oneIn = true;
 		
 		Random random = new Random(this.random.nextLong());
 		
@@ -273,6 +277,9 @@ public class Randomiser
 		if (!warpGroups.contains(startingGroup)) throw new IllegalArgumentException("warpGroups does not contain startingGroup");
 		
 		if (warpGroups.size() % 2 != 0) throw new IllegalArgumentException("Could not avoid self warps as there are an odd number of groups");
+		
+		java.util.Map<List<Warp>, List<List<Warp>>> newAccessibleGroups = new HashMap<>();
+		accessibleGroups.entrySet().stream().forEach(e -> newAccessibleGroups.put(e.getKey(), new ArrayList<>(e.getValue())));
 		
 		//Make warp group groups
 		List<List<List<Warp>>> warpGroupGroups = new ArrayList<>();
@@ -283,7 +290,7 @@ public class Randomiser
 					.filter(g -> g.contains(warpGroup))
 					.findFirst()
 					.orElse(warpGroupGroups.stream()
-							.filter(g -> accessibleGroups.get(warpGroup).stream()
+							.filter(g -> newAccessibleGroups.get(warpGroup).stream()
 									.anyMatch(h -> g.contains(h)))
 							.findFirst()
 							.orElse(new ArrayList<>()));
@@ -295,7 +302,7 @@ public class Randomiser
 			if (!warpGroupGroup.contains(warpGroup)) warpGroupGroup.add(warpGroup);
 			
 			//Add all of the warps groups that this warp group can access to the warp group group if they are not already present
-			warpGroupGroup.addAll(accessibleGroups.get(warpGroup).stream()
+			warpGroupGroup.addAll(newAccessibleGroups.get(warpGroup).stream()
 					.filter(g -> !warpGroupGroup.contains(g))
 					.collect(Collectors.toList()));
 		}
@@ -312,8 +319,6 @@ public class Randomiser
 		 * Any branch you add also needs to obey these criteria
 		 * Branches don't add anything of use to an optimal network if they are possible via another path
 		 * Branches cause bad overworlds if you can't reverse them via another path
-		 * 
-		 * In addition, every node needs a branch going from it and a branch going to it
 		 * 
 		 * Every node must have a branch arrive at it and leave from it
 		 * Each branch must be able to be reversed by any other path
@@ -352,6 +357,10 @@ public class Randomiser
 			}
 		}*/
 		
+		//Collect all nodes that have nothing arrive at them
+		List<List<Warp>> inaccessibleGroups = new ArrayList<>(warpGroups);
+		newAccessibleGroups.entrySet().stream().map(e -> e.getValue()).forEach(g -> inaccessibleGroups.removeAll(g));
+		
 		class Branch
 		{
 			List<Warp> sourceGroup;
@@ -377,27 +386,25 @@ public class Randomiser
 		for (List<Warp> groupAbove : warpGroups)
 		{
 			branch:
-			for (List<Warp> groupBelow : accessibleGroups.get(groupAbove))
+			for (List<Warp> groupBelow : newAccessibleGroups.get(groupAbove))
 			{
 				//Exhaustive search algorithm to find free warps... above and below?
 				List<List<Warp>> groupsBelow = new ArrayList<>(Arrays.asList(groupBelow));
 				for (int i = 0; i < groupsBelow.size(); i++)
 				{
-					groupsBelow.addAll(accessibleGroups.get(groupsBelow.get(i)).stream()
+					groupsBelow.addAll(newAccessibleGroups.get(groupsBelow.get(i)).stream()
 							.filter(g -> !groupsBelow.contains(g))
 							.collect(Collectors.toList()));
-					if (groupsBelow.contains(groupAbove)) break branch; 
 				}
 				
 				List<List<Warp>> groupsAbove = new ArrayList<>(Arrays.asList(groupAbove));
 				for (int i = 0; i < groupsAbove.size(); i++)
 				{
 					final int j = i;
-					groupsAbove.addAll(accessibleGroups.entrySet().stream()
+					groupsAbove.addAll(newAccessibleGroups.entrySet().stream()
 							.filter(e -> e.getValue().contains(groupsAbove.get(j)) && !groupsAbove.contains(e.getKey()))
 							.map(e -> e.getKey())
 							.collect(Collectors.toList()));
-					if (groupsAbove.contains(groupBelow)) break branch; 
 				}
 				
 				Branch branch = new Branch(groupAbove, groupBelow, groupsAbove, groupsBelow);
@@ -405,9 +412,9 @@ public class Randomiser
 				for (Branch otherBranch : oneWayBranches) if (
 						otherBranch.groupsBelow.containsAll(branch.groupsBelow) &&
 						branch.groupsBelow.containsAll(otherBranch.groupsBelow) &&
-						otherBranch.groupsAbove.equals(branch.groupsAbove) &&
-						branch.groupsAbove.equals(otherBranch.groupsAbove))
-					break branch;
+						otherBranch.groupsAbove.containsAll(branch.groupsAbove) &&
+						branch.groupsAbove.containsAll(otherBranch.groupsAbove))
+					continue branch;
 				
 				for (Branch otherBranch : oneWayBranches)
 				{
@@ -436,9 +443,38 @@ public class Randomiser
 			}
 		}
 		
-		int requiredLoops = Math.max(forks.stream().mapToInt(f -> f.size() - 1).sum(), merges.stream().mapToInt(m -> m.size() - 1).sum()) + ((oneWayBranches.size() > 0) ? 1 : 0);
-		int availableLoops = Math.floorDiv(warpGroupGroups.stream().mapToInt(g -> g.size() - 2).sum() + 2, 2);
-		if (availableLoops < requiredLoops) throw new IllegalArgumentException("accessibleGroups does not contain enough connections for a completable 2-way randomiser");
+		/*
+		 * exactly one branch is reserved per one-way system
+		 * in two-way, every other branch is reserved
+		 * 
+		 * branches are then required to fulfil all restrictions
+		 * So basically we're trying to do both of these
+		 * I guess they're all reserved branches in a way
+		 * We can then track the number of branches consumed as we go
+		 * 
+		 * branches available is simply equal to the number of nodes
+		 * There are some conditions on where branches go but not where they come from I think
+		 * Considering the way we order the sources that place their branches,
+		 * 
+		 * with one branch we can solve a one way system, give a warp a branch from it, and give another warp a branch to it
+		 * you cannot solve a one way system and link two different warp clusters with the same branch
+		 */
+		
+		int branchesAvailable = warpGroups.size();
+		int branchesReserved = Math.max(forks.stream().mapToInt(f -> f.size() - 1).sum(), merges.stream().mapToInt(m -> m.size() - 1).sum());
+		if (twoWay)
+		{
+			branchesReserved += Math.floorDiv(branchesAvailable, 2);
+			branchesReserved += warpGroupGroups.size() - 1;
+			if (oneWayBranches.size() > 0) branchesReserved++;
+		}
+		else
+		{
+			branchesReserved += warpGroupGroups.size() - 1;
+			if (warpGroupGroups.size() > 1 || oneWayBranches.size() > 0) branchesReserved++; 
+		}
+		
+		if (branchesAvailable < branchesReserved) throw new IllegalArgumentException("accessibleGroups does not contain enough connections to fulfil all provided settings");
 		
 		/*
 		 * When a 1-way branch has the same warps above and below, it's already accessible
@@ -469,13 +505,20 @@ public class Randomiser
 		 * A one-way branch is placed in parallel to an existing one instead of in series with it
 		 */
 		
-		boolean allowSelfWarps = false;
-		boolean twoWay = true;
-		boolean oneIn = true;
+		/*
+		 * one-in off goals
+		 * Make sure that every inaccessible warp has a branch lead to it
+		 * Make sure there's always enough branches left that this can be achieved at the end of randomisation
+		 * (this allows us to allow it to resolve itself randomly)
+		 * Count loops properly?
+		 * 
+		 * two-way off goals
+		 * Make sure counting loops does not get in the way of building
+		 */
 		
 		List<List<List<Warp>>> warpClusters = new ArrayList<>();
 		warpGroupGroups.stream().forEach(g -> warpClusters.add(new ArrayList<>(g)));
-		int loopsCreated = 0;
+		int optionalBranchesCreated = 0;
 		boolean pendingSelfWarp = false;
 		boolean testedAllSources = false;
 		
@@ -501,81 +544,122 @@ public class Randomiser
 				Collections.shuffle(dests, random);
 			}
 			
-			sourceLoops:
-			while (true)
+			if (sources.size() < inaccessibleGroups.size()) throw new IllegalStateException("Not enough branches were used in making inaccessible warps accessible");
+			
+			destLoop:
+			for (List<Warp> dest : localDests) 
 			{
-				for (List<Warp> dest : localDests) 
+				if (!allowSelfWarps && source == dest) continue;
+				
+				List<List<Warp>> destCluster = warpClusters.stream().filter(c -> c.contains(dest)).findFirst().orElseThrow();
+				
+				if (warpClusters.size() > 1)
 				{
-					if (!allowSelfWarps && source == dest) continue;
+					int limit;
+					if (source == dest) limit = 2;
+					else if (twoWay) limit = 3;
+					else limit = 2;
 					
-					List<List<Warp>> destCluster = warpClusters.stream().filter(c -> c.contains(dest)).findFirst().orElseThrow();
-					
-					if (warpClusters.size() > 1)
+					if (sourceCluster == destCluster)
 					{
-						int limit;
-						if (source == dest) limit = 2;
-						else if (twoWay) limit = 3;
-						else limit = 2;
+						//This check should be valid regardless of how many warp clusters there are
+						if (branchesAvailable - branchesReserved < optionalBranchesCreated) continue;
 						
-						if (sourceCluster == destCluster)
-						{
-							if (loopsCreated >= availableLoops) continue;
-							
-							if (sourceCluster.stream().filter(g -> sources.contains(g)).count() < limit) continue;
-							if (sourceCluster.stream().filter(g -> localDests.contains(g)).count() < limit) continue;
-						}
-						else if (warpClusters.size() > 2)
-						{
-							if (sourceCluster.stream().filter(g -> sources.contains(g)).count() + destCluster.stream().filter(g -> sources.contains(g)).count() < limit) continue;
-							if (sourceCluster.stream().filter(g -> localDests.contains(g)).count() + destCluster.stream().filter(g -> localDests.contains(g)).count() < limit) continue;
-						}
+						if (sourceCluster.stream().filter(g -> sources.contains(g)).count() < limit) continue;
+						if (sourceCluster.stream().filter(g -> localDests.contains(g)).count() < limit) continue;
 					}
-					
-					if (source == dest)
+					else if (warpClusters.size() > 2)
 					{
-						if (!pendingSelfWarp) loopsCreated++;
-						pendingSelfWarp = !pendingSelfWarp;
-					} 
-					else if (sourceCluster == destCluster) loopsCreated++;
-					
-					sources.remove(source);
-					localDests.remove(dest);
-					newSources.add(source);
-					newDests.add(dest);
-					
-					if (twoWay)
-					{
-						sources.remove(dest);
-						newSources.add(dest);
-						localDests.remove(source);
-						newDests.add(source);
+						if (sourceCluster.stream().filter(g -> sources.contains(g)).count() + destCluster.stream().filter(g -> sources.contains(g)).count() < limit) continue;
+						if (sourceCluster.stream().filter(g -> localDests.contains(g)).count() + destCluster.stream().filter(g -> localDests.contains(g)).count() < limit) continue;
 					}
-					
-					if (sourceCluster != destCluster)
-					{
-						sourceCluster.addAll(destCluster);
-						warpClusters.remove(destCluster);
-					}
-					
-					break sourceLoops;
 				}
 				
-				throw new IllegalStateException("Could not find a destionation warp for source " + source);
+				if (source == dest)
+				{
+					if (twoWay)
+					{
+						if (!pendingSelfWarp) optionalBranchesCreated++;
+						pendingSelfWarp = !pendingSelfWarp;
+					}
+					else optionalBranchesCreated++;
+				} 
+				else if (sourceCluster == destCluster) optionalBranchesCreated++;
+				
+				Branch branch = new Branch(source, dest, null, null);
+				
+				sources.remove(source);
+				localDests.remove(dest);
+				newSources.add(source);
+				newDests.add(dest);
+				if (inaccessibleGroups.contains(dest)) inaccessibleGroups.remove(dest);
+				if (!newAccessibleGroups.get(source).contains(dest)) newAccessibleGroups.get(source).add(dest);
+				
+				if (twoWay)
+				{
+					if (source != dest)
+					{
+						sources.remove(dest);
+						localDests.remove(source);
+						newSources.add(dest);
+						newDests.add(source);
+						if (inaccessibleGroups.contains(source)) inaccessibleGroups.remove(source);
+						if (!newAccessibleGroups.get(dest).contains(source)) newAccessibleGroups.get(dest).add(source);
+					}
+				}
+				else oneWayBranches.add(branch);
+				
+				for (int j = 0; j < oneWayBranches.size();)
+				{
+					Branch otherBranch = oneWayBranches.get(j);
+					boolean solved = false;
+					
+					List<List<Warp>> groupsBelow = new ArrayList<>();
+					groupsBelow.add(otherBranch.destGroup);
+					
+					for (int k = 0; k < groupsBelow.size(); k++)
+					{
+						List<Warp> group = groupsBelow.get(k);
+						
+						groupsBelow.addAll(newAccessibleGroups.get(group).stream()
+								.filter(g -> !groupsBelow.contains(g))
+								.distinct()
+								.collect(Collectors.toList()));
+						
+						if (groupsBelow.contains(otherBranch.sourceGroup))
+						{
+							solved = true;
+							break;
+						}
+					}
+					
+					if (solved) oneWayBranches.remove(otherBranch);
+					else j++;
+				}
+				
+				if (sourceCluster != destCluster)
+				{
+					sourceCluster.addAll(destCluster);
+					warpClusters.remove(destCluster);
+				}
+				
+				break destLoop;
 			}
+			
+			if (sources.contains(source)) throw new IllegalStateException("Could not find a destination warp for source " + source);
 			
 			if (!allowSelfWarps && !testedAllSources)
 			{
 				while (i < sources.size() && newDests.contains(sources.get(i))) i++;
-				if (i >= sources.size() && !testedAllSources)
+				if (i >= sources.size())
 				{
 					i = 0;
 					testedAllSources = true;
 				}
 			}
-			//if you get here and sources is not empty, throw an error
-			else if (!sources.isEmpty()) throw new IllegalStateException("Could not find a destionation warps for sources " + sources);
-			
 		}
+		
+		if (!sources.isEmpty()) throw new IllegalStateException("Not all sources were assigned a destination");
 		
 		for (List<Warp> warpGroup : warpGroups)
 		{
@@ -584,10 +668,10 @@ public class Randomiser
 			
 			for (int i = 0; i < groupsBelow.size(); i++)
 			{
-				groupsBelow.addAll(accessibleGroups.get(groupsBelow.get(i)).stream()
+				groupsBelow.addAll(newAccessibleGroups.get(groupsBelow.get(i)).stream()
 						.filter(g -> !groupsBelow.contains(g))
+						.distinct()
 						.collect(Collectors.toList()));
-				if (!groupsBelow.contains(newDests.get(newSources.indexOf(groupsBelow.get(i))))) groupsBelow.add(newDests.get(newSources.indexOf(groupsBelow.get(i))));
 			}
 			
 			System.out.print(warpGroup.get(0).getPosition());
