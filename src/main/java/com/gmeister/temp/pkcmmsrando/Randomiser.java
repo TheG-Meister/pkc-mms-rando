@@ -267,7 +267,7 @@ public class Randomiser
 	public void buildWarpGroups(List<List<Warp>> warpGroups, java.util.Map<List<Warp>, List<List<Warp>>> accessibleGroups, List<Warp> startingGroup)
 	{
 		boolean allowSelfWarps = true;
-		boolean twoWay = false;
+		boolean twoWay = true;
 		boolean oneIn = true;
 		
 		Random random = new Random(this.random.nextLong());
@@ -307,54 +307,57 @@ public class Randomiser
 					.collect(Collectors.toList()));
 		}
 		
-		/*
-		 * Hard coded restrictions:
-		 * Number of creatable branches is equal to the number of nodes (all modes)
-		 * Each node can only have one new branch originate from it (all modes)
-		 * Each node can only have one new branch lead to it (one-in one-out and two-way mode)
-		 * Each time a node's branch is created, the equal and opposite branch must also be created (two-way mode)
-		 * Every node needs a branch from and to it (no softlock mode)
-		 * 
-		 * The most effective branch to add solves the most of these branches at once
-		 * Any branch you add also needs to obey these criteria
-		 * Branches don't add anything of use to an optimal network if they are possible via another path
-		 * Branches cause bad overworlds if you can't reverse them via another path
-		 * 
-		 * Every node must have a branch arrive at it and leave from it
-		 * Each branch must be able to be reversed by any other path
-		 * Every node must be part of the same component
-		 */
-		
 		/*for (List<Warp> warpGroup : warpGroups)
 		{
-			java.util.Map<List<Warp>, List<List<Warp>>> downstreamGroupsMap = new HashMap<>();
-			for (List<Warp> accessibleGroup : accessibleGroups.get(warpGroup))
-			{
-				List<List<Warp>> downstreamGroups = new ArrayList<>();
-				downstreamGroups.addAll(accessibleGroups.get(accessibleGroup));
-				
-				//BEWARE, the size of the list changes during this loop
-				for (int i = 0; i < downstreamGroups.size(); i++)
-					downstreamGroups.addAll(accessibleGroups.get(downstreamGroups.get(i)).stream()
-							.filter(g -> !downstreamGroups.contains(g))
-							.collect(Collectors.toList()));
-				
-				downstreamGroupsMap.put(accessibleGroup, downstreamGroups);
-			}
+			java.util.Map<List<Warp>, List<List<Warp>>> downstreamGroupsMap;
 			
-			List<List<Warp>> currentlyAccessibleGroups = new ArrayList<>(accessibleGroups.get(warpGroup));
-			for (List<Warp> accessibleGroup : currentlyAccessibleGroups)
+			do
 			{
-				if (downstreamGroupsMap.entrySet().stream()
-						.filter(e -> !e.getKey().equals(accessibleGroup))
-						.anyMatch(e -> e.getValue().contains(accessibleGroup)))
+				downstreamGroupsMap = new HashMap<>();
+				List<List<Warp>> accessibleGroupsLocal = newAccessibleGroups.get(warpGroup);
+				for (int i = 0; i < newAccessibleGroups.get(warpGroup).size(); i++)
 				{
-					//This group is accessible via any other combination of branches
-					//System.out.println(warpGroup.get(0).getPosition() + "\t" + accessibleGroup.get(0).getPosition());
-					accessibleGroups.get(warpGroup).remove(accessibleGroup);
-					downstreamGroupsMap.remove(accessibleGroup);
+					List<Warp> accessibleGroup = newAccessibleGroups.get(warpGroup).get(i);
+					if (downstreamGroupsMap.entrySet().stream().anyMatch(e -> e.getValue().contains(accessibleGroup)))
+					{
+						newAccessibleGroups.get(warpGroup).remove(accessibleGroup);
+						break;
+					}
+					else
+					{
+						List<List<Warp>> downstreamGroups = new ArrayList<>();
+						downstreamGroups.addAll(newAccessibleGroups.get(accessibleGroup));
+						
+						//BEWARE, the size of the list changes during this loop
+						for (int j = 0; j < downstreamGroups.size(); j++)
+							downstreamGroups.addAll(newAccessibleGroups.get(downstreamGroups.get(j)).stream()
+									.filter(g -> !downstreamGroups.contains(g))
+									.collect(Collectors.toList()));
+						
+						downstreamGroupsMap.put(accessibleGroup, downstreamGroups);
+					}
 				}
 			}
+			while (!downstreamGroupsMap.keySet().containsAll(newAccessibleGroups.get(warpGroup)));
+		}
+		
+		for (List<Warp> warpGroup : warpGroups)
+		{
+			List<List<Warp>> groupsBelow = new ArrayList<>(accessibleGroups.get(warpGroup));
+			List<List<Warp>> newGroupsBelow = new ArrayList<>(newAccessibleGroups.get(warpGroup));
+			
+			for (int i = 0; i < groupsBelow.size(); i++) groupsBelow.addAll(accessibleGroups.get(groupsBelow.get(i)).stream()
+					.filter(g -> !groupsBelow.contains(g))
+					.distinct()
+					.collect(Collectors.toList()));
+			
+			for (int i = 0; i < newGroupsBelow.size(); i++) newGroupsBelow.addAll(newAccessibleGroups.get(newGroupsBelow.get(i)).stream()
+					.filter(g -> !newGroupsBelow.contains(g))
+					.distinct()
+					.collect(Collectors.toList()));
+			
+			if (!groupsBelow.containsAll(newGroupsBelow) || !newGroupsBelow.containsAll(groupsBelow))
+				throw new IllegalStateException("Branch removal algorithm removes too many branches");
 		}*/
 		
 		//Collect all nodes that have nothing arrive at them
@@ -443,23 +446,6 @@ public class Randomiser
 			}
 		}
 		
-		/*
-		 * exactly one branch is reserved per one-way system
-		 * in two-way, every other branch is reserved
-		 * 
-		 * branches are then required to fulfil all restrictions
-		 * So basically we're trying to do both of these
-		 * I guess they're all reserved branches in a way
-		 * We can then track the number of branches consumed as we go
-		 * 
-		 * branches available is simply equal to the number of nodes
-		 * There are some conditions on where branches go but not where they come from I think
-		 * Considering the way we order the sources that place their branches,
-		 * 
-		 * with one branch we can solve a one way system, give a warp a branch from it, and give another warp a branch to it
-		 * you cannot solve a one way system and link two different warp clusters with the same branch
-		 */
-		
 		int branchesAvailable = warpGroups.size();
 		int branchesReserved = Math.max(forks.stream().mapToInt(f -> f.size() - 1).sum(), merges.stream().mapToInt(m -> m.size() - 1).sum());
 		if (twoWay)
@@ -475,46 +461,6 @@ public class Randomiser
 		}
 		
 		if (branchesAvailable < branchesReserved) throw new IllegalArgumentException("accessibleGroups does not contain enough connections to fulfil all provided settings");
-		
-		/*
-		 * When a 1-way branch has the same warps above and below, it's already accessible
-		 * Actually more generally it's solved when any single warp is present both above and below
-		 * This occurrs when one of the warps below is connected to one of the warps above
-		 * This is also when we know the 1-way path is solved after randomisation
-		 * Once this happens, remove the branch
-		 * This could also be provided through accessibleGroups, but won't be using the way I make it
-		 */
-		
-		/*
-		 * Skip the next possible branch
-		 * if any tracked 1-way branch loses its last node above or below without being solved
-		 * if any node or set of nodes creates a self-containd component (no free branches in and out) unless everything is part of the same component
-		 * if it is a two-way randomiser and there are 
-		 * not enough loops are left
-		 * 
-		 * Each time a branch is created
-		 * if the branch originates from a dead end group, remove the dead end group
-		 * if the branch leads to an inacessible group, remove the inaccessible group
-		 * if the branch originates from a node below and leads to a node above a tracked 1-way branch, remove the 1-way branch
-		 * else, if the branch leads to a node above a 1-way branch, remove the destination node from the nodes above and add the source node if it is open as a destination
-		 * if the branch originates from a node below a 1-way branch, remove the source node from nodes below and add the destination node if it has a free branch
-		 * if it does not do the above and it cannot already be undone, add it to the 1-way branches
-		 * 
-		 * A loop is made when:
-		 * A connection is made within a warp cluster instead of between them
-		 * A one-way branch is placed in parallel to an existing one instead of in series with it
-		 */
-		
-		/*
-		 * one-in off goals
-		 * Make sure that every inaccessible warp has a branch lead to it
-		 * Make sure there's always enough branches left that this can be achieved at the end of randomisation
-		 * (this allows us to allow it to resolve itself randomly)
-		 * Count loops properly?
-		 * 
-		 * two-way off goals
-		 * Make sure counting loops does not get in the way of building
-		 */
 		
 		List<List<List<Warp>>> warpClusters = new ArrayList<>();
 		warpGroupGroups.stream().forEach(g -> warpClusters.add(new ArrayList<>(g)));
@@ -660,6 +606,7 @@ public class Randomiser
 		}
 		
 		if (!sources.isEmpty()) throw new IllegalStateException("Not all sources were assigned a destination");
+		if (!oneWayBranches.isEmpty()) throw new IllegalStateException("Not all one-way branches were given an alternative path");
 		
 		for (List<Warp> warpGroup : warpGroups)
 		{

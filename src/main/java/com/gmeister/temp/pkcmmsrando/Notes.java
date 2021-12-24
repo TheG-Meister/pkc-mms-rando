@@ -478,6 +478,12 @@ public class Notes
 					mapBlocks = true;
 					break;
 				}
+				
+				default:
+				{
+					System.err.println(arg + " is an unrecognised argument");
+					return;
+				}
 			}
 		}
 		
