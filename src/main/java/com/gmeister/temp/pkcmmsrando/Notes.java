@@ -25,6 +25,8 @@ import com.gmeister.temp.pkcmmsrando.map.data.Map;
 import com.gmeister.temp.pkcmmsrando.map.data.Player;
 import com.gmeister.temp.pkcmmsrando.map.data.TileSet;
 import com.gmeister.temp.pkcmmsrando.map.data.Warp;
+import com.gmeister.temp.pkcmmsrando.rando.Randomiser;
+import com.gmeister.temp.pkcmmsrando.rando.WarpRandomiser;
 
 public class Notes
 {
@@ -114,7 +116,7 @@ public class Notes
 		}
 	}
 	
-	public static void randomiseWarpAreas(List<Map> maps, EmpiricalDataReader empReader, Randomiser rando) throws IOException, URISyntaxException
+	public static void randomiseWarpAreas(List<Map> maps, EmpiricalDataReader empReader, WarpRandomiser rando) throws IOException, URISyntaxException
 	{
 		List<List<Warp>> warpGroups = new ArrayList<>();
 		List<List<Map>> mapGroups = new ArrayList<>();
@@ -148,7 +150,7 @@ public class Notes
 		rando.shuffleWarpGroups(warpGroups, false, true);
 	}
 	
-	public static void buildWarpAreas(List<Map> maps, List<Flag> flags, EmpiricalDataReader empReader, Randomiser rando) throws FileNotFoundException, IOException, URISyntaxException
+	public static void buildWarpAreas(List<Map> maps, List<Flag> flags, EmpiricalDataReader empReader, WarpRandomiser rando) throws FileNotFoundException, IOException, URISyntaxException
 	{
 		List<List<Warp>> warpGroups = new ArrayList<>();
 		List<List<Map>> mapGroups = new ArrayList<>();
@@ -281,7 +283,7 @@ public class Notes
 		return selectedMaps;
 	}
 	
-	public static void randomiseWarps(ArrayList<Map> maps, Randomiser rando) throws IOException
+	public static void randomiseWarps(ArrayList<Map> maps, WarpRandomiser rando) throws IOException
 	{
 		//Collect a bunch of maps to manually edit warps
 		Map victoryRoadGate = maps.stream().filter(m -> m.getConstName().equals("VICTORY_ROAD_GATE")).findFirst().orElseThrow();
@@ -515,6 +517,7 @@ public class Notes
 		
 		EmpiricalDataReader empReader = new EmpiricalDataReader(null);
 		Randomiser rando = new Randomiser();
+		WarpRandomiser warpRando = new WarpRandomiser();
 		Disassembly disassembly = new Disassembly();
 		ArrayList<Flag> allFlags = new ArrayList<>();
 		
@@ -536,7 +539,7 @@ public class Notes
 		else if (warps)
 		{
 			if (disReader == null) System.out.println("Error: Randomisers require -d");
-			Notes.randomiseWarps(disassembly.getMaps(), rando);
+			Notes.randomiseWarps(disassembly.getMaps(), warpRando);
 			
 			if (disWriter != null) for (Map map : disassembly.getMaps())
 			{
@@ -547,7 +550,7 @@ public class Notes
 		else if (warpAreas)
 		{
 			if (disReader == null) System.out.println("Error: Randomisers require -d");
-			Notes.buildWarpAreas(disassembly.getMaps(), allFlags, empReader, rando);
+			Notes.randomiseWarpAreas(disassembly.getMaps(), empReader, warpRando);
 			
 			if (disWriter != null) for (Map map : disassembly.getMaps())
 			{
