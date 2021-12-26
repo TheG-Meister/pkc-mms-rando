@@ -224,8 +224,8 @@ public class WarpRandomiser
 						if (!merges.contains(merge)) merges.add(merge);
 					}
 					
-					if (branch.groupsAbove.equals(otherBranch.groupsAbove) &&
-							otherBranch.groupsAbove.equals(branch.groupsAbove) &&
+					if (branch.groupsAbove.containsAll(otherBranch.groupsAbove) &&
+							otherBranch.groupsAbove.containsAll(branch.groupsAbove) &&
 							!branch.groupsBelow.stream().anyMatch(g -> otherBranch.groupsBelow.contains(g)))
 					{
 						List<Branch> fork = forks.stream().filter(f -> f.contains(otherBranch)).findFirst().orElse(new ArrayList<>());
