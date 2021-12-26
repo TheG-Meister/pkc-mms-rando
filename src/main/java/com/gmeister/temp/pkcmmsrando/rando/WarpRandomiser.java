@@ -325,34 +325,25 @@ public class WarpRandomiser
 				} 
 				else if (sourceCluster == destCluster) optionalBranchesCreated++;
 				
-				Branch branch = new Branch(source, dest, null, null);
+				List<Branch> addedBranches = new ArrayList<>();
+				addedBranches.add(new Branch(source, dest, null, null));
+				if (twoWay && source != dest) addedBranches.add(new Branch(dest, source, null, null));
 				
-				sources.remove(source);
-				localDests.remove(dest);
-				newSources.add(source);
-				newDests.add(dest);
-				if (inaccessibleGroups.contains(dest)) inaccessibleGroups.remove(dest);
-				if (!network.get(source).contains(dest)) network.get(source).add(dest);
-				
-				if (twoWay)
+				for (Branch branch : addedBranches)
 				{
-					if (source != dest)
-					{
-						sources.remove(dest);
-						localDests.remove(source);
-						newSources.add(dest);
-						newDests.add(source);
-						if (inaccessibleGroups.contains(source)) inaccessibleGroups.remove(source);
-						if (!network.get(dest).contains(source)) network.get(dest).add(source);
-					}
+					sources.remove(branch.sourceGroup);
+					localDests.remove(branch.destGroup);
+					newSources.add(branch.sourceGroup);
+					newDests.add(branch.destGroup);
+					if (inaccessibleGroups.contains(branch.destGroup)) inaccessibleGroups.remove(branch.destGroup);
+					if (!network.get(branch.sourceGroup).contains(branch.destGroup)) network.get(source).add(branch.destGroup);
 				}
-				else oneWayBranches.add(branch);
 				
 				for (int j = 0; j < oneWayBranches.size();)
 				{
-					Branch otherBranch = oneWayBranches.get(j);
+					Branch branch = oneWayBranches.get(j);
 					
-					if (this.canAccess(otherBranch.destGroup, otherBranch.sourceGroup, network)) oneWayBranches.remove(otherBranch);
+					if (this.canAccess(branch.destGroup, branch.sourceGroup, network)) oneWayBranches.remove(branch);
 					else j++;
 				}
 				
