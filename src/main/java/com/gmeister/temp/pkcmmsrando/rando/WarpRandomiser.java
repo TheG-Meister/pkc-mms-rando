@@ -35,7 +35,7 @@ public class WarpRandomiser
 	public List<List<Warp>> getAllAccessors(List<Warp> warpGroup, Map<List<Warp>, List<List<Warp>>> network)
 	{
 		List<List<Warp>> accessors = new ArrayList<>();
-		accessors.addAll(network.get(warpGroup));
+		accessors.add(warpGroup);
 		
 		//BEWARE, the size of the list changes during this loop
 		for (int i = 0; i < accessors.size(); i++)
@@ -54,7 +54,7 @@ public class WarpRandomiser
 	public List<List<Warp>> getAllAccessees(List<Warp> warpGroup, Map<List<Warp>, List<List<Warp>>> network)
 	{
 		List<List<Warp>> accessees = new ArrayList<>();
-		accessees.addAll(network.get(warpGroup));
+		accessees.add(warpGroup);
 		
 		//BEWARE, the size of the list changes during this loop
 		for (int i = 0; i < accessees.size(); i++)
@@ -69,6 +69,7 @@ public class WarpRandomiser
 	public boolean canAccess(List<Warp> warpGroup, List<Warp> otherGroup, Map<List<Warp>, List<List<Warp>>> network)
 	{
 		List<List<Warp>> downstreamGroups = new ArrayList<>();
+		//This is intentionally different getAllAccessees to test a group accessing itself
 		downstreamGroups.addAll(network.get(warpGroup));
 		
 		//BEWARE, the size of the list changes during this loop
@@ -113,13 +114,13 @@ public class WarpRandomiser
 		return warpGroupGroups;
 	}
 	
-	public java.util.Map<List<Warp>, List<List<Warp>>> removeRedundantBranches(java.util.Map<List<Warp>, List<List<Warp>>> network)
+	public Map<List<Warp>, List<List<Warp>>> removeRedundantBranches(Map<List<Warp>, List<List<Warp>>> network)
 	{
-		java.util.Map<List<Warp>, List<List<Warp>>> newNetwork = new HashMap<>(network);
+		Map<List<Warp>, List<List<Warp>>> newNetwork = new HashMap<>(network);
 		
 		for (List<Warp> warpGroup : newNetwork.keySet())
 		{
-			java.util.Map<List<Warp>, List<List<Warp>>> downstreamGroupsMap;
+			Map<List<Warp>, List<List<Warp>>> downstreamGroupsMap;
 			
 			do
 			{
@@ -138,19 +139,19 @@ public class WarpRandomiser
 			while (!downstreamGroupsMap.keySet().containsAll(newNetwork.get(warpGroup)));
 		}
 		
-		for (List<Warp> warpGroup : newNetwork.keySet())
+		/*for (List<Warp> warpGroup : newNetwork.keySet())
 		{
 			List<List<Warp>> groupsBelow = this.getAllAccessees(warpGroup, network);
 			List<List<Warp>> newGroupsBelow = this.getAllAccessees(warpGroup, newNetwork);
 			
 			if (!groupsBelow.containsAll(newGroupsBelow) || !newGroupsBelow.containsAll(groupsBelow))
 				throw new IllegalStateException("Branch removal algorithm removes too many branches");
-		}
+		}*/
 		
 		return newNetwork;
 	}
 	
-	public void buildWarpGroups(List<List<Warp>> warpGroups, java.util.Map<List<Warp>, List<List<Warp>>> accessibleGroups, List<Warp> startingGroup)
+	public void buildWarpGroups(List<List<Warp>> warpGroups, Map<List<Warp>, List<List<Warp>>> accessibleGroups, List<Warp> startingGroup)
 	{
 		boolean allowSelfWarps = true;
 		boolean twoWay = true;

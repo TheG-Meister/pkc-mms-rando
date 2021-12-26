@@ -550,7 +550,7 @@ public class Notes
 		else if (warpAreas)
 		{
 			if (disReader == null) System.out.println("Error: Randomisers require -d");
-			Notes.randomiseWarpAreas(disassembly.getMaps(), empReader, warpRando);
+			Notes.buildWarpAreas(disassembly.getMaps(), allFlags, empReader, warpRando);
 			
 			if (disWriter != null) for (Map map : disassembly.getMaps())
 			{
