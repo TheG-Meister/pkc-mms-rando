@@ -151,6 +151,19 @@ public class WarpRandomiser
 		return newNetwork;
 	}
 	
+	public void printNetwork(Map<List<Warp>, List<List<Warp>>> network)
+	{
+		for (List<Warp> warpGroup : network.keySet()) System.out.print(";" + warpGroup);
+		System.out.println();
+		for (List<Warp> warpGroup : network.keySet())
+		{
+			List<List<Warp>> accessibleGroups = network.get(warpGroup);
+			System.out.print(warpGroup);
+			for (List<Warp> otherGroup : network.keySet()) System.out.print(";" + (accessibleGroups.contains(otherGroup) ? 1 : 0));
+			System.out.println();
+		}
+	}
+	
 	public void buildWarpGroups(List<List<Warp>> warpGroups, Map<List<Warp>, List<List<Warp>>> accessibleGroups, List<Warp> startingGroup)
 	{
 		boolean allowSelfWarps = true;
@@ -168,7 +181,8 @@ public class WarpRandomiser
 		Map<List<Warp>, List<List<Warp>>> network = new HashMap<>(accessibleGroups);
 		
 		//Remove redundant branches from the network
-		//network = this.removeRedundantBranches(network);
+		network = this.removeRedundantBranches(network);
+		this.printNetwork(network);
 		
 		//Make warp group groups
 		List<List<List<Warp>>> warpGroupGroups = this.groupWarpGroups(warpGroups, network);
