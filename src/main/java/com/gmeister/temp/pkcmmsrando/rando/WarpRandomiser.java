@@ -116,31 +116,24 @@ public class WarpRandomiser
 	
 	public Map<List<Warp>, List<List<Warp>>> removeRedundantBranches(Map<List<Warp>, List<List<Warp>>> network)
 	{
-		Map<List<Warp>, List<List<Warp>>> newNetwork = new HashMap<>();
-		for (List<Warp> key : network.keySet()) newNetwork.put(key, new ArrayList<>(network.get(key)));
-		
-		for (List<Warp> warpGroup : newNetwork.keySet())
+		for (List<Warp> warpGroup : network.keySet())
 		{
-			Map<List<Warp>, List<List<Warp>>> downstreamGroupsMap;
+			List<List<Warp>> accessees = network.get(warpGroup);
+			List<List<Warp>> allAccessees = this.getAllAccessees(warpGroup, network);
 			
-			do
+			for (int i = 0; i < accessees.size();)
 			{
-				downstreamGroupsMap = new HashMap<>();
-				for (int i = 0; i < newNetwork.get(warpGroup).size(); i++)
+				List<Warp> accessee = accessees.remove(i);
+				List<List<Warp>> newTotalAccessees = this.getAllAccessees(warpGroup, network);
+				if (!newTotalAccessees.containsAll(allAccessees))
 				{
-					List<Warp> accessibleGroup = newNetwork.get(warpGroup).get(i);
-					if (downstreamGroupsMap.entrySet().stream().anyMatch(e -> e.getValue().contains(accessibleGroup)))
-					{
-						newNetwork.get(warpGroup).remove(accessibleGroup);
-						break;
-					}
-					else downstreamGroupsMap.put(accessibleGroup, this.getAllAccessees(accessibleGroup, newNetwork));
+					accessees.add(i, accessee);
+					i++;
 				}
 			}
-			while (!downstreamGroupsMap.keySet().containsAll(newNetwork.get(warpGroup)));
 		}
 		
-		return newNetwork;
+		return network;
 	}
 	
 	public void checkRemovedBranches(Map<List<Warp>, List<List<Warp>>> network, Map<List<Warp>, List<List<Warp>>> newNetwork)
