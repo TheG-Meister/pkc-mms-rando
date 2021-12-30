@@ -116,7 +116,8 @@ public class WarpRandomiser
 	
 	public Map<List<Warp>, List<List<Warp>>> removeRedundantBranches(Map<List<Warp>, List<List<Warp>>> network)
 	{
-		Map<List<Warp>, List<List<Warp>>> newNetwork = new HashMap<>(network);
+		Map<List<Warp>, List<List<Warp>>> newNetwork = new HashMap<>();
+		for (List<Warp> key : network.keySet()) newNetwork.put(key, new ArrayList<>(network.get(key)));
 		
 		for (List<Warp> warpGroup : newNetwork.keySet())
 		{
@@ -139,14 +140,14 @@ public class WarpRandomiser
 			while (!downstreamGroupsMap.keySet().containsAll(newNetwork.get(warpGroup)));
 		}
 		
-		/*for (List<Warp> warpGroup : newNetwork.keySet())
+		for (List<Warp> warpGroup : newNetwork.keySet())
 		{
 			List<List<Warp>> groupsBelow = this.getAllAccessees(warpGroup, network);
 			List<List<Warp>> newGroupsBelow = this.getAllAccessees(warpGroup, newNetwork);
 			
 			if (!groupsBelow.containsAll(newGroupsBelow) || !newGroupsBelow.containsAll(groupsBelow))
 				throw new IllegalStateException("Branch removal algorithm removes too many branches");
-		}*/
+		}
 		
 		return newNetwork;
 	}
@@ -178,7 +179,8 @@ public class WarpRandomiser
 		
 		if (warpGroups.size() % 2 != 0) throw new IllegalArgumentException("Could not avoid self warps as there are an odd number of groups");
 		
-		Map<List<Warp>, List<List<Warp>>> network = new HashMap<>(accessibleGroups);
+		Map<List<Warp>, List<List<Warp>>> network = new HashMap<>();
+		for (List<Warp> key : accessibleGroups.keySet()) network.put(key, new ArrayList<>(accessibleGroups.get(key)));
 		
 		//Remove redundant branches from the network
 		network = this.removeRedundantBranches(network);
