@@ -24,6 +24,7 @@ public class DisassemblyWriter
 		super();
 		this.dir = dir.getCanonicalFile();
 		if (!this.dir.exists()) this.dir.mkdirs();
+		if (this.dir.listFiles().length != 0) throw new IllegalArgumentException("The provided directory was not empty");
 	}
 
 	public void writeAllMapBlocks(ArrayList<Map> maps) throws IOException
