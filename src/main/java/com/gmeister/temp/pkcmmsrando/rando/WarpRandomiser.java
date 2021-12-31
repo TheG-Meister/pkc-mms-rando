@@ -178,9 +178,8 @@ public class WarpRandomiser
 		//Create a copy of the provided network and remove redundant branches
 		Map<List<Warp>, List<List<Warp>>> network = new HashMap<>();
 		for (List<Warp> key : accessibleGroups.keySet()) network.put(key, new ArrayList<>(accessibleGroups.get(key)));
-		network = this.removeRedundantBranches(network);
-		this.checkRemovedBranches(accessibleGroups, network);
-		this.printNetwork(network);
+		//network = this.removeRedundantBranches(network);
+		//this.checkRemovedBranches(accessibleGroups, network);
 		
 		//Make warp group groups
 		List<List<List<Warp>>> warpGroupGroups = this.groupWarpGroups(warpGroups, network);
@@ -283,9 +282,9 @@ public class WarpRandomiser
 		List<List<Warp>> newSources = new ArrayList<>();
 		List<List<Warp>> newDests = new ArrayList<>();
 		
-		for (int i = 0; i < sources.size();)
+		for (int sourceIndex = 0; sourceIndex < sources.size();)
 		{
-			List<Warp> source = sources.get(i);
+			List<Warp> source = sources.get(sourceIndex);
 			List<List<Warp>> sourceCluster = warpClusters.stream().filter(c -> c.contains(source)).findFirst().orElseThrow();
 			final List<List<Warp>> localDests;
 			
@@ -299,16 +298,16 @@ public class WarpRandomiser
 			if (sources.size() < inaccessibleGroups.size()) throw new IllegalStateException("Not enough branches were used in making inaccessible warps accessible");
 			
 			destLoop:
-			for (List<Warp> dest : localDests) 
+			for (List<Warp> target : localDests) 
 			{
-				if (!allowSelfWarps && source == dest) continue;
+				if (!allowSelfWarps && source == target) continue;
 				
-				List<List<Warp>> destCluster = warpClusters.stream().filter(c -> c.contains(dest)).findFirst().orElseThrow();
+				List<List<Warp>> destCluster = warpClusters.stream().filter(c -> c.contains(target)).findFirst().orElseThrow();
 				
 				if (warpClusters.size() > 1)
 				{
 					int limit;
-					if (source == dest) limit = 2;
+					if (source == target) limit = 2;
 					else if (twoWay) limit = 3;
 					else limit = 2;
 					
@@ -327,7 +326,7 @@ public class WarpRandomiser
 					}
 				}
 				
-				if (source == dest)
+				if (source == target)
 				{
 					if (twoWay)
 					{
@@ -339,8 +338,8 @@ public class WarpRandomiser
 				else if (sourceCluster == destCluster) optionalBranchesCreated++;
 				
 				List<Branch> addedBranches = new ArrayList<>();
-				addedBranches.add(new Branch(source, dest, null, null));
-				if (twoWay && source != dest) addedBranches.add(new Branch(dest, source, null, null));
+				addedBranches.add(new Branch(source, target, this.getAllAccessors(source, network), this.getAllAccessees(target, network)));
+				if (twoWay && source != target) addedBranches.add(new Branch(target, source, this.getAllAccessors(target, network), this.getAllAccessees(source, network)));
 				
 				for (Branch branch : addedBranches)
 				{
@@ -350,6 +349,38 @@ public class WarpRandomiser
 					newDests.add(branch.destGroup);
 					if (inaccessibleGroups.contains(branch.destGroup)) inaccessibleGroups.remove(branch.destGroup);
 					if (!network.get(branch.sourceGroup).contains(branch.destGroup)) network.get(source).add(branch.destGroup);
+					
+					for (int branchIndex = 0; branchIndex < oneWayBranches.size();)
+					{
+						Branch oneWayBranch = oneWayBranches.get(branchIndex);
+						
+						if (oneWayBranch.groupsBelow.contains(branch.sourceGroup)) for (List<Warp> t : branch.groupsBelow)
+						{
+							if (t == oneWayBranch.sourceGroup)
+							{
+								oneWayBranches.remove(oneWayBranch);
+								continue;
+							}
+							else if (!oneWayBranch.groupsBelow.contains(t)) oneWayBranch.groupsBelow.add(t);
+						}
+						
+						if (oneWayBranch.groupsAbove.contains(branch.destGroup)) for (List<Warp> s : branch.groupsAbove)
+						{
+							if (s == oneWayBranch.destGroup)
+							{
+								oneWayBranches.remove(oneWayBranch);
+								continue;
+							}
+							if (!oneWayBranch.groupsAbove.contains(s)) oneWayBranch.groupsAbove.add(s);
+						}
+						
+						branchIndex++;
+					}
+					
+					if (!this.canAccess(branch.destGroup, branch.sourceGroup, network))
+					{
+						oneWayBranches.add(branch);
+					}
 				}
 				
 				for (int j = 0; j < oneWayBranches.size();)
@@ -373,10 +404,10 @@ public class WarpRandomiser
 			
 			if (!allowSelfWarps && !testedAllSources)
 			{
-				while (i < sources.size() && newDests.contains(sources.get(i))) i++;
-				if (i >= sources.size())
+				while (sourceIndex < sources.size() && newDests.contains(sources.get(sourceIndex))) sourceIndex++;
+				if (sourceIndex >= sources.size())
 				{
-					i = 0;
+					sourceIndex = 0;
 					testedAllSources = true;
 				}
 			}
