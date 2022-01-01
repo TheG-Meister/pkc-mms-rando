@@ -410,14 +410,6 @@ public class WarpRandomiser
 					}
 				}
 				
-				for (int j = 0; j < oneWayBranches.size();)
-				{
-					Branch branch = oneWayBranches.get(j);
-					
-					if (this.canAccess(branch.destGroup, branch.sourceGroup, network)) oneWayBranches.remove(branch);
-					else j++;
-				}
-				
 				if (sourceCluster != destCluster)
 				{
 					sourceCluster.addAll(destCluster);
