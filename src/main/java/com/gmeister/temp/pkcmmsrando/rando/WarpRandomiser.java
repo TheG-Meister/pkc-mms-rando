@@ -377,8 +377,35 @@ public class WarpRandomiser
 						branchIndex++;
 					}
 					
-					if (!this.canAccess(branch.destGroup, branch.sourceGroup, network))
+					if (!this.canAccess(branch.destGroup, branch.sourceGroup, network) &&
+						!oneWayBranches.stream().anyMatch(b -> b.groupsBelow.containsAll(branch.groupsBelow) &&
+							branch.groupsBelow.containsAll(b.groupsBelow) &&
+							b.groupsAbove.containsAll(branch.groupsAbove) &&
+							branch.groupsAbove.containsAll(b.groupsAbove)))
 					{
+						for (Branch otherBranch : oneWayBranches)
+						{
+							if (otherBranch.groupsBelow.containsAll(branch.groupsBelow) &&
+									branch.groupsBelow.containsAll(otherBranch.groupsBelow) &&
+									!branch.groupsAbove.stream().anyMatch(g -> otherBranch.groupsAbove.contains(g)))
+							{
+								List<Branch> merge = merges.stream().filter(m -> m.contains(otherBranch)).findFirst().orElse(new ArrayList<>());
+								merge.add(branch);
+								if (!merge.contains(otherBranch)) merge.add(otherBranch);
+								if (!merges.contains(merge)) merges.add(merge);
+							}
+							
+							if (branch.groupsAbove.containsAll(otherBranch.groupsAbove) &&
+									otherBranch.groupsAbove.containsAll(branch.groupsAbove) &&
+									!branch.groupsBelow.stream().anyMatch(g -> otherBranch.groupsBelow.contains(g)))
+							{
+								List<Branch> fork = forks.stream().filter(f -> f.contains(otherBranch)).findFirst().orElse(new ArrayList<>());
+								fork.add(branch);
+								if (!fork.contains(otherBranch)) fork.add(otherBranch);
+								if (!forks.contains(fork)) forks.add(fork);
+							}
+						}
+						
 						oneWayBranches.add(branch);
 					}
 				}
