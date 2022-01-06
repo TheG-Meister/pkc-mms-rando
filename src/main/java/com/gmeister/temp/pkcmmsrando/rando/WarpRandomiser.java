@@ -114,7 +114,7 @@ public class WarpRandomiser
 		return warpGroupGroups;
 	}
 	
-	public Map<List<Warp>, List<List<Warp>>> removeRedundantBranches(Map<List<Warp>, List<List<Warp>>> network)
+	public void removeRedundantBranches(Map<List<Warp>, List<List<Warp>>> network)
 	{
 		for (List<Warp> warpGroup : network.keySet())
 		{
@@ -132,8 +132,6 @@ public class WarpRandomiser
 				}
 			}
 		}
-		
-		return network;
 	}
 	
 	public void checkRemovedBranches(Map<List<Warp>, List<List<Warp>>> network, Map<List<Warp>, List<List<Warp>>> newNetwork)
@@ -178,7 +176,7 @@ public class WarpRandomiser
 		//Create a copy of the provided network and remove redundant branches
 		Map<List<Warp>, List<List<Warp>>> network = new HashMap<>();
 		for (List<Warp> key : accessibleGroups.keySet()) network.put(key, new ArrayList<>(accessibleGroups.get(key)));
-		//network = this.removeRedundantBranches(network);
+		//this.removeRedundantBranches(network);
 		//this.checkRemovedBranches(accessibleGroups, network);
 		//this.printNetwork(network);
 		
