@@ -9,6 +9,8 @@ import java.util.Random;
 import java.util.stream.Collectors;
 
 import com.gmeister.temp.pkcmmsrando.map.data.Warp;
+import com.gmeister.temp.pkcmmsrando.map.data.WarpNetwork;
+import com.gmeister.temp.pkcmmsrando.map.data.WarpNetwork.Branch;
 
 public class WarpRandomiser
 {
@@ -32,133 +34,6 @@ public class WarpRandomiser
 		this.random = random;
 	}
 	
-	public List<List<Warp>> getAllAccessors(List<Warp> warpGroup, Map<List<Warp>, List<List<Warp>>> network)
-	{
-		List<List<Warp>> accessors = new ArrayList<>();
-		accessors.add(warpGroup);
-		
-		//BEWARE, the size of the list changes during this loop
-		for (int i = 0; i < accessors.size(); i++)
-		{
-			final int j = i;
-			accessors.addAll(network.entrySet().stream()
-					.filter(e -> e.getValue().contains(accessors.get(j)) && !accessors.contains(e.getKey()))
-					.map(e -> e.getKey())
-					.distinct()
-					.collect(Collectors.toList()));
-		}
-		
-		return accessors;
-	}
-	
-	public List<List<Warp>> getAllAccessees(List<Warp> warpGroup, Map<List<Warp>, List<List<Warp>>> network)
-	{
-		List<List<Warp>> accessees = new ArrayList<>();
-		accessees.add(warpGroup);
-		
-		//BEWARE, the size of the list changes during this loop
-		for (int i = 0; i < accessees.size(); i++)
-			accessees.addAll(network.get(accessees.get(i)).stream()
-					.filter(g -> !accessees.contains(g))
-					.distinct()
-					.collect(Collectors.toList()));
-		
-		return accessees;
-	}
-	
-	public boolean canAccess(List<Warp> warpGroup, List<Warp> otherGroup, Map<List<Warp>, List<List<Warp>>> network)
-	{
-		List<List<Warp>> downstreamGroups = new ArrayList<>();
-		//This is intentionally different getAllAccessees to test a group accessing itself
-		downstreamGroups.addAll(network.get(warpGroup));
-		
-		//BEWARE, the size of the list changes during this loop
-		for (int j = 0; j < downstreamGroups.size(); j++)
-		{
-			downstreamGroups.addAll(network.get(downstreamGroups.get(j)).stream()
-					.filter(g -> !downstreamGroups.contains(g))
-					.distinct()
-					.collect(Collectors.toList()));
-			if (downstreamGroups.contains(otherGroup)) return true;
-		}
-		
-		return false;
-	}
-	
-	public List<List<List<Warp>>> groupWarpGroups(List<List<Warp>> warpGroups, Map<List<Warp>, List<List<Warp>>> network)
-	{
-		List<List<List<Warp>>> warpGroupGroups = new ArrayList<>();
-		for (List<Warp> warpGroup : warpGroups)
-		{
-			//Find an existing warp group group that contains this warp group, or any warp group that this warp group can access. Otherwise, make a new group 
-			List<List<Warp>> warpGroupGroup = warpGroupGroups.stream()
-					.filter(g -> g.contains(warpGroup))
-					.findFirst()
-					.orElse(warpGroupGroups.stream()
-							.filter(g -> network.get(warpGroup).stream()
-									.anyMatch(h -> g.contains(h)))
-							.findFirst()
-							.orElse(new ArrayList<>()));
-			
-			//If the warp group group isn't part of the list, add it
-			if (!warpGroupGroups.contains(warpGroupGroup)) warpGroupGroups.add(warpGroupGroup);
-			
-			//If this warp group isn't part of the warp group group, add it
-			if (!warpGroupGroup.contains(warpGroup)) warpGroupGroup.add(warpGroup);
-			
-			//Add all of the warps groups that this warp group can access to the warp group group if they are not already present
-			warpGroupGroup.addAll(network.get(warpGroup).stream()
-					.filter(g -> !warpGroupGroup.contains(g))
-					.collect(Collectors.toList()));
-		}
-		return warpGroupGroups;
-	}
-	
-	public void removeRedundantBranches(Map<List<Warp>, List<List<Warp>>> network)
-	{
-		for (List<Warp> warpGroup : network.keySet())
-		{
-			List<List<Warp>> accessees = network.get(warpGroup);
-			List<List<Warp>> allAccessees = this.getAllAccessees(warpGroup, network);
-			
-			for (int i = 0; i < accessees.size();)
-			{
-				List<Warp> accessee = accessees.remove(i);
-				List<List<Warp>> newTotalAccessees = this.getAllAccessees(warpGroup, network);
-				if (!newTotalAccessees.containsAll(allAccessees))
-				{
-					accessees.add(i, accessee);
-					i++;
-				}
-			}
-		}
-	}
-	
-	public void checkRemovedBranches(Map<List<Warp>, List<List<Warp>>> network, Map<List<Warp>, List<List<Warp>>> newNetwork)
-	{
-		for (List<Warp> warpGroup : newNetwork.keySet())
-		{
-			List<List<Warp>> groupsBelow = this.getAllAccessees(warpGroup, network);
-			List<List<Warp>> newGroupsBelow = this.getAllAccessees(warpGroup, newNetwork);
-			
-			if (!groupsBelow.containsAll(newGroupsBelow) || !newGroupsBelow.containsAll(groupsBelow))
-				throw new IllegalStateException("Branch removal algorithm removes too many branches");
-		}
-	}
-	
-	public void printNetwork(Map<List<Warp>, List<List<Warp>>> network)
-	{
-		for (List<Warp> warpGroup : network.keySet()) System.out.print(";" + warpGroup);
-		System.out.println();
-		for (List<Warp> warpGroup : network.keySet())
-		{
-			List<List<Warp>> accessibleGroups = network.get(warpGroup);
-			System.out.print(warpGroup);
-			for (List<Warp> otherGroup : network.keySet()) System.out.print(";" + (accessibleGroups.contains(otherGroup) ? 1 : 0));
-			System.out.println();
-		}
-	}
-	
 	public void buildWarpGroups(List<List<Warp>> warpGroups, Map<List<Warp>, List<List<Warp>>> accessibleGroups, List<Warp> startingGroup)
 	{
 		boolean allowSelfWarps = false;
@@ -174,35 +49,19 @@ public class WarpRandomiser
 		if (warpGroups.size() % 2 != 0) throw new IllegalArgumentException("Could not avoid self warps as there are an odd number of groups");
 		
 		//Create a copy of the provided network and remove redundant branches
-		Map<List<Warp>, List<List<Warp>>> network = new HashMap<>();
-		for (List<Warp> key : accessibleGroups.keySet()) network.put(key, new ArrayList<>(accessibleGroups.get(key)));
+		Map<List<Warp>, List<List<Warp>>> networkMap = new HashMap<>();
+		for (List<Warp> key : accessibleGroups.keySet()) networkMap.put(key, new ArrayList<>(accessibleGroups.get(key)));
+		WarpNetwork network = new WarpNetwork(networkMap);
 		//this.removeRedundantBranches(network);
 		//this.checkRemovedBranches(accessibleGroups, network);
-		//this.printNetwork(network);
+		//network.print();
 		
 		//Make warp group groups
-		List<List<List<Warp>>> warpGroupGroups = this.groupWarpGroups(warpGroups, network);
+		List<List<List<Warp>>> warpGroupGroups = network.groupWarpGroups(warpGroups);
 		
 		//Collect all nodes that have nothing arrive at them
 		List<List<Warp>> inaccessibleGroups = new ArrayList<>(warpGroups);
-		network.entrySet().stream().map(e -> e.getValue()).forEach(g -> inaccessibleGroups.removeAll(g));
-		
-		class Branch
-		{
-			List<Warp> sourceGroup;
-			List<Warp> destGroup;
-			List<List<Warp>> groupsAbove = new ArrayList<>();
-			List<List<Warp>> groupsBelow = new ArrayList<>();
-			
-			public Branch(List<Warp> sourceGroup, List<Warp> destGroup, List<List<Warp>> groupsAbove,
-					List<List<Warp>> groupsBelow)
-			{
-				this.sourceGroup = sourceGroup;
-				this.destGroup = destGroup;
-				this.groupsAbove = groupsAbove;
-				this.groupsBelow = groupsBelow;
-			}
-		}
+		network.getNetwork().entrySet().stream().map(e -> e.getValue()).forEach(g -> inaccessibleGroups.removeAll(g));
 		
 		List<Branch> oneWayBranches = new ArrayList<>();
 		List<List<Branch>> forks = new ArrayList<>();
@@ -212,9 +71,9 @@ public class WarpRandomiser
 		for (List<Warp> groupAbove : warpGroups)
 		{
 			branch:
-			for (List<Warp> groupBelow : network.get(groupAbove))
+			for (List<Warp> groupBelow : network.getNetwork().get(groupAbove))
 			{
-				Branch branch = new Branch(groupAbove, groupBelow, this.getAllAccessors(groupAbove, network), this.getAllAccessees(groupBelow, network));
+				Branch branch = new Branch(groupAbove, groupBelow, network.getAllAccessors(groupAbove), network.getAllAccessees(groupBelow));
 				
 				for (Branch otherBranch : oneWayBranches) if (
 						otherBranch.groupsBelow.containsAll(branch.groupsBelow) &&
@@ -328,13 +187,13 @@ public class WarpRandomiser
 					if (branch.groupsBelow.contains(source) ^ branch.groupsAbove.contains(target))
 					{
 						List<List<Warp>> freeWarps = branch.groupsBelow.stream().filter(g -> sources.contains(g) && g != source && (!twoWay || g != target)).collect(Collectors.toList());
-						this.getAllAccessees(target, network).stream().filter(g -> !freeWarps.contains(g) && g != source && (!twoWay || g != target)).forEach(g -> freeWarps.add(g));
+						network.getAllAccessees(target).stream().filter(g -> !freeWarps.contains(g) && g != source && (!twoWay || g != target)).forEach(g -> freeWarps.add(g));
 						if (freeWarps.size() < 1) continue targetLoop;
 					}
 					if (twoWay && (!branch.groupsBelow.contains(target) ^ !branch.groupsAbove.contains(source)))
 					{
 						List<List<Warp>> freeWarps = branch.groupsBelow.stream().filter(g -> sources.contains(g) && g != source && g != target).collect(Collectors.toList());
-						this.getAllAccessees(source, network).stream().filter(g -> !freeWarps.contains(g) && g != source && g != target).forEach(g -> freeWarps.add(g));
+						network.getAllAccessees(source).stream().filter(g -> !freeWarps.contains(g) && g != source && g != target).forEach(g -> freeWarps.add(g));
 						if (freeWarps.size() < 1) continue targetLoop;
 					}
 				}
@@ -386,15 +245,15 @@ public class WarpRandomiser
 				//Create the branch and update tracking data
 				for (Branch branch : newBranches)
 				{
-					branch.groupsAbove = this.getAllAccessors(branch.sourceGroup, network);
-					branch.groupsBelow = this.getAllAccessees(branch.destGroup, network);
+					branch.groupsAbove = network.getAllAccessors(branch.sourceGroup);
+					branch.groupsBelow = network.getAllAccessees(branch.destGroup);
 					
 					sources.remove(branch.sourceGroup);
 					localDests.remove(branch.destGroup);
 					newSources.add(branch.sourceGroup);
 					newDests.add(branch.destGroup);
 					if (inaccessibleGroups.contains(branch.destGroup)) inaccessibleGroups.remove(branch.destGroup);
-					if (!network.get(branch.sourceGroup).contains(branch.destGroup)) network.get(branch.sourceGroup).add(branch.destGroup);
+					if (!network.getNetwork().get(branch.sourceGroup).contains(branch.destGroup)) network.getNetwork().get(branch.sourceGroup).add(branch.destGroup);
 					
 					for (int branchIndex = 0; branchIndex < oneWayBranches.size();)
 					{
@@ -430,7 +289,7 @@ public class WarpRandomiser
 					forks.removeAll(forks.stream().filter(f -> f.size() <= 1).collect(Collectors.toList()));
 					merges.removeAll(merges.stream().filter(m -> m.size() <= 1).collect(Collectors.toList()));
 					
-					if (!this.canAccess(branch.destGroup, branch.sourceGroup, network) &&
+					if (!network.canAccess(branch.destGroup, branch.sourceGroup) &&
 						!oneWayBranches.stream().anyMatch(b -> b.groupsBelow.containsAll(branch.groupsBelow) &&
 							branch.groupsBelow.containsAll(b.groupsBelow) &&
 							b.groupsAbove.containsAll(branch.groupsAbove) &&
@@ -498,7 +357,7 @@ public class WarpRandomiser
 		
 		for (List<Warp> warpGroup : warpGroups)
 		{
-			List<List<Warp>> groupsBelow = this.getAllAccessees(warpGroup, network);
+			List<List<Warp>> groupsBelow = network.getAllAccessees(warpGroup);
 			
 			System.out.print(warpGroup.get(0).getPosition());
 			for (List<Warp> otherGroup : warpGroups) System.out.print("\t" + (groupsBelow.contains(otherGroup) ? 1 : 0));
