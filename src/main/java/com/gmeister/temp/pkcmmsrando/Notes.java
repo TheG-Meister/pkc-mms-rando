@@ -329,7 +329,9 @@ public class Notes
 						"PLAYERS_NEIGHBORS_HOUSE", "ELMS_HOUSE", "BATTLE_TOWER_BATTLE_ROOM", "BATTLE_TOWER_ELEVATOR",
 						"BATTLE_TOWER_HALLWAY", "INDIGO_PLATEAU_POKECENTER_1F", "WILLS_ROOM", "KOGAS_ROOM",
 						"BRUNOS_ROOM", "KARENS_ROOM", "LANCES_ROOM", "HALL_OF_FAME", "POKECENTER_2F", "TRADE_CENTER",
-						"COLOSSEUM", "TIME_CAPSULE", "MOBILE_TRADE_ROOM", "MOBILE_BATTLE_ROOM", "SILVER_CAVE_ROOM_3"));
+						"COLOSSEUM", "TIME_CAPSULE", "MOBILE_TRADE_ROOM", "MOBILE_BATTLE_ROOM", "SILVER_CAVE_ROOM_3", "NATIONAL_PARK_BUG_CONTEST"));
+		
+		ArrayList<String> stationMapNames = new ArrayList<>(Arrays.asList("SAFFRON_MAGNET_TRAIN_STATION", "GOLDENROD_MAGNET_TRAIN_STATION"));
 		
 		ArrayList<ArrayList<Warp>> warpGroups = new ArrayList<>();
 		for (Map map : maps)
@@ -344,6 +346,7 @@ public class Notes
 			else if (!warp.hasAccessibleDestination()) continue;
 			else if (dest.getDestination() == null) continue;
 			else if (!dest.hasAccessibleDestination()) continue;
+			else if (stationMapNames.contains(warp.getMap().getConstName()) && stationMapNames.contains(dest.getMap().getConstName())) continue;
 			
 			ArrayList<Warp> group = null;
 			
