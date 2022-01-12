@@ -28,18 +28,20 @@ Replaces all occurrences of each sprite with a different sprite. In practice, th
 
 ## Limitations
 
-pkc-mms-rando is still early in development. It **cannot edit ROM files** and **has no user interface**. Instead, randomisers are accessed from a command-line terminal, and read and write Pokémon Crystal disassembly files. Fortunately, options for a full user interface and direct ROM editing are planned. Join us on [Discord](https://discord.gg/nE5nZVqgkE) for update notifications.
+pkc-mms-rando is still early in development. It **cannot edit ROM files** and **has no user interface**. Instead, randomisers are accessed from a command-line terminal, and read and write Pokémon Crystal disassembly files. Fortunately, this process can be automated, and generating a ROM is as simple as running a small command-line script using Windows Subsystem for Linux. Check the [Wiki](https://github.com/TheG-Meister/pkc-mms-rando/wiki) for more information, or join us on [Discord](https://discord.gg/nE5nZVqgkE) for update notifications on a user interface and direct ROM editing.
 
 ## Getting Started
 
-All instructions are intended for Windows 10 users.
+**Check out the in-depth guide for first timers on the [Wiki](https://github.com/TheG-Meister/pkc-mms-rando/wiki/Getting-Started)!**
 
-1. Download a [disassembly](https://github.com/TheG-Meister/pkc-mms-rando/wiki/Disassemblies)
-2. Download [Java version 15+](https://github.com/TheG-Meister/pkc-mms-rando/wiki/Java)
-3. Download a [pkc-mms-rando release](https://github.com/TheG-Meister/pkc-mms-rando/releases)
-4. [Run the release](https://github.com/TheG-Meister/pkc-mms-rando/wiki/Running-a-release)
-5. Replace files in the disassembly with those created by pkc-mms-rando
-6. Make the disassembly into a ROM
+1. If on Windows 10 or 11, install [Windows Subsystem for Linux](https://docs.microsoft.com/en-us/windows/wsl/install)
+1. Install prerequisites `make`, `gcc`, `git`, `bison`, `pkg-config`, `libpng-dev` and `openjdk-17-jre-headless`
+2. `git clone https://github.com/rednex/rgbds -b v0.5.2 --depth=1`
+3. `sudo make install -C rgbds`
+5. Clone a disassembly and rename the directory to `input/`
+6. Place `pkc-mms-rando-0.1.1.jar` and `run.sh` in the same directory as `input/`
+7. `bash run.sh` adding options for randomisers, such as `--warps` or `--music-pointers`
+8. Wait a few minutes for a file ending in `.gbc` to appear
 
 ### Command-line options
 
