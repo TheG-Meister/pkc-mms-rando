@@ -4,7 +4,7 @@ pkc-mms-rando provides alternative randomisation options for Pokémon Crystal co
 
 ## Capabilities
 
-v0.1.0 offers the following randomisers
+v0.1.1 offers the following randomisers
 
 ### Shuffle music pointers
 
@@ -42,6 +42,33 @@ pkc-mms-rando is still early in development. It **cannot edit ROM files** and **
 6. Place `pkc-mms-rando-0.1.1.jar` and `run.sh` in the same directory as `input/`
 7. `bash run.sh` adding options for randomisers, such as `--warps` or `--music-pointers`
 8. Wait a few minutes for a file ending in `.gbc` to appear
+
+### Verified Disassemblies
+
+The following pokecrystal disassemblies have been verified to work with this version:
+
+#### pret's pokecrystal commit 597701f168e69a316f18951e3002c322e23cf3ea
+* [Manual download link](https://github.com/pret/pokecrystal/tree/597701f168e69a316f18951e3002c322e23cf3ea); select Code > Download ZIP and extract
+* Using Git:
+```bash
+git clone https://github.com/pret/pokecrystal.git
+git -C pokecrystal/ checkout 597701f168e69a316f18951e3002c322e23cf3ea
+```
+
+#### ERC's pokecrystal-speedchoice v7.3
+* [Manual download link](https://github.com/erudnick-cohen/pokecrystal-speedchoice-new/tree/ae95e624d0092d5d15be2103b1988cbc6b6962eb); select Code > Download ZIP and extract
+* Using Git:
+```bash
+git clone -b speedchoice7.3 https://github.com/erudnick-cohen/pokecrystal-speedchoice-new.git
+git -C pokecrystal-speedchoice-new/ checkout ae95e624d0092d5d15be2103b1988cbc6b6962eb
+```
+
+#### Dabomstew's pokecrystal-speedchoice v7.2
+* [Manual download link](https://github.com/Dabomstew/pokecrystal-speedchoice/releases/tag/v7.2); select "Source code (.zip)" and extract
+* Using Git:
+```bash
+git clone https://github.com/Dabomstew/pokecrystal-speedchoice.git --depth=1 -b v7.2
+```
 
 ### Command-line options
 
