@@ -4,7 +4,7 @@ pkc-mms-rando provides alternative randomisation options for Pokémon Crystal co
 
 ## Capabilities
 
-v0.1.0 offers the following randomisers
+v0.1.1 offers the following randomisers
 
 ### Shuffle music pointers
 
@@ -28,18 +28,47 @@ Replaces all occurrences of each sprite with a different sprite. In practice, th
 
 ## Limitations
 
-pkc-mms-rando is still early in development. It **cannot edit ROM files** and **has no user interface**. Instead, randomisers are accessed from a command-line terminal, and read and write Pokémon Crystal disassembly files. Fortunately, options for a full user interface and direct ROM editing are planned. Join us on [Discord](https://discord.gg/nE5nZVqgkE) for update notifications.
+pkc-mms-rando is still early in development. It **cannot edit ROM files** and **has no user interface**. Instead, randomisers are accessed from a command-line terminal, and read and write Pokémon Crystal disassembly files. Fortunately, this process can be automated, and generating a ROM is as simple as running a small command-line script using Windows Subsystem for Linux. Check the [Wiki](https://github.com/TheG-Meister/pkc-mms-rando/wiki) for more information, or join us on [Discord](https://discord.gg/nE5nZVqgkE) for update notifications on a user interface and direct ROM editing.
 
 ## Getting Started
 
-All instructions are intended for Windows 10 users.
+**Check out the in-depth guide for first timers on the [Wiki](https://github.com/TheG-Meister/pkc-mms-rando/wiki/Getting-Started)!**
 
-1. Download a [disassembly](https://github.com/TheG-Meister/pkc-mms-rando/wiki/Disassemblies)
-2. Download [Java version 15+](https://github.com/TheG-Meister/pkc-mms-rando/wiki/Java)
-3. Download a [pkc-mms-rando release](https://github.com/TheG-Meister/pkc-mms-rando/releases)
-4. [Run the release](https://github.com/TheG-Meister/pkc-mms-rando/wiki/Running-a-release)
-5. Replace files in the disassembly with those created by pkc-mms-rando
-6. Make the disassembly into a ROM
+1. If on Windows 10 or 11, install [Windows Subsystem for Linux](https://docs.microsoft.com/en-us/windows/wsl/install)
+1. Install prerequisites `make`, `gcc`, `git`, `bison`, `pkg-config`, `libpng-dev` and `openjdk-17-jre-headless`
+2. `git clone https://github.com/rednex/rgbds -b v0.5.2 --depth=1`
+3. `sudo make install -C rgbds`
+5. Clone a disassembly and rename the directory to `input/`
+6. Place `pkc-mms-rando-0.1.1.jar` and `run.sh` in the same directory as `input/`
+7. `bash run.sh` adding options for randomisers, such as `--warps` or `--music-pointers`
+8. Wait a few minutes for a file ending in `.gbc` to appear
+
+### Verified Disassemblies
+
+The following pokecrystal disassemblies have been verified to work with this version:
+
+#### pret's pokecrystal commit 597701f168e69a316f18951e3002c322e23cf3ea
+* [Manual download link](https://github.com/pret/pokecrystal/tree/597701f168e69a316f18951e3002c322e23cf3ea); select Code > Download ZIP and extract
+* Using Git:
+```bash
+git clone https://github.com/pret/pokecrystal.git
+git -C pokecrystal/ checkout 597701f168e69a316f18951e3002c322e23cf3ea
+```
+
+#### ERC's pokecrystal-speedchoice v7.3
+* [Manual download link](https://github.com/erudnick-cohen/pokecrystal-speedchoice-new/tree/ae95e624d0092d5d15be2103b1988cbc6b6962eb); select Code > Download ZIP and extract
+* Using Git:
+```bash
+git clone -b speedchoice7.3 https://github.com/erudnick-cohen/pokecrystal-speedchoice-new.git
+git -C pokecrystal-speedchoice-new/ checkout ae95e624d0092d5d15be2103b1988cbc6b6962eb
+```
+
+#### Dabomstew's pokecrystal-speedchoice v7.2
+* [Manual download link](https://github.com/Dabomstew/pokecrystal-speedchoice/releases/tag/v7.2); select "Source code (.zip)" and extract
+* Using Git:
+```bash
+git clone https://github.com/Dabomstew/pokecrystal-speedchoice.git --depth=1 -b v7.2
+```
 
 ### Command-line options
 

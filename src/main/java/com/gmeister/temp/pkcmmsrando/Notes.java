@@ -486,7 +486,7 @@ public class Notes
 		
 		if (help)
 		{
-			System.out.println("pkc-mms-rando v0.1.0");
+			System.out.println("pkc-mms-rando v0.1.1");
 			System.out.println();
 			System.out.println("Usage example: java -jar pkc-mms-rando-0.1.0.jar -d pokecrystal/ -D output/ --warps --music-pointers --map-blocks");
 			System.out.println();
@@ -508,7 +508,7 @@ public class Notes
 		
 		if (version)
 		{
-			System.out.println("pkc-mms-rando v0.1.0");
+			System.out.println("pkc-mms-rando v0.1.1");
 			return;
 		}
 		
