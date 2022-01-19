@@ -52,65 +52,13 @@ public class WarpRandomiser
 		Map<List<Warp>, List<List<Warp>>> networkMap = new HashMap<>();
 		for (List<Warp> key : accessibleGroups.keySet()) networkMap.put(key, new ArrayList<>(accessibleGroups.get(key)));
 		WarpNetwork network = new WarpNetwork(networkMap);
-		//this.removeRedundantBranches(network);
-		//this.checkRemovedBranches(accessibleGroups, network);
-		//network.print();
-		
-		//Make warp group groups
-		List<List<List<Warp>>> warpGroupGroups = network.groupWarpGroups(warpGroups);
 		
 		//Collect all nodes that have nothing arrive at them
 		List<List<Warp>> inaccessibleGroups = new ArrayList<>(warpGroups);
 		network.getNetwork().entrySet().stream().map(e -> e.getValue()).forEach(g -> inaccessibleGroups.removeAll(g));
 		
-		List<Branch> oneWayBranches = new ArrayList<>();
-		List<List<Branch>> forks = new ArrayList<>();
-		List<List<Branch>> merges = new ArrayList<>();
-		
-		//Collect any unreturnable branches and the criteria for solving them
-		for (List<Warp> groupAbove : warpGroups)
-		{
-			branch:
-			for (List<Warp> groupBelow : network.getNetwork().get(groupAbove))
-			{
-				Branch branch = new Branch(groupAbove, groupBelow, network.getAllAccessors(groupAbove), network.getAllAccessees(groupBelow));
-				
-				for (Branch otherBranch : oneWayBranches) if (
-						otherBranch.groupsBelow.containsAll(branch.groupsBelow) &&
-						branch.groupsBelow.containsAll(otherBranch.groupsBelow) &&
-						otherBranch.groupsAbove.containsAll(branch.groupsAbove) &&
-						branch.groupsAbove.containsAll(otherBranch.groupsAbove))
-					continue branch;
-				
-				for (Branch otherBranch : oneWayBranches)
-				{
-					if (otherBranch.groupsBelow.containsAll(branch.groupsBelow) &&
-							branch.groupsBelow.containsAll(otherBranch.groupsBelow) &&
-							!branch.groupsAbove.stream().anyMatch(g -> otherBranch.groupsAbove.contains(g)))
-					{
-						List<Branch> merge = merges.stream().filter(m -> m.contains(otherBranch)).findFirst().orElse(new ArrayList<>());
-						merge.add(branch);
-						if (!merge.contains(otherBranch)) merge.add(otherBranch);
-						if (!merges.contains(merge)) merges.add(merge);
-					}
-					
-					if (branch.groupsAbove.containsAll(otherBranch.groupsAbove) &&
-							otherBranch.groupsAbove.containsAll(branch.groupsAbove) &&
-							!branch.groupsBelow.stream().anyMatch(g -> otherBranch.groupsBelow.contains(g)))
-					{
-						List<Branch> fork = forks.stream().filter(f -> f.contains(otherBranch)).findFirst().orElse(new ArrayList<>());
-						fork.add(branch);
-						if (!fork.contains(otherBranch)) fork.add(otherBranch);
-						if (!forks.contains(fork)) forks.add(fork);
-					}
-				}
-				
-				oneWayBranches.add(branch);
-			}
-		}
-		
 		List<List<List<Warp>>> warpClusters = new ArrayList<>();
-		warpGroupGroups.stream().forEach(g -> warpClusters.add(new ArrayList<>(g)));
+		network.getComponents().stream().forEach(g -> warpClusters.add(new ArrayList<>(g)));
 		boolean testedAllSources = false;
 		
 		//Create a random list of destinations
@@ -224,11 +172,11 @@ public class WarpRandomiser
 					//If the source and destination cluster are the same, and none of the new branches solve any one-way branches, continue
 					if (sourceCluster == destCluster
 							&& !newBranches.stream().anyMatch(b -> !oneWayBranches.stream().anyMatch(
-									o -> o.groupsAbove.contains(b.destGroup) && o.groupsBelow.contains(b.sourceGroup))))
+									o -> o.groupsAbove.contains(b.target) && o.groupsBelow.contains(b.source))))
 						continue targetLoop;
 					
 					//If a merge is being created, and the merge sum is greater than or equal to the fork sum, continue
-					if (newBranches.stream().anyMatch(b -> oneWayBranches.stream().anyMatch(o -> o.groupsBelow.contains(b.destGroup))))
+					if (newBranches.stream().anyMatch(b -> oneWayBranches.stream().anyMatch(o -> o.groupsBelow.contains(b.target))))
 						continue targetLoop;
 					
 					//If a fork is being created, and the fork sum is greater than or equal to the merge sum, continue
@@ -245,23 +193,23 @@ public class WarpRandomiser
 				//Create the branch and update tracking data
 				for (Branch branch : newBranches)
 				{
-					branch.groupsAbove = network.getAllAccessors(branch.sourceGroup);
-					branch.groupsBelow = network.getAllAccessees(branch.destGroup);
+					branch.groupsAbove = network.getAllAccessors(branch.source);
+					branch.groupsBelow = network.getAllAccessees(branch.target);
 					
-					sources.remove(branch.sourceGroup);
-					localDests.remove(branch.destGroup);
-					newSources.add(branch.sourceGroup);
-					newDests.add(branch.destGroup);
-					if (inaccessibleGroups.contains(branch.destGroup)) inaccessibleGroups.remove(branch.destGroup);
-					if (!network.getNetwork().get(branch.sourceGroup).contains(branch.destGroup)) network.getNetwork().get(branch.sourceGroup).add(branch.destGroup);
+					sources.remove(branch.source);
+					localDests.remove(branch.target);
+					newSources.add(branch.source);
+					newDests.add(branch.target);
+					if (inaccessibleGroups.contains(branch.target)) inaccessibleGroups.remove(branch.target);
+					if (!network.getNetwork().get(branch.source).contains(branch.target)) network.getNetwork().get(branch.source).add(branch.target);
 					
 					for (int branchIndex = 0; branchIndex < oneWayBranches.size();)
 					{
 						Branch oneWayBranch = oneWayBranches.get(branchIndex);
 						
-						if (oneWayBranch.groupsBelow.contains(branch.sourceGroup)) for (List<Warp> t : branch.groupsBelow)
+						if (oneWayBranch.groupsBelow.contains(branch.source)) for (List<Warp> t : branch.groupsBelow)
 						{
-							if (t == oneWayBranch.sourceGroup)
+							if (t == oneWayBranch.source)
 							{
 								oneWayBranches.remove(oneWayBranch);
 								for (List<Branch> fork : forks) fork.remove(oneWayBranch);
@@ -271,9 +219,9 @@ public class WarpRandomiser
 							else if (!oneWayBranch.groupsBelow.contains(t)) oneWayBranch.groupsBelow.add(t);
 						}
 						
-						if (oneWayBranch.groupsAbove.contains(branch.destGroup)) for (List<Warp> s : branch.groupsAbove)
+						if (oneWayBranch.groupsAbove.contains(branch.target)) for (List<Warp> s : branch.groupsAbove)
 						{
-							if (s == oneWayBranch.destGroup)
+							if (s == oneWayBranch.target)
 							{
 								oneWayBranches.remove(oneWayBranch);
 								for (List<Branch> fork : forks) fork.remove(oneWayBranch);
@@ -289,7 +237,7 @@ public class WarpRandomiser
 					forks.removeAll(forks.stream().filter(f -> f.size() <= 1).collect(Collectors.toList()));
 					merges.removeAll(merges.stream().filter(m -> m.size() <= 1).collect(Collectors.toList()));
 					
-					if (!network.canAccess(branch.destGroup, branch.sourceGroup) &&
+					if (!network.canAccess(branch.target, branch.source) &&
 						!oneWayBranches.stream().anyMatch(b -> b.groupsBelow.containsAll(branch.groupsBelow) &&
 							branch.groupsBelow.containsAll(b.groupsBelow) &&
 							b.groupsAbove.containsAll(branch.groupsAbove) &&
