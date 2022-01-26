@@ -53,22 +53,16 @@ public class WarpRandomiser
 		for (List<Warp> key : accessibleGroups.keySet()) networkMap.put(key, new ArrayList<>(accessibleGroups.get(key)));
 		WarpNetwork network = new WarpNetwork(networkMap);
 		
-		//Collect all nodes that have nothing arrive at them
-		List<List<Warp>> inaccessibleGroups = new ArrayList<>(warpGroups);
-		network.getNetwork().entrySet().stream().map(e -> e.getValue()).forEach(g -> inaccessibleGroups.removeAll(g));
-		
-		List<List<List<Warp>>> warpClusters = new ArrayList<>();
-		network.getComponents().stream().forEach(g -> warpClusters.add(new ArrayList<>(g)));
 		boolean testedAllSources = false;
 		
 		//Create a random list of destinations
 		List<List<Warp>> sources = new ArrayList<>(warpGroups);
-		List<List<Warp>> dests = new ArrayList<>(warpGroups);
-		if (oneIn) Collections.shuffle(dests, random);
+		List<List<Warp>> targets = new ArrayList<>(warpGroups);
+		if (oneIn) Collections.shuffle(targets, random);
 		
 		//Pull random destinations
 		List<List<Warp>> newSources = new ArrayList<>();
-		List<List<Warp>> newDests = new ArrayList<>();
+		List<List<Warp>> newTargets = new ArrayList<>();
 		
 		for (int sourceIndex = 0; sourceIndex < sources.size();)
 		{
@@ -78,12 +72,12 @@ public class WarpRandomiser
 			else controllableBranches = sources.size();
 			
 			//Store the sum of all one-way branches that are parallel to another in forks and merges
-			int forkSum = forks.stream().mapToInt(f -> f.size() - 1).sum();
-			int mergeSum = merges.stream().mapToInt(m -> m.size() - 1).sum();
+			long forkSum = network.getComponents().stream().mapToLong(c -> network.countBottomTiers(c) - 1).sum();
+			long mergeSum = network.getComponents().stream().mapToLong(c -> network.countTopTiers(c) - 1).sum();
 			
 			//Store the number of branches necessary to make a completable overworld
-			int neededBranches = Math.max(forkSum, mergeSum) + warpClusters.size() - 1;
-			if (oneWayBranches.size() > 0 || (!twoWay && warpClusters.size() > 1)) neededBranches++;
+			long neededBranches = Math.max(forkSum, mergeSum) + network.getComponents().size() - 1;
+			if (network.getOneWayBranches().size() > 0 || (!twoWay && network.getComponents().size() > 1)) neededBranches++;
 			
 			//If there are less controllable branches than needed branches, throw an error
 			if (controllableBranches < neededBranches)
@@ -95,193 +89,85 @@ public class WarpRandomiser
 			}
 			
 			List<Warp> source = sources.get(sourceIndex);
-			List<List<Warp>> sourceCluster = warpClusters.stream().filter(c -> c.contains(source)).findFirst().orElseThrow();
-			final List<List<Warp>> localDests;
 			
-			if (oneIn) localDests = dests;
+			final List<List<Warp>> localTargets;
+			if (oneIn) localTargets = targets;
 			else
 			{
-				localDests = new ArrayList<>(warpGroups);
-				Collections.shuffle(dests, random);
+				localTargets = new ArrayList<>(warpGroups);
+				Collections.shuffle(targets, random);
 			}
 			
-			if (sources.size() < inaccessibleGroups.size()) throw new IllegalStateException("Not enough branches were used in making inaccessible warps accessible");
-			
 			targetLoop:
-			for (List<Warp> target : localDests) 
+			for (List<Warp> target : localTargets) 
 			{
-				/*
-				 * Things that should never be allowed:
-				 * Depleting a one way warp of sources below or targets above without solving it
-				 * Linking 2 of 3+ warp clusters together without either of them having a free source and target afterwards
-				 * 
-				 * Things that are only allowed if we have some disposable branches:
-				 * Creating a fork, if the fork sum is greater than or equal to the merge sum
-				 * Creating a merge, if the merge sum is greater than or equal to the fork sum
-				 * Reducing the fork sum below the merge sum without solving all of them
-				 * Reducing the merge sum below the fork sum without solving all of them
-				 * Making a branch within a cluster without solving any one-way warps
-				 */
-				
 				if (!allowSelfWarps && source == target) continue targetLoop;
 				
 				List<Branch> newBranches = new ArrayList<>();
 				newBranches.add(new Branch(source, target, null, null));
 				if (twoWay && source != target) newBranches.add(new Branch(target, source, null, null));
 				
-				//if any branch would consume the last warp below any one way branch without solving it and without adding any more branches, continue
-				for (Branch branch : oneWayBranches)
-				{
-					if (branch.groupsBelow.contains(source) ^ branch.groupsAbove.contains(target))
-					{
-						List<List<Warp>> freeWarps = branch.groupsBelow.stream().filter(g -> sources.contains(g) && g != source && (!twoWay || g != target)).collect(Collectors.toList());
-						network.getAllAccessees(target).stream().filter(g -> !freeWarps.contains(g) && g != source && (!twoWay || g != target)).forEach(g -> freeWarps.add(g));
-						if (freeWarps.size() < 1) continue targetLoop;
-					}
-					if (twoWay && (!branch.groupsBelow.contains(target) ^ !branch.groupsAbove.contains(source)))
-					{
-						List<List<Warp>> freeWarps = branch.groupsBelow.stream().filter(g -> sources.contains(g) && g != source && g != target).collect(Collectors.toList());
-						network.getAllAccessees(source).stream().filter(g -> !freeWarps.contains(g) && g != source && g != target).forEach(g -> freeWarps.add(g));
-						if (freeWarps.size() < 1) continue targetLoop;
-					}
-				}
+				List<List<Warp>> nextSources = new ArrayList<>(sources);
+				nextSources.remove(source);
+				if (twoWay) nextSources.remove(target);
 				
-				List<List<Warp>> destCluster = warpClusters.stream().filter(c -> c.contains(target)).findFirst().orElseThrow();
+				List<List<Warp>> nextTargets = new ArrayList<>(localTargets);
+				nextTargets.remove(target);
+				if (twoWay) nextTargets.remove(source);
 				
-				if (warpClusters.size() > 1)
+				WarpNetwork nextNetwork = new WarpNetwork(network);
+				for (Branch branch : newBranches) nextNetwork.addBranch(branch.source, branch.target);
+				
+				for (Branch branch : nextNetwork.getOneWayBranches())
 				{
-					int limit;
-					if (source == target) limit = 2;
-					else if (twoWay) limit = 3;
-					else limit = 2;
+					List<List<Warp>> warpsAbove = nextNetwork.getAllAccessorTiers(nextNetwork.getTierOf(branch.source))
+							.stream()
+							.flatMap(List::stream)
+							.collect(Collectors.toList());
+					List<List<Warp>> warpsBelow = nextNetwork.getAllAccesseeTiers(nextNetwork.getTierOf(branch.target))
+							.stream()
+							.flatMap(List::stream)
+							.collect(Collectors.toList());
 					
-					if (sourceCluster == destCluster)
-					{
-						if (sourceCluster.stream().filter(g -> sources.contains(g)).count() < limit) continue targetLoop;
-						if (sourceCluster.stream().filter(g -> localDests.contains(g)).count() < limit) continue targetLoop;
-					}
-					else if (warpClusters.size() > 2)
-					{
-						if (sourceCluster.stream().filter(g -> sources.contains(g)).count() + destCluster.stream().filter(g -> sources.contains(g)).count() < limit) continue targetLoop;
-						if (sourceCluster.stream().filter(g -> localDests.contains(g)).count() + destCluster.stream().filter(g -> localDests.contains(g)).count() < limit) continue targetLoop;
-					}
-				}
-				
-				if (controllableBranches <= neededBranches)
-				{
-					//If the source and destination cluster are the same, and none of the new branches solve any one-way branches, continue
-					if (sourceCluster == destCluster
-							&& !newBranches.stream().anyMatch(b -> !oneWayBranches.stream().anyMatch(
-									o -> o.groupsAbove.contains(b.target) && o.groupsBelow.contains(b.source))))
+					//If any new one-way branch would have no targets above or sources below, continue
+					if (warpsAbove.stream().filter(w -> nextTargets.contains(w)).count() < 1)
 						continue targetLoop;
-					
-					//If a merge is being created, and the merge sum is greater than or equal to the fork sum, continue
-					if (newBranches.stream().anyMatch(b -> oneWayBranches.stream().anyMatch(o -> o.groupsBelow.contains(b.target))))
-						continue targetLoop;
-					
-					//If a fork is being created, and the fork sum is greater than or equal to the merge sum, continue
-					if (oneWayBranches.stream().anyMatch(b -> b.groupsAbove.contains(source)) &&
-							(!twoWay || oneWayBranches.stream().anyMatch(b -> b.groupsAbove.contains(target))))
+					if (warpsBelow.stream().filter(w -> nextSources.contains(w)).count() < 1)
 						continue targetLoop;
 				}
 				
-				//Perform additional branch-wise testing
-				//if any two fork branches share a warp below, they're equivalent
-				//if and two merge branches share a warp above, they're equivalent
-				//It's actually any warp below and no warps above?
+				//If there is more than one component, and any component has no remaining sources or targets, continue;
+				if (nextNetwork.getComponents().size() > 1)
+					for (List<List<Warp>> component : nextNetwork.getComponents())
+				{
+					if (component.stream().filter(w -> nextSources.contains(w)).count() < 1)
+						continue targetLoop;
+					if (component.stream().filter(w -> nextTargets.contains(w)).count() < 1)
+						continue targetLoop;
+				}
+				
+				//if the new controllable branches is less than the new needed branches, continue
+				int nextControllableBranches;
+				if (twoWay) nextControllableBranches = Math.floorDiv(nextSources.size(), 2);
+				else nextControllableBranches = nextSources.size();
+				
+				long nextForkSum = nextNetwork.getComponents().stream().mapToLong(c -> nextNetwork.countBottomTiers(c) - 1).sum();
+				long nextMergeSum = nextNetwork.getComponents().stream().mapToLong(c -> nextNetwork.countTopTiers(c) - 1).sum();
+				
+				long nextNeededBranches = Math.max(nextForkSum, nextMergeSum) + nextNetwork.getComponents().size() - 1;
+				if (nextNetwork.getOneWayBranches().size() > 0 || (!twoWay && nextNetwork.getComponents().size() > 1)) nextNeededBranches++;
+				
+				if (nextControllableBranches < nextNeededBranches)
+					continue targetLoop;
 				
 				//Create the branch and update tracking data
 				for (Branch branch : newBranches)
 				{
-					branch.groupsAbove = network.getAllAccessors(branch.source);
-					branch.groupsBelow = network.getAllAccessees(branch.target);
-					
 					sources.remove(branch.source);
-					localDests.remove(branch.target);
+					localTargets.remove(branch.target);
 					newSources.add(branch.source);
-					newDests.add(branch.target);
-					if (inaccessibleGroups.contains(branch.target)) inaccessibleGroups.remove(branch.target);
-					if (!network.getNetwork().get(branch.source).contains(branch.target)) network.getNetwork().get(branch.source).add(branch.target);
-					
-					for (int branchIndex = 0; branchIndex < oneWayBranches.size();)
-					{
-						Branch oneWayBranch = oneWayBranches.get(branchIndex);
-						
-						if (oneWayBranch.groupsBelow.contains(branch.source)) for (List<Warp> t : branch.groupsBelow)
-						{
-							if (t == oneWayBranch.source)
-							{
-								oneWayBranches.remove(oneWayBranch);
-								for (List<Branch> fork : forks) fork.remove(oneWayBranch);
-								for (List<Branch> merge : merges) merge.remove(oneWayBranch);
-								continue;
-							}
-							else if (!oneWayBranch.groupsBelow.contains(t)) oneWayBranch.groupsBelow.add(t);
-						}
-						
-						if (oneWayBranch.groupsAbove.contains(branch.target)) for (List<Warp> s : branch.groupsAbove)
-						{
-							if (s == oneWayBranch.target)
-							{
-								oneWayBranches.remove(oneWayBranch);
-								for (List<Branch> fork : forks) fork.remove(oneWayBranch);
-								for (List<Branch> merge : merges) merge.remove(oneWayBranch);
-								continue;
-							}
-							if (!oneWayBranch.groupsAbove.contains(s)) oneWayBranch.groupsAbove.add(s);
-						}
-						
-						branchIndex++;
-					}
-					
-					forks.removeAll(forks.stream().filter(f -> f.size() <= 1).collect(Collectors.toList()));
-					merges.removeAll(merges.stream().filter(m -> m.size() <= 1).collect(Collectors.toList()));
-					
-					if (!network.canAccess(branch.target, branch.source) &&
-						!oneWayBranches.stream().anyMatch(b -> b.groupsBelow.containsAll(branch.groupsBelow) &&
-							branch.groupsBelow.containsAll(b.groupsBelow) &&
-							b.groupsAbove.containsAll(branch.groupsAbove) &&
-							branch.groupsAbove.containsAll(b.groupsAbove)))
-					{
-						boolean merged = false;
-						boolean forked = false;
-						
-						for (Branch otherBranch : oneWayBranches)
-						{
-							if (otherBranch.groupsBelow.containsAll(branch.groupsBelow) &&
-									branch.groupsBelow.containsAll(otherBranch.groupsBelow) &&
-									!branch.groupsAbove.stream().anyMatch(g -> otherBranch.groupsAbove.contains(g)) &&
-									!merged)
-							{
-								List<Branch> merge = merges.stream().filter(m -> m.contains(otherBranch)).findFirst().orElse(new ArrayList<>());
-								merge.add(branch);
-								if (!merge.contains(otherBranch)) merge.add(otherBranch);
-								if (!merges.contains(merge)) merges.add(merge);
-								merged = true;
-							}
-							
-							if (branch.groupsAbove.containsAll(otherBranch.groupsAbove) &&
-									otherBranch.groupsAbove.containsAll(branch.groupsAbove) &&
-									!branch.groupsBelow.stream().anyMatch(g -> otherBranch.groupsBelow.contains(g)) &&
-									!forked)
-							{
-								List<Branch> fork = forks.stream().filter(f -> f.contains(otherBranch)).findFirst().orElse(new ArrayList<>());
-								fork.add(branch);
-								if (!fork.contains(otherBranch)) fork.add(otherBranch);
-								if (!forks.contains(fork)) forks.add(fork);
-								forked = true;
-							}
-						}
-						
-						oneWayBranches.add(branch);
-					}
-					
-					if (sourceCluster != destCluster)
-					{
-						sourceCluster.addAll(destCluster);
-						warpClusters.remove(destCluster);
-						destCluster = sourceCluster;
-					}
+					newTargets.add(branch.target);
+					network.addBranch(branch.source, branch.target);
 				}
 				
 				break targetLoop;
@@ -291,7 +177,7 @@ public class WarpRandomiser
 			
 			if (!allowSelfWarps && !testedAllSources)
 			{
-				while (sourceIndex < sources.size() && newDests.contains(sources.get(sourceIndex))) sourceIndex++;
+				while (sourceIndex < sources.size() && newTargets.contains(sources.get(sourceIndex))) sourceIndex++;
 				if (sourceIndex >= sources.size())
 				{
 					sourceIndex = 0;
@@ -301,7 +187,8 @@ public class WarpRandomiser
 		}
 		
 		if (!sources.isEmpty()) throw new IllegalStateException("Not all sources were assigned a destination");
-		if (!oneWayBranches.isEmpty()) throw new IllegalStateException("Not all one-way branches were given an alternative path");
+		if (network.getComponents().size() > 1) throw new IllegalStateException("Not all components were joined together");
+		if (!network.getOneWayBranches().isEmpty()) throw new IllegalStateException("Not all one-way branches were given an alternative path");
 		
 		for (List<Warp> warpGroup : warpGroups)
 		{
@@ -315,7 +202,7 @@ public class WarpRandomiser
 		for (int i = 0; i < newSources.size(); i++)
 		{
 			List<Warp> source = newSources.get(i);
-			List<Warp> dest = newDests.get(i);
+			List<Warp> dest = newTargets.get(i);
 			for (int j = 0; j < source.size(); j++) source.get(j).setDestination(dest.get(j % dest.size()));
 		}
 	}
