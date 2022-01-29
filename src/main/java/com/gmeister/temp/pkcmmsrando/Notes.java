@@ -25,6 +25,7 @@ import com.gmeister.temp.pkcmmsrando.map.data.Map;
 import com.gmeister.temp.pkcmmsrando.map.data.Player;
 import com.gmeister.temp.pkcmmsrando.map.data.TileSet;
 import com.gmeister.temp.pkcmmsrando.map.data.Warp;
+import com.gmeister.temp.pkcmmsrando.map.data.WarpNetwork;
 import com.gmeister.temp.pkcmmsrando.rando.Randomiser;
 
 public class Notes
@@ -268,10 +269,9 @@ public class Notes
 		accessibleGroups.get(route17GateToRoute).add(route16GateToRoute);
 		accessibleGroups.put(route16GateToRoute, new ArrayList<>(Arrays.asList(route17GateToRoute)));
 		
-		//Find the Route 29 gatehouse as the starting warp
-		List<Warp> startingGroup = warpGroups.stream().filter(g -> g.stream().anyMatch(w -> w.getMap().getConstName().equals("ROUTE_29"))).findFirst().orElseThrow();
+		WarpNetwork network = new WarpNetwork(accessibleGroups);
 		
-		rando.buildWarpGroups(warpGroups, accessibleGroups, startingGroup);
+		rando.buildWarpGroups(network, false, true, true);
 	}
 	
 	public static List<Map> getMapsByNames(List<Map> maps, String... constNames)

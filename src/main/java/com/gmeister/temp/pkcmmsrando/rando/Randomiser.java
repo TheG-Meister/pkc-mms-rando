@@ -2,7 +2,6 @@ package com.gmeister.temp.pkcmmsrando.rando;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 import java.util.regex.Matcher;
@@ -204,30 +203,17 @@ public class Randomiser
 		}
 	}
 	
-	public void buildWarpGroups(List<List<Warp>> warpGroups, java.util.Map<List<Warp>, List<List<Warp>>> accessibleGroups, List<Warp> startingGroup)
+	public void buildWarpGroups(WarpNetwork network, boolean selfWarps, boolean twoWay, boolean oneIn)
 	{
-		boolean allowSelfWarps = false;
-		boolean twoWay = true;
-		boolean oneIn = true;
-		
 		Random random = new Random(this.random.nextLong());
 		
-		for (List<Warp> warpGroup : warpGroups) if (!accessibleGroups.containsKey(warpGroup)) throw new IllegalArgumentException("accessibleGroups does not contain a key for every group");
-		for (List<Warp> warpGroup : accessibleGroups.keySet()) if (!warpGroups.contains(warpGroup)) throw new IllegalArgumentException("accessibleGroups contains groups that are not present in warpGroups");
-		if (!warpGroups.contains(startingGroup)) throw new IllegalArgumentException("warpGroups does not contain startingGroup");
-		
-		if (warpGroups.size() % 2 != 0) throw new IllegalArgumentException("Could not avoid self warps as there are an odd number of groups");
-		
-		//Create a copy of the provided network and remove redundant branches
-		java.util.Map<List<Warp>, List<List<Warp>>> networkMap = new HashMap<>();
-		for (List<Warp> key : accessibleGroups.keySet()) networkMap.put(key, new ArrayList<>(accessibleGroups.get(key)));
-		WarpNetwork network = new WarpNetwork(networkMap);
+		if (twoWay && !selfWarps && network.getNetwork().keySet().size() % 2 != 0) throw new IllegalArgumentException("Could not avoid self warps as there are an odd number of groups");
 		
 		boolean testedAllSources = false;
 		
 		//Create a random list of destinations
-		List<List<Warp>> sources = new ArrayList<>(warpGroups);
-		List<List<Warp>> targets = new ArrayList<>(warpGroups);
+		List<List<Warp>> sources = new ArrayList<>(network.getNetwork().keySet());
+		List<List<Warp>> targets = new ArrayList<>(sources);
 		if (oneIn) Collections.shuffle(targets, random);
 		
 		//Pull random destinations
@@ -253,7 +239,7 @@ public class Randomiser
 			if (controllableBranches < neededBranches)
 			{
 				//If this is the first loop, the provided network cannot generate a completable overworld
-				if (sources.containsAll(warpGroups)) throw new IllegalArgumentException("accessibleGroups does not contain enough connections to fulfil all provided settings");
+				if (sources.containsAll(network.getNetwork().keySet())) throw new IllegalArgumentException("accessibleGroups does not contain enough connections to fulfil all provided settings");
 				//If this is any other loop, the coded logic is wrong
 				else throw new IllegalStateException("Too many optional branches were created");
 			}
@@ -264,14 +250,14 @@ public class Randomiser
 			if (oneIn) localTargets = targets;
 			else
 			{
-				localTargets = new ArrayList<>(warpGroups);
+				localTargets = new ArrayList<>(network.getNetwork().keySet());
 				Collections.shuffle(targets, random);
 			}
 			
 			targetLoop:
 			for (List<Warp> target : localTargets) 
 			{
-				if (!allowSelfWarps && source == target) continue targetLoop;
+				if (!selfWarps && source == target) continue targetLoop;
 				
 				List<Branch> newBranches = new ArrayList<>();
 				newBranches.add(new Branch(source, target, null, null));
@@ -345,7 +331,7 @@ public class Randomiser
 			
 			if (sources.contains(source)) throw new IllegalStateException("Could not find a destination warp for source " + source);
 			
-			if (!allowSelfWarps && !testedAllSources)
+			if (!selfWarps && !testedAllSources)
 			{
 				while (sourceIndex < sources.size() && newTargets.contains(sources.get(sourceIndex))) sourceIndex++;
 				if (sourceIndex >= sources.size())
@@ -360,12 +346,12 @@ public class Randomiser
 		if (network.getComponents().size() > 1) throw new IllegalStateException("Not all components were joined together");
 		if (!network.getOneWayBranches().isEmpty()) throw new IllegalStateException("Not all one-way branches were given an alternative path");
 		
-		for (List<Warp> warpGroup : warpGroups)
+		for (List<Warp> warpGroup : network.getNetwork().keySet())
 		{
 			List<List<Warp>> groupsBelow = network.getAllAccessees(warpGroup);
 			
 			System.out.print(warpGroup.get(0).getPosition());
-			for (List<Warp> otherGroup : warpGroups) System.out.print("\t" + (groupsBelow.contains(otherGroup) ? 1 : 0));
+			for (List<Warp> otherGroup : network.getNetwork().keySet()) System.out.print("\t" + (groupsBelow.contains(otherGroup) ? 1 : 0));
 			System.out.println();
 		}
 		
