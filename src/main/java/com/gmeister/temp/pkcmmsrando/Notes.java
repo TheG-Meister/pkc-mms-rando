@@ -271,7 +271,13 @@ public class Notes
 		
 		WarpNetwork network = new WarpNetwork(accessibleGroups);
 		
-		rando.buildWarpGroups(network, false, true, true);
+		java.util.Map<List<Warp>, List<Warp>> newTargetsMap = rando.buildWarpGroups(network, false, true, true);
+		
+		for (List<Warp> group : warpGroups)
+		{
+			List<Warp> newTargets = newTargetsMap.get(group);
+			for (int i = 0; i < group.size(); i++) group.get(i).setDestination(newTargets.get(i % newTargets.size()));
+		}
 	}
 	
 	public static List<Map> getMapsByNames(List<Map> maps, String... constNames)
@@ -364,7 +370,13 @@ public class Notes
 			group.add(warp);
 		}
 		
-		rando.shuffleWarpGroups(warpGroups, false, true);
+		java.util.Map<List<Warp>, List<Warp>> newTargetsMap = rando.shuffleWarpGroups(warpGroups, false, true);
+		
+		for (List<Warp> group : warpGroups)
+		{
+			List<Warp> newTargets = newTargetsMap.get(group);
+			for (int i = 0; i < group.size(); i++) group.get(i).setDestination(newTargets.get(i % newTargets.size()));
+		}
 	}
 	
 	public static ArrayList<String> randomiseMusicPointers(DisassemblyReader reader, Randomiser rando) throws FileNotFoundException, IOException

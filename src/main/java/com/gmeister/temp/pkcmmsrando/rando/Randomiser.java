@@ -2,6 +2,7 @@ package com.gmeister.temp.pkcmmsrando.rando;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 import java.util.regex.Matcher;
@@ -203,9 +204,10 @@ public class Randomiser
 		}
 	}
 	
-	public void buildWarpGroups(WarpNetwork network, boolean selfWarps, boolean twoWay, boolean oneIn)
+	public java.util.Map<List<Warp>, List<Warp>> buildWarpGroups(WarpNetwork inputNetwork, boolean selfWarps, boolean twoWay, boolean oneIn)
 	{
 		Random random = new Random(this.random.nextLong());
+		WarpNetwork network = new WarpNetwork(inputNetwork);
 		
 		if (twoWay && !selfWarps && network.getNetwork().keySet().size() % 2 != 0) throw new IllegalArgumentException("Could not avoid self warps as there are an odd number of groups");
 		
@@ -355,15 +357,13 @@ public class Randomiser
 			System.out.println();
 		}
 		
-		for (int i = 0; i < newSources.size(); i++)
-		{
-			List<Warp> source = newSources.get(i);
-			List<Warp> dest = newTargets.get(i);
-			for (int j = 0; j < source.size(); j++) source.get(j).setDestination(dest.get(j % dest.size()));
-		}
+		java.util.Map<List<Warp>, List<Warp>> output = new HashMap<>();
+		for (int i = 0; i < newSources.size(); i++) output.put(newSources.get(i), newTargets.get(i));
+		
+		return output;
 	}
 	
-	public void shuffleWarpGroups(List<List<Warp>> warpGroups, boolean allowSelfWarps, boolean twoWay)
+	public java.util.Map<List<Warp>, List<Warp>> shuffleWarpGroups(List<List<Warp>> warpGroups, boolean allowSelfWarps, boolean twoWay)
 	{
 		//Get a Random object
 		Random random = new Random(this.random.nextLong());
@@ -416,12 +416,10 @@ public class Randomiser
 			}
 		}
 		
-		for (int i = 0; i < oldGroups.size(); i++)
-		{
-			List<Warp> oldGroup = oldGroups.get(i);
-			List<Warp> newGroup = newGroups.get(i);
-			for (int j = 0; j < oldGroup.size(); j++) oldGroup.get(j).setDestination(newGroup.get(j % newGroup.size()));
-		}
+		java.util.Map<List<Warp>, List<Warp>> output = new HashMap<>();
+		for (int i = 0; i < oldGroups.size(); i++) output.put(newGroups.get(i), newGroups.get(i));
+		
+		return output;
 	}
 	
 }
