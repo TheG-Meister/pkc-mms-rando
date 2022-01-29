@@ -137,7 +137,11 @@ public class Randomiser
 	public ArrayList<String> shuffleSFXPointers(ArrayList<String> script)
 	{
 		boolean[] toShuffle = new boolean[script.size()];
-		for (int i = 0; i < script.size(); i++) toShuffle[i] = script.get(i).startsWith("\tdba");
+		for (int i = 0; i < script.size(); i++)
+		{
+			String line = script.get(i);
+			toShuffle[i] = line.startsWith("\tdba") && !line.contains("Sfx_ReadText2");
+		}
 		return this.shuffleScriptLines(script, toShuffle);
 	}
 	
