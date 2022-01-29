@@ -150,7 +150,7 @@ public class Notes
 		rando.shuffleWarpGroups(warpGroups, false, true);
 	}
 	
-	public static void buildWarpAreas(List<Map> maps, List<Flag> flags, EmpiricalDataReader empReader, Randomiser rando) throws FileNotFoundException, IOException, URISyntaxException
+	public static java.util.Map<Warp, Warp> buildWarpAreas(List<Map> maps, List<Flag> flags, EmpiricalDataReader empReader, Randomiser rando) throws FileNotFoundException, IOException, URISyntaxException
 	{
 		List<List<Warp>> warpGroups = new ArrayList<>();
 		List<List<Map>> mapGroups = new ArrayList<>();
@@ -271,13 +271,7 @@ public class Notes
 		
 		WarpNetwork network = new WarpNetwork(accessibleGroups);
 		
-		java.util.Map<List<Warp>, List<Warp>> newTargetsMap = rando.buildWarpGroups(network, false, true, true);
-		
-		for (List<Warp> group : warpGroups)
-		{
-			List<Warp> newTargets = newTargetsMap.get(group);
-			for (int i = 0; i < group.size(); i++) group.get(i).setDestination(newTargets.get(i % newTargets.size()));
-		}
+		return rando.buildWarpGroups(network, false, true, true);
 	}
 	
 	public static List<Map> getMapsByNames(List<Map> maps, String... constNames)
@@ -288,7 +282,7 @@ public class Notes
 		return selectedMaps;
 	}
 	
-	public static void randomiseWarps(ArrayList<Map> maps, Randomiser rando) throws IOException
+	public static java.util.Map<Warp, Warp> randomiseWarps(ArrayList<Map> maps, Randomiser rando) throws IOException
 	{
 		//Collect a bunch of maps to manually edit warps
 		Map victoryRoadGate = maps.stream().filter(m -> m.getConstName().equals("VICTORY_ROAD_GATE")).findFirst().orElseThrow();
@@ -370,13 +364,7 @@ public class Notes
 			group.add(warp);
 		}
 		
-		java.util.Map<List<Warp>, List<Warp>> newTargetsMap = rando.shuffleWarpGroups(warpGroups, false, true);
-		
-		for (List<Warp> group : warpGroups)
-		{
-			List<Warp> newTargets = newTargetsMap.get(group);
-			for (int i = 0; i < group.size(); i++) group.get(i).setDestination(newTargets.get(i % newTargets.size()));
-		}
+		return rando.shuffleWarpGroups(warpGroups, false, true);
 	}
 	
 	public static ArrayList<String> randomiseMusicPointers(DisassemblyReader reader, Randomiser rando) throws FileNotFoundException, IOException
@@ -549,7 +537,9 @@ public class Notes
 		else if (warps)
 		{
 			if (disReader == null) System.out.println("Error: Randomisers require -d");
-			Notes.randomiseWarps(disassembly.getMaps(), rando);
+			java.util.Map<Warp, Warp> newTargets = Notes.randomiseWarps(disassembly.getMaps(), rando);
+			
+			for (Map map : disassembly.getMaps()) for (Warp warp : map.getWarps()) if (newTargets.containsKey(warp)) warp.setDestination(newTargets.get(warp));
 			
 			if (disWriter != null) for (Map map : disassembly.getMaps())
 			{
@@ -560,7 +550,9 @@ public class Notes
 		else if (warpAreas)
 		{
 			if (disReader == null) System.out.println("Error: Randomisers require -d");
-			Notes.buildWarpAreas(disassembly.getMaps(), allFlags, empReader, rando);
+			java.util.Map<Warp, Warp> newTargets = Notes.buildWarpAreas(disassembly.getMaps(), allFlags, empReader, rando);
+			
+			for (Map map : disassembly.getMaps()) for (Warp warp : map.getWarps()) if (newTargets.containsKey(warp)) warp.setDestination(newTargets.get(warp));
 			
 			if (disWriter != null) for (Map map : disassembly.getMaps())
 			{

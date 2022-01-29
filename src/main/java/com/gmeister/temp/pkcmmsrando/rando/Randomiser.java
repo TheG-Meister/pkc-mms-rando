@@ -204,7 +204,7 @@ public class Randomiser
 		}
 	}
 	
-	public java.util.Map<List<Warp>, List<Warp>> buildWarpGroups(WarpNetwork inputNetwork, boolean selfWarps, boolean twoWay, boolean oneIn)
+	public java.util.Map<Warp, Warp> buildWarpGroups(WarpNetwork inputNetwork, boolean selfWarps, boolean twoWay, boolean oneIn)
 	{
 		Random random = new Random(this.random.nextLong());
 		WarpNetwork network = new WarpNetwork(inputNetwork);
@@ -357,13 +357,18 @@ public class Randomiser
 			System.out.println();
 		}
 		
-		java.util.Map<List<Warp>, List<Warp>> output = new HashMap<>();
-		for (int i = 0; i < newSources.size(); i++) output.put(newSources.get(i), newTargets.get(i));
+		java.util.Map<Warp, Warp> output = new HashMap<>();
+		for (int i = 0; i < newSources.size(); i++)
+		{
+			List<Warp> newSource = newSources.get(i);
+			List<Warp> newTarget = newTargets.get(i);
+			for (int j = 0; j < newSource.size(); j++) output.put(newSource.get(j), newTarget.get(j % newTarget.size()));
+		}
 		
 		return output;
 	}
 	
-	public java.util.Map<List<Warp>, List<Warp>> shuffleWarpGroups(List<List<Warp>> warpGroups, boolean allowSelfWarps, boolean twoWay)
+	public java.util.Map<Warp, Warp> shuffleWarpGroups(List<List<Warp>> warpGroups, boolean allowSelfWarps, boolean twoWay)
 	{
 		//Get a Random object
 		Random random = new Random(this.random.nextLong());
@@ -416,8 +421,13 @@ public class Randomiser
 			}
 		}
 		
-		java.util.Map<List<Warp>, List<Warp>> output = new HashMap<>();
-		for (int i = 0; i < oldGroups.size(); i++) output.put(newGroups.get(i), newGroups.get(i));
+		java.util.Map<Warp, Warp> output = new HashMap<>();
+		for (int i = 0; i < oldGroups.size(); i++)
+		{
+			List<Warp> newSource = oldGroups.get(i);
+			List<Warp> newTarget = newGroups.get(i);
+			for (int j = 0; j < newSource.size(); j++) output.put(newSource.get(j), newTarget.get(j % newTarget.size()));
+		}
 		
 		return output;
 	}
