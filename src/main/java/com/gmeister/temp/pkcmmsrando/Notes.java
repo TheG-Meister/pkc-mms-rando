@@ -306,11 +306,6 @@ public class Notes
 		route28.getWarps().get(1).setDestination(silverCaveRoom2.getWarps().get(1));
 		silverCaveRoom2.getWarps().get(1).setDestination(route28.getWarps().get(1));
 		
-		//Create groups of warps which all lead to the same warp
-		HashMap<Warp, List<Warp>> warpSourcess = new HashMap<>();
-		for (Map map : maps) for (Warp warp : map.getWarps()) warpSourcess.put(warp, new ArrayList<>());
-		for (Map map : maps) for (Warp warp : map.getWarps()) if (warp.getDestination() != null) warpSourcess.get(warp.getDestination()).add(warp);
-		
 		//Make a list of maps to unrandomise warps within
 		List<String> unrandomisedMapNames = new ArrayList<>(
 				Arrays.asList("NEW_BARK_TOWN", "ELMS_LAB", "PLAYERS_HOUSE_1F", "PLAYERS_HOUSE_2F",
