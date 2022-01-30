@@ -164,22 +164,9 @@ public class Notes
 						if (!mapGroup.equals(mapGroup2) && warp.getDestination() != null &&
 						mapGroup2.contains(warp.getDestination().getMap()))
 		{
-			List<Warp> group = null;
-			
-			groupTesting:
-			for (List<Warp> testGroup : warpGroups) for (Warp testWarp : testGroup) if (warp.isPairedWith(testWarp))
-			{
-				group = testGroup;
-				break groupTesting;
-			}
-			
-			if (group == null)
-			{
-				group = new ArrayList<>();
-				warpGroups.add(group);
-			}
-			
-			group.add(warp);
+			List<Warp> group = warpGroups.stream().filter(g -> g.stream().anyMatch(w -> w.isPairedWith(warp))).findFirst().orElse(new ArrayList<>());
+			if (!group.contains(warp)) group.add(warp);
+			if (!warpGroups.contains(group)) warpGroups.add(group);
 		}
 		
 		java.util.Map<List<Warp>, List<List<Warp>>> accessibleGroups = new HashMap<>();
@@ -346,22 +333,9 @@ public class Notes
 			else if (dest.getDestination() == null) continue;
 			else if (!dest.hasAccessibleDestination()) continue;
 			
-			List<Warp> group = null;
-			
-			groupTesting:
-			for (List<Warp> testGroup : warpGroups) for (Warp testWarp : testGroup) if (warp.isPairedWith(testWarp))
-			{
-				group = testGroup;
-				break groupTesting;
-			}
-			
-			if (group == null)
-			{
-				group = new ArrayList<>();
-				warpGroups.add(group);
-			}
-			
-			group.add(warp);
+			List<Warp> group = warpGroups.stream().filter(g -> g.stream().anyMatch(w -> w.isPairedWith(warp))).findFirst().orElse(new ArrayList<>());
+			if (!group.contains(warp)) group.add(warp);
+			if (!warpGroups.contains(group)) warpGroups.add(group);
 		}
 		
 		return rando.shuffleWarpGroups(warpGroups, false, true);
