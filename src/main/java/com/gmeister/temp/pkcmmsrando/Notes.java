@@ -429,8 +429,8 @@ public class Notes
 				
 				case "--warp-areas":
 				{
-					warpAreas = true;
-					break;
+					System.err.println("The --warp-areas randomiser has been deprecated until flag-based progression can be processed.");
+					return;
 				}
 				
 				case "--overworld-sprite-pointers":
