@@ -429,7 +429,7 @@ public class Notes
 				
 				case "--warp-areas":
 				{
-					System.err.println("The --warp-areas randomiser has been deprecated until flag-based progression can be processed.");
+					System.err.println("The --warp-areas randomiser is out of action until flag-based progression can be processed.");
 					return;
 				}
 				
