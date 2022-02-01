@@ -333,6 +333,14 @@ public class Notes
 			if (!warpGroups.contains(group)) warpGroups.add(group);
 		}
 		
+		/*
+		 * Take a list of warp groups and spit out a warp network
+		 * We do this by using player movement mechanics
+		 * Start at each warp
+		 * Without travelling through any warps, see which other warps can be accessed
+		 * Travelling through map connections is allowed
+		 */
+		
 		return rando.shuffleWarpGroups(warpGroups, false, true);
 	}
 	
