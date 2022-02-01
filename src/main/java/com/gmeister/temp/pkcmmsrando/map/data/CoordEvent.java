@@ -1,16 +1,11 @@
 package com.gmeister.temp.pkcmmsrando.map.data;
 
-/**
- * Also known as a coord event in the disassembly
- * @author The_G_Meister
- *
- */
-public class PositionEvent
+public class CoordEvent
 {
 	
 	private OverworldPosition position;
 	
-	public PositionEvent(OverworldPosition position)
+	public CoordEvent(OverworldPosition position)
 	{ this.position = position; }
 	
 	public OverworldPosition getPosition()
