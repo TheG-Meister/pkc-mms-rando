@@ -12,16 +12,16 @@ public class ObjectEvent
 		this.position = position;
 		this.flag = flag;
 	}
-
+	
 	public OverworldPosition getPosition()
 	{ return this.position; }
-
+	
 	public void setPosition(OverworldPosition position)
 	{ this.position = position; }
-
+	
 	public Flag getFlag()
 	{ return this.flag; }
-
+	
 	public void setFlag(Flag flag)
 	{ this.flag = flag; }
 	
