@@ -22,6 +22,7 @@ import com.gmeister.temp.pkcmmsrando.map.data.Flag;
 import com.gmeister.temp.pkcmmsrando.map.data.Map;
 import com.gmeister.temp.pkcmmsrando.map.data.MapBlocks;
 import com.gmeister.temp.pkcmmsrando.map.data.MapConnection;
+import com.gmeister.temp.pkcmmsrando.map.data.ObjectEvent;
 import com.gmeister.temp.pkcmmsrando.map.data.OverworldPosition;
 import com.gmeister.temp.pkcmmsrando.map.data.TileSet;
 import com.gmeister.temp.pkcmmsrando.map.data.Warp;
@@ -174,7 +175,7 @@ public class DisassemblyReader
 		return tileSets;
 	}
 	
-	public ArrayList<Map> readMaps(ArrayList<TileSet> tileSets) throws IOException
+	public ArrayList<Map> readMaps(ArrayList<TileSet> tileSets, List<Flag> flags) throws IOException
 	{
 		/*
 		 * Plan:
@@ -350,29 +351,46 @@ public class DisassemblyReader
 		}
 		
 		Pattern warpEventPattern = Pattern.compile("\\twarp_event\\s+");
+		Pattern objectEventPattern = Pattern.compile("\\tobject_event\\s+");
 		for (Map map : maps) if (map.getScript() != null) for (String line : map.getScript()) if (warpEventPattern.matcher(line).find()) map.getWarps().add(new Warp());
 		
 		for (Map map : maps)
 		{
 			int count = 0;
-			if (map.getScript() != null) for (String line : map.getScript()) if (warpEventPattern.matcher(line).find())
+			if (map.getScript() != null) for (String line : map.getScript())
 			{
-				String backup = line;
-				line = this.commentPattern.matcher(line).replaceFirst("");
-				line = this.trailingWhitespacePattern.matcher(line).replaceFirst("");
-				line = warpEventPattern.matcher(line).replaceFirst("");
-				String[] args = this.commaSeparatorPattern.split(line);
-				
-				Warp warp = map.getWarps().get(count);
-				warp.setPosition(new OverworldPosition(map, Integer.parseInt(args[0]), Integer.parseInt(args[1])));
-				int destinationIndex = Integer.parseInt(args[3]) - 1;
+				if (warpEventPattern.matcher(line).find())
+				{
+					String warpEventString = this.commentPattern.matcher(line).replaceFirst("");
+					warpEventString = this.trailingWhitespacePattern.matcher(warpEventString).replaceFirst("");
+					warpEventString = warpEventPattern.matcher(warpEventString).replaceFirst("");
+					String[] args = this.commaSeparatorPattern.split(warpEventString);
+					
+					Warp warp = map.getWarps().get(count);
+					warp.setPosition(new OverworldPosition(map, Integer.parseInt(args[0]), Integer.parseInt(args[1])));
+					int destinationIndex = Integer.parseInt(args[3]) - 1;
 
-				Map mapTo = mapsByConstName.get(args[2]);
-				if (mapTo == null) throw new IOException("Could not find a map with name " + args[2] + ": \"" + backup + "\"");
-				if (destinationIndex >= mapTo.getWarps().size()) throw new IllegalStateException();
-				if (destinationIndex >= 0) warp.setDestination(mapTo.getWarps().get(destinationIndex));
+					Map mapTo = mapsByConstName.get(args[2]);
+					if (mapTo == null) throw new IOException("Could not find a map with name " + args[2] + ": \"" + line + "\"");
+					if (destinationIndex >= mapTo.getWarps().size()) throw new IllegalStateException();
+					if (destinationIndex >= 0) warp.setDestination(mapTo.getWarps().get(destinationIndex));
+					
+					count++;
+				}
 				
-				count++;
+				if (objectEventPattern.matcher(line).find())
+				{
+					String objectEventString = this.commentPattern.matcher(line).replaceFirst("");
+					objectEventString = this.trailingWhitespacePattern.matcher(line).replaceFirst("");
+					objectEventString = objectEventPattern.matcher(objectEventString).replaceFirst("");
+					String[] args = this.commaSeparatorPattern.split(objectEventString);
+					
+					int x = Integer.parseInt(args[0]);
+					int y = Integer.parseInt(args[1]);
+					Flag flag = flags.stream().filter(f -> args[12].equals(f.getName())).findFirst().orElse(null);
+					
+					map.getObjectEvents().add(new ObjectEvent(new OverworldPosition(map, x, y), flag));
+				}
 			}
 		}
 		

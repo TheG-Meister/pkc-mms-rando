@@ -507,7 +507,7 @@ public class Notes
 			
 			disassembly.setCollisionConstants(empReader.readCollisionConstants(perms));
 			disassembly.setTileSets(disReader.readTileSets(disassembly.getCollisionConstants()));
-			disassembly.setMaps(disReader.readMaps(disassembly.getTileSets()));
+			disassembly.setMaps(disReader.readMaps(disassembly.getTileSets(), allFlags));
 		}
 		
 		if (warps && warpAreas) System.err.println("Error: choose one of --warps and --warp-areas");

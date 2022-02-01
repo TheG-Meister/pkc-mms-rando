@@ -2,6 +2,7 @@ package com.gmeister.temp.pkcmmsrando.map.data;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.regex.Pattern;
 
 public class Map
@@ -26,6 +27,7 @@ public class Map
 	private ArrayList<Warp> warps;
 	private TileSet tileSet;
 	private HashMap<Direction, MapConnection> connections;
+	private List<ObjectEvent> objectEvents;
 	
 	public Map()
 	{
@@ -33,6 +35,7 @@ public class Map
 		this.warps = new ArrayList<>();
 		this.connections = new HashMap<>();
 		for (Direction direction : Direction.values()) this.connections.put(direction, null);
+		this.objectEvents = new ArrayList<>();
 	}
 	
 	public String getName()
@@ -86,6 +89,12 @@ public class Map
 	public HashMap<Direction, MapConnection> getConnections()
 	{ return this.connections; }
 	
+	public List<ObjectEvent> getObjectEvents()
+	{ return this.objectEvents; }
+
+	public void setObjectEvents(List<ObjectEvent> objectEvents)
+	{ this.objectEvents = objectEvents; }
+
 	public void writeWarpsToScript()
 	{
 		Pattern warpEventPattern = Pattern.compile("\\twarp_event\\s+");
