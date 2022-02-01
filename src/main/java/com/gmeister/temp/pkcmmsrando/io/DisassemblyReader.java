@@ -17,6 +17,7 @@ import com.gmeister.temp.pkcmmsrando.map.data.Block;
 import com.gmeister.temp.pkcmmsrando.map.data.BlockSet;
 import com.gmeister.temp.pkcmmsrando.map.data.CollisionConstant;
 import com.gmeister.temp.pkcmmsrando.map.data.Constant;
+import com.gmeister.temp.pkcmmsrando.map.data.CoordEvent;
 import com.gmeister.temp.pkcmmsrando.map.data.Direction;
 import com.gmeister.temp.pkcmmsrando.map.data.Flag;
 import com.gmeister.temp.pkcmmsrando.map.data.Map;
@@ -352,6 +353,7 @@ public class DisassemblyReader
 		
 		Pattern warpEventPattern = Pattern.compile("\\twarp_event\\s+");
 		Pattern objectEventPattern = Pattern.compile("\\tobject_event\\s+");
+		Pattern coordEventPattern = Pattern.compile("\\tcoord_event\\s+");
 		for (Map map : maps) if (map.getScript() != null) for (String line : map.getScript()) if (warpEventPattern.matcher(line).find()) map.getWarps().add(new Warp());
 		
 		for (Map map : maps)
@@ -381,7 +383,7 @@ public class DisassemblyReader
 				if (objectEventPattern.matcher(line).find())
 				{
 					String objectEventString = this.commentPattern.matcher(line).replaceFirst("");
-					objectEventString = this.trailingWhitespacePattern.matcher(line).replaceFirst("");
+					objectEventString = this.trailingWhitespacePattern.matcher(objectEventString).replaceFirst("");
 					objectEventString = objectEventPattern.matcher(objectEventString).replaceFirst("");
 					String[] args = this.commaSeparatorPattern.split(objectEventString);
 					
@@ -390,6 +392,19 @@ public class DisassemblyReader
 					Flag flag = flags.stream().filter(f -> args[12].equals(f.getName())).findFirst().orElse(null);
 					
 					map.getObjectEvents().add(new ObjectEvent(new OverworldPosition(map, x, y), flag));
+				}
+				
+				if (coordEventPattern.matcher(line).find())
+				{
+					String coordEventString = this.commentPattern.matcher(line).replaceFirst("");
+					coordEventString = this.trailingWhitespacePattern.matcher(coordEventString).replaceFirst("");
+					coordEventString = coordEventPattern.matcher(coordEventString).replaceFirst("");
+					String[] args = this.commaSeparatorPattern.split(coordEventString);
+					
+					int x = Integer.parseInt(args[0]);
+					int y = Integer.parseInt(args[1]);
+					
+					map.getCoordEvents().add(new CoordEvent(new OverworldPosition(map, x, y)));
 				}
 			}
 		}

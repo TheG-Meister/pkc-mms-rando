@@ -28,6 +28,7 @@ public class Map
 	private TileSet tileSet;
 	private HashMap<Direction, MapConnection> connections;
 	private List<ObjectEvent> objectEvents;
+	private List<CoordEvent> coordEvents;
 	
 	public Map()
 	{
@@ -36,6 +37,7 @@ public class Map
 		this.connections = new HashMap<>();
 		for (Direction direction : Direction.values()) this.connections.put(direction, null);
 		this.objectEvents = new ArrayList<>();
+		this.coordEvents = new ArrayList<>();
 	}
 	
 	public String getName()
@@ -94,6 +96,12 @@ public class Map
 
 	public void setObjectEvents(List<ObjectEvent> objectEvents)
 	{ this.objectEvents = objectEvents; }
+
+	public List<CoordEvent> getCoordEvents()
+	{ return this.coordEvents; }
+
+	public void setCoordEvents(List<CoordEvent> coordEvents)
+	{ this.coordEvents = coordEvents; }
 
 	public void writeWarpsToScript()
 	{
