@@ -96,6 +96,8 @@ public final class Player
 				CollisionPermission nextPerm = movedPlayer.position.getCollision().getPermissionsForStep(this.facing, true);
 				
 				if (!this.flags.containsAll(nextPerm.getFlags())) return this.setSliding(false);
+				else if (this.position.getMap().hasCoordEventAt(this.position.getX(), this.position.getY())) return this.setSliding(false);
+				else if (this.position.getMap().hasObjectEventAt(this.position.getX(), this.position.getY())) return this.setSliding(false);
 				else
 				{
 					warpedPlayer = movedPlayer.attemptWarp();

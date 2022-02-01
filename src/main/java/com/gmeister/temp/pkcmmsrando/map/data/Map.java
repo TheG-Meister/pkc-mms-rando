@@ -140,6 +140,18 @@ public class Map
 		return null;
 	}
 	
+	public boolean hasObjectEventAt(int x, int y)
+	{
+		for (ObjectEvent object : this.getObjectEvents()) if (object.getPosition().getX() == x && object.getPosition().getY() == y) return true;
+		return false;
+	}
+	
+	public boolean hasCoordEventAt(int x, int y)
+	{
+		for (CoordEvent coord : this.getCoordEvents()) if (coord.getPosition().getX() == x && coord.getPosition().getY() == y) return true;
+		return false;
+	}
+	
 	public ArrayList<Map> getConnectingMaps()
 	{
 		ArrayList<Map> maps = new ArrayList<>();
