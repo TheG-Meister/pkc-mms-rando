@@ -3,6 +3,7 @@ package com.gmeister.temp.pkcmmsrando.map.data;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 
 /*
  * A player has a bunch of flags they can obtain, as well as stuff like items, pokemon, etc.
@@ -11,6 +12,18 @@ import java.util.HashMap;
 
 public final class Player
 {
+	
+	public static final class PlayerMovementResult
+	{
+		public Player player;
+		public List<Warp> warpsUsed;
+		
+		public PlayerMovementResult(Player player, List<Warp> warpsUsed)
+		{
+			this.player = player;
+			this.warpsUsed = warpsUsed;
+		}
+	}
 	
 	private final OverworldPosition position;
 	private final Direction facing;
@@ -73,6 +86,53 @@ public final class Player
 	
 	public Player setFlags(ArrayList<Flag> flags)
 	{ return new Player(this.position, this.facing, this.sliding, flags); }
+	
+	public PlayerMovementResult getMovement()
+	{
+		Player player;
+		List<Warp> warpsUsed = new ArrayList<>();
+		
+		CollisionPermission perm = this.position.getCollision().getPermissionsForStep(this.facing, false);
+		
+		if (!this.flags.containsAll(perm.getFlags())) player = this.setSliding(false);
+		else
+		{
+			Warp warp = this.position.getMap().findWarpAt(this.position.getX(), this.position.getY());
+			
+			if (PlayerMovementAction.WARP.equals(perm.getAction()) && warp != null && warp.getDestination() != null)
+			{
+				player = this.setSliding(false).setPosition(this.position.warpTo(warp.getDestination()));
+				warpsUsed.add(warp);
+			}
+			else if (!perm.isAllowed()) player = this.setSliding(false);
+			else if (PlayerMovementAction.HOP.equals(perm.getAction())) player = this.hop();
+			else
+			{
+				Player movedPlayer = this.setPosition(this.position.move(this.facing));
+				if (!movedPlayer.position.isWithinMap()) player = this.setSliding(false);
+				CollisionPermission nextPerm = movedPlayer.position.getCollision().getPermissionsForStep(this.facing, true);
+				
+				if (!this.flags.containsAll(nextPerm.getFlags())) player = this.setSliding(false);
+				else if (this.position.getMap().hasCoordEventAt(this.position.getX(), this.position.getY())) player = this.setSliding(false);
+				else if (this.position.getMap().hasObjectEventAt(this.position.getX(), this.position.getY())) player = this.setSliding(false);
+				else
+				{
+					warp = movedPlayer.position.getMap().findWarpAt(this.position.getX(), this.position.getY());
+					
+					if (PlayerMovementAction.WARP.equals(perm.getAction()) && warp != null && warp.getDestination() != null)
+					{
+						player = movedPlayer.setSliding(false).setPosition(this.position.warpTo(warp.getDestination()));
+						warpsUsed.add(warp);
+					}
+					else if (!nextPerm.isAllowed()) player = this.setSliding(false);
+					else if (PlayerMovementAction.HOP.equals(nextPerm.getAction())) player = this.hop();
+					else player = this.step(PlayerMovementAction.SLIDE.equals(nextPerm.getAction()));
+				}
+			}
+		}
+		
+		return new PlayerMovementResult(player, warpsUsed);
+	}
 	
 	public Player move(Direction direction)
 	{ return this.setFacing(direction).move(); }
