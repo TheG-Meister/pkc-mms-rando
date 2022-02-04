@@ -33,7 +33,15 @@ public final class Player
 	{
 		public boolean[][] tilesAccessed;
 		public List<Warp> warpsAccessed;
+		public java.util.Map<MapConnection, List<OverworldPosition>> connectionsAccessed;
 		
+		public PlayerMapTravelResult(boolean[][] tilesAccessed, List<Warp> warpsAccessed,
+				java.util.Map<MapConnection, List<OverworldPosition>> connectionsAccessed)
+		{
+			this.tilesAccessed = tilesAccessed;
+			this.warpsAccessed = warpsAccessed;
+			this.connectionsAccessed = connectionsAccessed;
+		}
 	}
 	
 	private final OverworldPosition position;
@@ -337,6 +345,55 @@ public final class Player
 		accessibleCollision.put(map, collisionValid);
 		
 		return accessibleCollision;
+	}
+	
+	public static PlayerMapTravelResult getMapTravelData(Map map, boolean[][] collisionToTest, ArrayList<Flag> flags)
+	{
+		List<Warp> warpsAccessed = new ArrayList<>();
+		java.util.Map<MapConnection, List<OverworldPosition>> connectionsAccessed = new HashMap<>();
+		
+		boolean[][] newCollisionToTest = new boolean[collisionToTest.length][];
+		for (int y = 0; y < collisionToTest.length; y++) newCollisionToTest[y] = Arrays.copyOf(collisionToTest[y], collisionToTest[y].length);
+		boolean[][] collisionTested = new boolean[newCollisionToTest.length][newCollisionToTest[0].length];
+		boolean[][] collisionValid = new boolean[newCollisionToTest.length][newCollisionToTest[0].length];
+		
+		boolean mapChanged;
+		do
+		{
+			mapChanged = false;
+			
+			for (int y = 0; y < newCollisionToTest.length; y++) for (int x = 0; x < newCollisionToTest[y].length; x++) if (!collisionTested[y][x] && newCollisionToTest[y][x])
+			{
+				OverworldPosition position = new OverworldPosition(map, x, y);
+				for (Direction direction : Direction.values())
+				{
+					Player player = new Player(position, direction, false, flags);
+					
+					do
+					{
+						PlayerMovementResult movement = player.getMovement();
+						warpsAccessed.addAll(movement.warpsUsed);
+						for (MapConnection connection : movement.connectionsUsed)
+						{
+							if (!connectionsAccessed.containsKey(connection)) connectionsAccessed.put(connection, new ArrayList<>());
+							connectionsAccessed.get(connection).add(movement.player.getPosition());
+						}
+						player = movement.player;
+					}
+					while (player.isSliding());
+					
+					OverworldPosition nextPosition = player.getPosition();
+					if (!position.equals(nextPosition) && nextPosition.getMap().equals(map)) newCollisionToTest[nextPosition.getY()][nextPosition.getX()] = true;
+				}
+				
+				mapChanged = true;
+				collisionTested[y][x] = true;
+				collisionValid[y][x] = true;
+			}
+		}
+		while (mapChanged);
+		
+		return new PlayerMapTravelResult(collisionValid, warpsAccessed, connectionsAccessed);
 	}
 	
 }
