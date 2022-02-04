@@ -94,8 +94,8 @@ public final class OverworldPosition
 		
 		if (!position.isWithinMap() && position.map.getConnections().get(direction) != null)
 		{
-			position = position.moveThroughConnection(direction);
 			connection = position.map.getConnections().get(direction);
+			position = position.moveThroughConnection(direction);
 		}
 		
 		return new PositionMovementResult(position, connection);

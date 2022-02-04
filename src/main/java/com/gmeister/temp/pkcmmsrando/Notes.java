@@ -22,7 +22,10 @@ import com.gmeister.temp.pkcmmsrando.map.data.CollisionPermission;
 import com.gmeister.temp.pkcmmsrando.map.data.Disassembly;
 import com.gmeister.temp.pkcmmsrando.map.data.Flag;
 import com.gmeister.temp.pkcmmsrando.map.data.Map;
+import com.gmeister.temp.pkcmmsrando.map.data.MapConnection;
+import com.gmeister.temp.pkcmmsrando.map.data.OverworldPosition;
 import com.gmeister.temp.pkcmmsrando.map.data.Player;
+import com.gmeister.temp.pkcmmsrando.map.data.Player.PlayerMapTravelResult;
 import com.gmeister.temp.pkcmmsrando.map.data.TileSet;
 import com.gmeister.temp.pkcmmsrando.map.data.Warp;
 import com.gmeister.temp.pkcmmsrando.map.data.WarpNetwork;
@@ -341,7 +344,60 @@ public class Notes
 		 * Travelling through map connections is allowed
 		 */
 		
-		return rando.shuffleWarpGroups(warpGroups, false, true);
+		java.util.Map<List<Warp>, List<List<Warp>>> networkMap = new HashMap<>();
+		for (List<Warp> warp : warpGroups) networkMap.put(warp, new ArrayList<>());
+		for (List<Warp> warpGroup : warpGroups)
+		{
+			Warp warp = warpGroup.get(0);
+			java.util.Map<Map, boolean[][]> accessibleCollision = new HashMap<>();
+			boolean[][] startCollision = new boolean[warp.getMap().getBlocks().getCollisionYCapacity()][warp.getMap().getBlocks().getCollisionXCapacity()];
+			startCollision[warp.getY()][warp.getX()] = true;
+			accessibleCollision.put(warp.getMap(), startCollision);
+			
+			List<Map> mapsToTest = new ArrayList<>(accessibleCollision.keySet());
+			
+			while (mapsToTest.size() > 0)
+			{
+				Map map = mapsToTest.remove(0);
+				
+				PlayerMapTravelResult result = Player.getMapTravelData(map, accessibleCollision.get(map), new ArrayList<>());
+				
+				for (Warp otherWarp : result.warpsAccessed) if (!warpGroup.contains(otherWarp))
+				{
+					List<Warp> otherGroup = warpGroups.stream().filter(g -> g.contains(otherWarp)).findFirst().orElse(null);
+					if (otherGroup != null && !networkMap.get(warpGroup).contains(otherGroup)) networkMap.get(warpGroup).add(otherGroup);
+				}
+				
+				for (MapConnection connection : result.connectionsAccessed.keySet())
+				{
+					boolean[][] mapCollision;
+					if (accessibleCollision.containsKey(connection.getMap())) mapCollision = accessibleCollision.get(connection.getMap());
+					else mapCollision = new boolean[connection.getMap().getBlocks().getCollisionYCapacity()][connection.getMap().getBlocks().getCollisionXCapacity()];
+					
+					boolean changed = false;
+					for (OverworldPosition position : result.connectionsAccessed.get(connection))
+					{
+						if (position.getMap() != connection.getMap()) throw new IllegalStateException();
+						if (!mapCollision[position.getY()][position.getX()])
+						{
+							changed = true;
+							mapCollision[position.getY()][position.getX()] = true;
+						}
+					}
+					
+					if (changed)
+					{
+						accessibleCollision.put(connection.getMap(), mapCollision);
+						if (!mapsToTest.contains(connection.getMap())) mapsToTest.add(connection.getMap());
+					}
+				}
+			}
+		}
+		
+		WarpNetwork network = new WarpNetwork(networkMap);
+		//network.print();
+		
+		return rando.buildWarpGroups(network, false, true, true);
 	}
 	
 	public static ArrayList<String> randomiseMusicPointers(DisassemblyReader reader, Randomiser rando) throws FileNotFoundException, IOException

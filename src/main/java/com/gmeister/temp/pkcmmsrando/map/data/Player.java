@@ -135,33 +135,36 @@ public final class Player
 			{
 				Player movedPlayer = this.setPosition(this.position.move(this.facing));
 				if (!movedPlayer.position.isWithinMap()) player = this.setSliding(false);
-				CollisionPermission nextPerm = movedPlayer.position.getCollision().getPermissionsForStep(this.facing, true);
-				
-				if (!this.flags.containsAll(nextPerm.getFlags())) player = this.setSliding(false);
-				else if (this.position.getMap().hasCoordEventAt(this.position.getX(), this.position.getY())) player = this.setSliding(false);
-				else if (this.position.getMap().hasObjectEventAt(this.position.getX(), this.position.getY())) player = this.setSliding(false);
 				else
 				{
-					warp = movedPlayer.position.getMap().findWarpAt(this.position.getX(), this.position.getY());
+					CollisionPermission nextPerm = movedPlayer.position.getCollision().getPermissionsForStep(this.facing, true);
 					
-					if (PlayerMovementAction.WARP.equals(perm.getAction()) && warp != null && warp.getDestination() != null)
-					{
-						player = movedPlayer.setSliding(false).setPosition(this.position.warpTo(warp.getDestination()));
-						warpsUsed.add(warp);
-					}
-					else if (!nextPerm.isAllowed()) player = this.setSliding(false);
-					else if (PlayerMovementAction.HOP.equals(nextPerm.getAction()))
-					{
-						PlayerMovementResult hopResult = this.getHopMovement();
-						player = hopResult.player;
-						if (hopResult.connectionsUsed != null) for (MapConnection connection : hopResult.connectionsUsed) if (connection != null) connectionsUsed.add(connection);
-					}
+					if (!this.flags.containsAll(nextPerm.getFlags())) player = this.setSliding(false);
+					else if (movedPlayer.position.getMap().hasCoordEventAt(movedPlayer.position.getX(), movedPlayer.position.getY())) player = this.setSliding(false);
+					else if (movedPlayer.position.getMap().hasObjectEventAt(movedPlayer.position.getX(), movedPlayer.position.getY())) player = this.setSliding(false);
 					else
 					{
-						boolean sliding = PlayerMovementAction.SLIDE.equals(nextPerm.getAction());
-						PlayerMovementResult stepResult = this.getStepMovement(sliding);
-						player = stepResult.player;
-						if (stepResult.connectionsUsed != null) for (MapConnection connection : stepResult.connectionsUsed) if (connection != null) connectionsUsed.add(connection);
+						warp = movedPlayer.position.getMap().findWarpAt(movedPlayer.position.getX(), movedPlayer.position.getY());
+						
+						if (PlayerMovementAction.WARP.equals(nextPerm.getAction()) && warp != null && warp.getDestination() != null)
+						{
+							player = movedPlayer.setSliding(false).setPosition(movedPlayer.position.warpTo(warp.getDestination()));
+							warpsUsed.add(warp);
+						}
+						else if (!nextPerm.isAllowed()) player = this.setSliding(false);
+						else if (PlayerMovementAction.HOP.equals(nextPerm.getAction()))
+						{
+							PlayerMovementResult hopResult = this.getHopMovement();
+							player = hopResult.player;
+							if (hopResult.connectionsUsed != null) for (MapConnection connection : hopResult.connectionsUsed) if (connection != null) connectionsUsed.add(connection);
+						}
+						else
+						{
+							boolean sliding = PlayerMovementAction.SLIDE.equals(nextPerm.getAction());
+							PlayerMovementResult stepResult = this.getStepMovement(sliding);
+							player = stepResult.player;
+							if (stepResult.connectionsUsed != null) for (MapConnection connection : stepResult.connectionsUsed) if (connection != null) connectionsUsed.add(connection);
+						}
 					}
 				}
 			}
