@@ -5,6 +5,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
+import com.gmeister.temp.pkcmmsrando.map.data.OverworldPosition.PositionMovementResult;
+
 /*
  * A player has a bunch of flags they can obtain, as well as stuff like items, pokemon, etc.
  * They can move across maps, battle trainers, interact with anything, etc.
@@ -17,12 +19,21 @@ public final class Player
 	{
 		public Player player;
 		public List<Warp> warpsUsed;
+		public List<MapConnection> connectionsUsed;
 		
-		public PlayerMovementResult(Player player, List<Warp> warpsUsed)
+		public PlayerMovementResult(Player player, List<Warp> warpsUsed, List<MapConnection> connectionsUsed)
 		{
 			this.player = player;
 			this.warpsUsed = warpsUsed;
+			this.connectionsUsed = connectionsUsed;
 		}
+	}
+	
+	public static final class PlayerMapTravelResult
+	{
+		public boolean[][] tilesAccessed;
+		public List<Warp> warpsAccessed;
+		
 	}
 	
 	private final OverworldPosition position;
@@ -91,6 +102,7 @@ public final class Player
 	{
 		Player player;
 		List<Warp> warpsUsed = new ArrayList<>();
+		List<MapConnection> connectionsUsed = new ArrayList<>();
 		
 		CollisionPermission perm = this.position.getCollision().getPermissionsForStep(this.facing, false);
 		
@@ -105,7 +117,12 @@ public final class Player
 				warpsUsed.add(warp);
 			}
 			else if (!perm.isAllowed()) player = this.setSliding(false);
-			else if (PlayerMovementAction.HOP.equals(perm.getAction())) player = this.hop();
+			else if (PlayerMovementAction.HOP.equals(perm.getAction()))
+			{
+				PlayerMovementResult hopResult = this.getHopMovement();
+				player = hopResult.player;
+				if (hopResult.connectionsUsed != null) for (MapConnection connection : hopResult.connectionsUsed) if (connection != null) connectionsUsed.add(connection);
+			}
 			else
 			{
 				Player movedPlayer = this.setPosition(this.position.move(this.facing));
@@ -125,13 +142,24 @@ public final class Player
 						warpsUsed.add(warp);
 					}
 					else if (!nextPerm.isAllowed()) player = this.setSliding(false);
-					else if (PlayerMovementAction.HOP.equals(nextPerm.getAction())) player = this.hop();
-					else player = this.step(PlayerMovementAction.SLIDE.equals(nextPerm.getAction()));
+					else if (PlayerMovementAction.HOP.equals(nextPerm.getAction()))
+					{
+						PlayerMovementResult hopResult = this.getHopMovement();
+						player = hopResult.player;
+						if (hopResult.connectionsUsed != null) for (MapConnection connection : hopResult.connectionsUsed) if (connection != null) connectionsUsed.add(connection);
+					}
+					else
+					{
+						boolean sliding = PlayerMovementAction.SLIDE.equals(nextPerm.getAction());
+						PlayerMovementResult stepResult = this.getStepMovement(sliding);
+						player = stepResult.player;
+						if (stepResult.connectionsUsed != null) for (MapConnection connection : stepResult.connectionsUsed) if (connection != null) connectionsUsed.add(connection);
+					}
 				}
 			}
 		}
 		
-		return new PlayerMovementResult(player, warpsUsed);
+		return new PlayerMovementResult(player, warpsUsed, connectionsUsed);
 	}
 	
 	public Player move(Direction direction)
@@ -181,11 +209,42 @@ public final class Player
 		else return null;
 	}
 	
+	public PlayerMovementResult getHopMovement()
+	{
+		PositionMovementResult movement = this.position.getMovement(this.facing, 2);
+		boolean sliding = PlayerMovementAction.SLIDE.equals(movement.position.getCollision().getPermissionsForStep(this.facing, true).getAction());
+		
+		Player player = new Player(movement.position, this.facing, sliding, this.flags);
+		List<MapConnection> connectionsUsed = null;
+		if (movement.connectionUsed != null)
+		{
+			connectionsUsed = new ArrayList<>();
+			connectionsUsed.add(movement.connectionUsed);
+		}
+		
+		return new PlayerMovementResult(player, null, connectionsUsed);
+	}
+	
 	public Player hop()
 	{
 		OverworldPosition nextPosition = this.position.move(this.facing, 2);
 		boolean sliding = PlayerMovementAction.SLIDE.equals(nextPosition.getCollision().getPermissionsForStep(this.facing, true).getAction());
 		return new Player(nextPosition, this.facing, sliding, this.flags);
+	}
+	
+	public PlayerMovementResult getStepMovement(boolean sliding)
+	{
+		PositionMovementResult movement = this.position.getMovement(this.facing, 1);
+		
+		Player player = new Player(movement.position, this.facing, sliding, new ArrayList<>(this.flags));
+		List<MapConnection> connectionsUsed = null;
+		if (movement.connectionUsed != null)
+		{
+			connectionsUsed = new ArrayList<>();
+			connectionsUsed.add(movement.connectionUsed);
+		}
+		
+		return new PlayerMovementResult(player, null, connectionsUsed);
 	}
 	
 	public Player step(boolean sliding)

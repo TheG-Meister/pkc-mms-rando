@@ -9,6 +9,17 @@ package com.gmeister.temp.pkcmmsrando.map.data;
  */
 public final class OverworldPosition
 {
+	public static class PositionMovementResult
+	{
+		public OverworldPosition position;
+		public MapConnection connectionUsed;
+		
+		public PositionMovementResult(OverworldPosition position, MapConnection connectionUsed)
+		{
+			this.position = position;
+			this.connectionUsed = connectionUsed;
+		}
+	}
 
 	private final Map map;
 	private final int x;
@@ -74,6 +85,20 @@ public final class OverworldPosition
 		OverworldPosition position = this.add(direction.getDx() * multiplier, direction.getDy() * multiplier);
 		if (!position.isWithinMap() && position.map.getConnections().get(direction) != null) position = position.moveThroughConnection(direction);
 		return position;
+	}
+	
+	public final PositionMovementResult getMovement(Direction direction, int multiplier)
+	{
+		OverworldPosition position = this.add(direction.getDx() * multiplier, direction.getDy() * multiplier);
+		MapConnection connection = null;
+		
+		if (!position.isWithinMap() && position.map.getConnections().get(direction) != null)
+		{
+			position = position.moveThroughConnection(direction);
+			connection = position.map.getConnections().get(direction);
+		}
+		
+		return new PositionMovementResult(position, connection);
 	}
 
 	public final Map getMap()
