@@ -9,6 +9,7 @@ import java.io.InputStreamReader;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import com.gmeister.temp.pkcmmsrando.map.data.CollisionConstant;
@@ -164,6 +165,49 @@ public class EmpiricalDataReader
 			}
 			for (String line : lines) groups.add(line.split("\t"));
 			return groups;
+		}
+	}
+	
+	public List<CollisionConstant> readCoordEventCollision(List<CollisionPermission> perms) throws IOException
+	{
+		try (InputStream stream = this.getClass().getClassLoader().getResourceAsStream("coord-event-collision.tsv"))
+		{
+			if (stream == null) throw new FileNotFoundException("Could not find coord-event-collision.tsv");
+			
+			List<CollisionConstant> constants = new ArrayList<>();
+			List<Direction> directions = new ArrayList<>(Arrays.asList(Direction.UP, Direction.DOWN, Direction.LEFT, Direction.RIGHT));
+			List<String> onPerms = new ArrayList<>(Arrays.asList("on up", "on down", "on left", "on right"));
+			List<String> offPerms = new ArrayList<>(Arrays.asList("off up", "off down", "off left", "off right"));
+			boolean[] steps = {true, false};
+			
+			try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, "UTF-8")))
+			{
+				if (!reader.ready()) throw new IOException("The file could not be read or was empty");
+				List<String> headers = new ArrayList<>(Arrays.asList(reader.readLine().split("\t")));
+				
+				while (reader.ready())
+				{
+					String line = reader.readLine();
+					String[] args = line.split("\t");
+					
+					CollisionConstant constant = new CollisionConstant();
+					constant.setName(args[headers.indexOf("map")]);
+					
+					for (int i = 0; i < directions.size(); i++) if (headers.indexOf(onPerms.get(i)) < args.length && headers.indexOf(offPerms.get(i)) < args.length)
+					{
+						String[] permNames = {args[headers.indexOf(onPerms.get(i))], args[headers.indexOf(offPerms.get(i))]};
+						for (int j = 0; j < 2; j++) for (CollisionPermission perm : perms) if (perm.getName().equals(permNames[j]))
+						{
+							constant.setPermissionsForStep(directions.get(i), steps[j], perm);
+							break;
+						}
+					}
+					
+					constants.add(constant);
+				}
+			}
+			
+			return constants;
 		}
 	}
 	

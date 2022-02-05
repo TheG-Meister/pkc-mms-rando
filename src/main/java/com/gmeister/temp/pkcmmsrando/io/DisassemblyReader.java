@@ -404,7 +404,7 @@ public class DisassemblyReader
 					int x = Integer.parseInt(args[0]);
 					int y = Integer.parseInt(args[1]);
 					
-					map.getCoordEvents().add(new CoordEvent(new OverworldPosition(map, x, y)));
+					map.getCoordEvents().add(new CoordEvent(new OverworldPosition(map, x, y), null));
 				}
 			}
 		}

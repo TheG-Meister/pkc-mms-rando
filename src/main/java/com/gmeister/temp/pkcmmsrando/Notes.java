@@ -18,7 +18,9 @@ import java.util.stream.Collectors;
 import com.gmeister.temp.pkcmmsrando.io.DisassemblyReader;
 import com.gmeister.temp.pkcmmsrando.io.DisassemblyWriter;
 import com.gmeister.temp.pkcmmsrando.io.EmpiricalDataReader;
+import com.gmeister.temp.pkcmmsrando.map.data.CollisionConstant;
 import com.gmeister.temp.pkcmmsrando.map.data.CollisionPermission;
+import com.gmeister.temp.pkcmmsrando.map.data.CoordEvent;
 import com.gmeister.temp.pkcmmsrando.map.data.Disassembly;
 import com.gmeister.temp.pkcmmsrando.map.data.Flag;
 import com.gmeister.temp.pkcmmsrando.map.data.Map;
@@ -564,6 +566,14 @@ public class Notes
 			disassembly.setCollisionConstants(empReader.readCollisionConstants(perms));
 			disassembly.setTileSets(disReader.readTileSets(disassembly.getCollisionConstants()));
 			disassembly.setMaps(disReader.readMaps(disassembly.getTileSets(), allFlags));
+			
+			List<CollisionConstant> coordEventConstants = empReader.readCoordEventCollision(perms);
+			for (Map map : disassembly.getMaps())
+			{
+				CollisionConstant constant = coordEventConstants.stream().filter(c -> c.getName().equals(map.getConstName())).findFirst().orElse(null);
+				if (constant != null)
+					for (CoordEvent event : map.getCoordEvents()) event.setSimulatedCollision(constant);
+			}
 		}
 		
 		if (warps && warpAreas) System.err.println("Error: choose one of --warps and --warp-areas");
