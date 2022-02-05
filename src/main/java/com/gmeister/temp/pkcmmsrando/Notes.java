@@ -568,11 +568,11 @@ public class Notes
 			disassembly.setMaps(disReader.readMaps(disassembly.getTileSets(), allFlags));
 			
 			List<CollisionConstant> coordEventConstants = empReader.readCoordEventCollision(perms);
+			CollisionConstant floor = disassembly.getCollisionConstants().stream().filter(c -> c.getName().equals("COLL_FLOOR")).findFirst().orElseThrow();
 			for (Map map : disassembly.getMaps())
 			{
-				CollisionConstant constant = coordEventConstants.stream().filter(c -> c.getName().equals(map.getConstName())).findFirst().orElse(null);
-				if (constant != null)
-					for (CoordEvent event : map.getCoordEvents()) event.setSimulatedCollision(constant);
+				CollisionConstant constant = coordEventConstants.stream().filter(c -> c.getName().equals(map.getConstName())).findFirst().orElse(floor);
+				for (CoordEvent event : map.getCoordEvents()) event.setSimulatedCollision(constant);
 			}
 		}
 		
