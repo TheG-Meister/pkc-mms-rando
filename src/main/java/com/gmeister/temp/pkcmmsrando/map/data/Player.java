@@ -48,7 +48,7 @@ public final class Player
 	private final Direction facing;
 	private final boolean sliding;
 	
-	private ArrayList<Flag> flags;
+	private List<Flag> flags;
 	
 	public Player()
 	{
@@ -66,7 +66,7 @@ public final class Player
 		this.flags = new ArrayList<>(Arrays.asList(flags));
 	}
 	
-	public Player(OverworldPosition position, Direction facing, boolean sliding, ArrayList<Flag> flags)
+	public Player(OverworldPosition position, Direction facing, boolean sliding, List<Flag> flags)
 	{
 		this.position = position;
 		this.facing = facing;
@@ -100,10 +100,10 @@ public final class Player
 	public Player setSliding(boolean sliding)
 	{ return new Player(this.position, this.facing, sliding, this.flags); }
 
-	public ArrayList<Flag> getFlags()
+	public List<Flag> getFlags()
 	{ return new ArrayList<>(this.flags); }
 	
-	public Player setFlags(ArrayList<Flag> flags)
+	public Player setFlags(List<Flag> flags)
 	{ return new Player(this.position, this.facing, this.sliding, flags); }
 	
 	public PlayerMovementResult getMovement()
@@ -350,7 +350,7 @@ public final class Player
 		return accessibleCollision;
 	}
 	
-	public static PlayerMapTravelResult getMapTravelData(Map map, boolean[][] collisionToTest, ArrayList<Flag> flags)
+	public static PlayerMapTravelResult getMapTravelData(Map map, boolean[][] collisionToTest, List<Flag> flags)
 	{
 		List<Warp> warpsAccessed = new ArrayList<>();
 		java.util.Map<MapConnection, List<OverworldPosition>> connectionsAccessed = new HashMap<>();
@@ -372,21 +372,29 @@ public final class Player
 				{
 					Player player = new Player(position, direction, false, flags);
 					
+					boolean warped = false;
 					do
 					{
 						PlayerMovementResult movement = player.getMovement();
-						warpsAccessed.addAll(movement.warpsUsed);
+						player = movement.player;
+						
 						for (MapConnection connection : movement.connectionsUsed)
 						{
 							if (!connectionsAccessed.containsKey(connection)) connectionsAccessed.put(connection, new ArrayList<>());
 							connectionsAccessed.get(connection).add(movement.player.getPosition());
 						}
-						player = movement.player;
+						
+						if (!movement.warpsUsed.isEmpty())
+						{
+							warpsAccessed.addAll(movement.warpsUsed);
+							warped = true;
+							break;
+						}
 					}
 					while (player.isSliding());
 					
 					OverworldPosition nextPosition = player.getPosition();
-					if (!position.equals(nextPosition) && nextPosition.getMap().equals(map)) newCollisionToTest[nextPosition.getY()][nextPosition.getX()] = true;
+					if (!position.equals(nextPosition) && !warped && nextPosition.getMap().equals(map)) newCollisionToTest[nextPosition.getY()][nextPosition.getX()] = true;
 				}
 				
 				mapChanged = true;

@@ -272,7 +272,7 @@ public class Notes
 		return selectedMaps;
 	}
 	
-	public static java.util.Map<Warp, Warp> randomiseWarps(ArrayList<Map> maps, Randomiser rando) throws IOException
+	public static java.util.Map<Warp, Warp> randomiseWarps(ArrayList<Map> maps, Randomiser rando, List<Flag> flags) throws IOException
 	{
 		//Collect a bunch of maps to manually edit warps
 		Map victoryRoadGate = maps.stream().filter(m -> m.getConstName().equals("VICTORY_ROAD_GATE")).findFirst().orElseThrow();
@@ -395,7 +395,7 @@ public class Notes
 		}
 		
 		WarpNetwork network = new WarpNetwork(networkMap);
-		//network.print();
+		network.print();
 		
 		return rando.buildWarpGroups(network, false, true, true);
 	}
@@ -570,7 +570,7 @@ public class Notes
 		else if (warps)
 		{
 			if (disReader == null) System.out.println("Error: Randomisers require -d");
-			java.util.Map<Warp, Warp> newTargets = Notes.randomiseWarps(disassembly.getMaps(), rando);
+			java.util.Map<Warp, Warp> newTargets = Notes.randomiseWarps(disassembly.getMaps(), rando, allFlags);
 			
 			for (Map map : disassembly.getMaps()) for (Warp warp : map.getWarps()) if (newTargets.containsKey(warp)) warp.setDestination(newTargets.get(warp));
 			

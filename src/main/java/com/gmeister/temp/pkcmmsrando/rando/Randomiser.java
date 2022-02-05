@@ -348,14 +348,14 @@ public class Randomiser
 		if (network.getComponents().size() > 1) throw new IllegalStateException("Not all components were joined together");
 		if (!network.getOneWayBranches().isEmpty()) throw new IllegalStateException("Not all one-way branches were given an alternative path");
 		
-		for (List<Warp> warpGroup : network.getNetwork().keySet())
+		/*for (List<Warp> warpGroup : network.getNetwork().keySet())
 		{
 			List<List<Warp>> groupsBelow = network.getAllAccessees(warpGroup);
 			
 			System.out.print(warpGroup.get(0).getPosition());
 			for (List<Warp> otherGroup : network.getNetwork().keySet()) System.out.print("\t" + (groupsBelow.contains(otherGroup) ? 1 : 0));
 			System.out.println();
-		}
+		}*/
 		
 		java.util.Map<Warp, Warp> output = new HashMap<>();
 		for (int i = 0; i < newSources.size(); i++)
