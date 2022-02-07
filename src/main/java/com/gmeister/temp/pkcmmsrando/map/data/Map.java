@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class Map
 {
@@ -150,6 +151,11 @@ public class Map
 	{
 		for (CoordEvent coord : this.getCoordEvents()) if (coord.getPosition().getX() == x && coord.getPosition().getY() == y) return true;
 		return false;
+	}
+	
+	public List<CoordEvent> getCoordEventsAt(int x, int y)
+	{
+		return this.coordEvents.stream().filter(e -> e.getPosition().getX() == x && e.getPosition().getY() == y).collect(Collectors.toList());
 	}
 	
 	public ArrayList<Map> getConnectingMaps()

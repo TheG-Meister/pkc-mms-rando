@@ -21,6 +21,19 @@ public final class Player
 		public List<Warp> warpsUsed;
 		public List<MapConnection> connectionsUsed;
 		
+		public PlayerMovementResult()
+		{
+			this.warpsUsed = new ArrayList<>();
+			this.connectionsUsed = new ArrayList<>();
+		}
+		
+		public PlayerMovementResult(Player player)
+		{
+			this.player = player;
+			this.warpsUsed = new ArrayList<>();
+			this.connectionsUsed = new ArrayList<>();
+		}
+		
 		public PlayerMovementResult(Player player, List<Warp> warpsUsed, List<MapConnection> connectionsUsed)
 		{
 			this.player = player;
@@ -108,69 +121,50 @@ public final class Player
 	
 	public PlayerMovementResult getMovement()
 	{
-		Player player;
-		List<Warp> warpsUsed = new ArrayList<>();
-		List<MapConnection> connectionsUsed = new ArrayList<>();
-		
-		CollisionPermission perm = this.position.getCollision().getPermissionsForStep(this.facing, false);
-		
-		if (!this.flags.containsAll(perm.getFlags())) player = this.setSliding(false);
-		else
+		List<CoordEvent> coordEvents = this.position.getMap().getCoordEventsAt(this.position.getX(), this.position.getY());
+		for (CoordEvent event : coordEvents)
 		{
-			Warp warp = this.position.getMap().findWarpAt(this.position.getX(), this.position.getY());
-			
-			if (PlayerMovementAction.WARP.equals(perm.getAction()) && warp != null && warp.getDestination() != null)
-			{
-				player = this.setSliding(false).setPosition(this.position.warpTo(warp.getDestination()));
-				warpsUsed.add(warp);
-			}
-			else if (!perm.isAllowed()) player = this.setSliding(false);
-			else if (PlayerMovementAction.HOP.equals(perm.getAction()))
-			{
-				PlayerMovementResult hopResult = this.getHopMovement();
-				player = hopResult.player;
-				if (hopResult.connectionsUsed != null) for (MapConnection connection : hopResult.connectionsUsed) if (connection != null) connectionsUsed.add(connection);
-			}
-			else
-			{
-				Player movedPlayer = this.setPosition(this.position.move(this.facing));
-				if (!movedPlayer.position.isWithinMap()) player = this.setSliding(false);
-				else
-				{
-					CollisionPermission nextPerm = movedPlayer.position.getCollision().getPermissionsForStep(this.facing, true);
-					
-					if (!this.flags.containsAll(nextPerm.getFlags())) player = this.setSliding(false);
-					else if (movedPlayer.position.getMap().hasCoordEventAt(movedPlayer.position.getX(), movedPlayer.position.getY())) player = this.setSliding(false);
-					else if (movedPlayer.position.getMap().hasObjectEventAt(movedPlayer.position.getX(), movedPlayer.position.getY())) player = this.setSliding(false);
-					else
-					{
-						warp = movedPlayer.position.getMap().findWarpAt(movedPlayer.position.getX(), movedPlayer.position.getY());
-						
-						if (PlayerMovementAction.WARP.equals(nextPerm.getAction()) && warp != null && warp.getDestination() != null)
-						{
-							player = movedPlayer.setSliding(false).setPosition(movedPlayer.position.warpTo(warp.getDestination()));
-							warpsUsed.add(warp);
-						}
-						else if (!nextPerm.isAllowed()) player = this.setSliding(false);
-						else if (PlayerMovementAction.HOP.equals(nextPerm.getAction()))
-						{
-							PlayerMovementResult hopResult = this.getHopMovement();
-							player = hopResult.player;
-							if (hopResult.connectionsUsed != null) for (MapConnection connection : hopResult.connectionsUsed) if (connection != null) connectionsUsed.add(connection);
-						}
-						else
-						{
-							boolean sliding = PlayerMovementAction.SLIDE.equals(nextPerm.getAction());
-							PlayerMovementResult stepResult = this.getStepMovement(sliding);
-							player = stepResult.player;
-							if (stepResult.connectionsUsed != null) for (MapConnection connection : stepResult.connectionsUsed) if (connection != null) connectionsUsed.add(connection);
-						}
-					}
-				}
-			}
+			PlayerMovementResult result = this.getMovement(event.getSimulatedCollision().getPermissionsForStep(this.facing, false), this.position);
+			if (result != null) return result;
 		}
 		
-		return new PlayerMovementResult(player, warpsUsed, connectionsUsed);
+		PlayerMovementResult stepOffResult = this.getMovement(this.position.getCollision().getPermissionsForStep(this.facing, false), this.position);
+		if (stepOffResult != null) return stepOffResult;
+		
+		OverworldPosition nextPosition = this.position.move(this.facing);
+		//check object events for the next tile
+		if (!nextPosition.isWithinMap() || nextPosition.getMap().hasObjectEventAt(nextPosition.getX(), nextPosition.getY())) return new PlayerMovementResult(this.setSliding(false));
+		
+		//check coord events for the next tile
+		List<CoordEvent> nextCoordEvents = this.position.getMap().getCoordEventsAt(this.position.getX(), this.position.getY());
+		for (CoordEvent event : nextCoordEvents)
+		{
+			PlayerMovementResult result = this.getMovement(event.getSimulatedCollision().getPermissionsForStep(this.facing, true), nextPosition);
+			if (result != null) return result;
+		}
+		
+		//check movement permission for the next tile
+		PlayerMovementResult stepOnResult = this.getMovement(nextPosition.getCollision().getPermissionsForStep(this.facing, true), nextPosition);
+		if (stepOnResult != null) return stepOnResult;
+		
+		//return step
+		return this.getStepMovement();
+	}
+	
+	private PlayerMovementResult getMovement(CollisionPermission perm, OverworldPosition position)
+	{
+		PlayerMovementResult stop = new PlayerMovementResult(this.setSliding(false));
+		
+		if (!this.flags.containsAll(perm.getFlags())) return stop;
+		else
+		{
+			Warp warp = position.getMap().findWarpAt(position.getX(), position.getY());
+			
+			if (PlayerMovementAction.WARP.equals(perm.getAction()) && warp != null && warp.getDestination() != null) return this.getWarpAction(warp);
+			else if (!perm.isAllowed()) return stop;
+			else if (PlayerMovementAction.HOP.equals(perm.getAction())) return this.getHopMovement();
+			else return null;
+		}
 	}
 	
 	public Player move(Direction direction)
@@ -210,6 +204,11 @@ public final class Player
 		}
 	}
 	
+	public PlayerMovementResult getWarpAction(Warp warp)
+	{
+		return new PlayerMovementResult(new Player(this.position.warpTo(warp), this.facing, false, this.flags), new ArrayList<>(Arrays.asList(warp)), null);
+	}
+	
 	public Player attemptWarp()
 	{
 		//Find a warp for the provided position, warping to it and returning true if it exists
@@ -243,9 +242,10 @@ public final class Player
 		return new Player(nextPosition, this.facing, sliding, this.flags);
 	}
 	
-	public PlayerMovementResult getStepMovement(boolean sliding)
+	public PlayerMovementResult getStepMovement()
 	{
 		PositionMovementResult movement = this.position.getMovement(this.facing, 1);
+		boolean sliding = PlayerMovementAction.SLIDE.equals(movement.position.getCollision().getPermissionsForStep(this.facing, true).getAction());
 		
 		Player player = new Player(movement.position, this.facing, sliding, new ArrayList<>(this.flags));
 		List<MapConnection> connectionsUsed = null;
@@ -378,13 +378,13 @@ public final class Player
 						PlayerMovementResult movement = player.getMovement();
 						player = movement.player;
 						
-						for (MapConnection connection : movement.connectionsUsed)
+						if (movement.connectionsUsed != null) for (MapConnection connection : movement.connectionsUsed)
 						{
 							if (!connectionsAccessed.containsKey(connection)) connectionsAccessed.put(connection, new ArrayList<>());
 							connectionsAccessed.get(connection).add(movement.player.getPosition());
 						}
 						
-						if (!movement.warpsUsed.isEmpty())
+						if (movement.warpsUsed != null && !movement.warpsUsed.isEmpty())
 						{
 							warpsAccessed.addAll(movement.warpsUsed);
 							warped = true;

@@ -362,7 +362,7 @@ public class Notes
 			{
 				Map map = mapsToTest.remove(0);
 				
-				PlayerMapTravelResult result = Player.getMapTravelData(map, accessibleCollision.get(map), new ArrayList<>());
+				PlayerMapTravelResult result = Player.getMapTravelData(map, accessibleCollision.get(map), flags);
 				
 				for (Warp otherWarp : result.warpsAccessed) if (!warpGroup.contains(otherWarp))
 				{
