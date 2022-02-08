@@ -473,6 +473,8 @@ public class DisassemblyReader
 		
 		return script;
 	}
+	private ArrayList<Constant> importConstants(File f) throws FileNotFoundException, IOException
+	{ return this.importConstants(f, false); }
 	
 	/**
 	 * Imports Constants from a File.
@@ -483,7 +485,7 @@ public class DisassemblyReader
 	 * @throws FileNotFoundException if the input file cannot be found
 	 * @throws IOException           if an IO exception occurs
 	 */
-	private ArrayList<Constant> importConstants(File f) throws FileNotFoundException, IOException
+	private ArrayList<Constant> importConstants(File f, boolean skipUnreadableLines) throws FileNotFoundException, IOException
 	{
 		ArrayList<Constant> constants = new ArrayList<>();
 		Pattern equPattern = Pattern.compile("\\s+EQU\\s+");
@@ -512,7 +514,13 @@ public class DisassemblyReader
 					if (args[1].startsWith("$")) value = Integer.parseInt(args[1].substring(1), 16);
 					else if (args[1].equals("const_value")) value = count;
 					else if (args[1].equals("const_value - 1")) value = count - 1;
-					else value = Integer.parseInt(args[1]);
+					else try
+					{ value = Integer.parseInt(args[1]); }
+					catch (NumberFormatException e)
+					{
+						if (skipUnreadableLines) continue;
+						else throw e;
+					}
 					
 					constants.add(new Constant(args[0], value));
 				}
