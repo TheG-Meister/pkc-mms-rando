@@ -81,6 +81,11 @@ public class DisassemblyReader
 		return output;
 	}
 	
+	public List<Constant> readMapDataConstants() throws FileNotFoundException, IOException
+	{
+		return this.importConstants(this.dir.toPath().resolve("constants/map_object_constants.asm").toFile(), true);
+	}
+	
 	public ArrayList<TileSet> readTileSets(ArrayList<CollisionConstant> collisionConstants) throws FileNotFoundException, IOException
 	{
 		ArrayList<TileSet> tileSets = new ArrayList<>();
@@ -176,7 +181,7 @@ public class DisassemblyReader
 		return tileSets;
 	}
 	
-	public ArrayList<Map> readMaps(ArrayList<TileSet> tileSets, List<Flag> flags) throws IOException
+	public ArrayList<Map> readMaps(ArrayList<TileSet> tileSets, List<Flag> flags, List<Constant> mapDataConstants) throws IOException
 	{
 		/*
 		 * Plan:
@@ -390,8 +395,9 @@ public class DisassemblyReader
 					int x = Integer.parseInt(args[0]);
 					int y = Integer.parseInt(args[1]);
 					Flag flag = flags.stream().filter(f -> args[12].equals(f.getName())).findFirst().orElse(null);
+					Constant moveData = mapDataConstants.stream().filter(c -> c.getName().equals(args[3])).findFirst().orElseThrow();
 					
-					map.getObjectEvents().add(new ObjectEvent(new OverworldPosition(map, x, y), flag));
+					map.getObjectEvents().add(new ObjectEvent(new OverworldPosition(map, x, y), flag, moveData));
 				}
 				
 				if (coordEventPattern.matcher(line).find())

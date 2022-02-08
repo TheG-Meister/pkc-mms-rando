@@ -565,7 +565,8 @@ public class Notes
 			
 			disassembly.setCollisionConstants(empReader.readCollisionConstants(perms));
 			disassembly.setTileSets(disReader.readTileSets(disassembly.getCollisionConstants()));
-			disassembly.setMaps(disReader.readMaps(disassembly.getTileSets(), allFlags));
+			disassembly.setMapDataConstants(disReader.readMapDataConstants());
+			disassembly.setMaps(disReader.readMaps(disassembly.getTileSets(), allFlags, disassembly.getMapDataConstants()));
 			
 			List<CollisionConstant> coordEventConstants = empReader.readCoordEventCollision(perms);
 			CollisionConstant floor = disassembly.getCollisionConstants().stream().filter(c -> c.getName().equals("COLL_FLOOR")).findFirst().orElseThrow();

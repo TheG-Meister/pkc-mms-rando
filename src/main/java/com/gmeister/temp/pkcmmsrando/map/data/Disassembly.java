@@ -1,6 +1,7 @@
 package com.gmeister.temp.pkcmmsrando.map.data;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class Disassembly
 {
@@ -9,6 +10,7 @@ public class Disassembly
 	private ArrayList<Flag> eventFlags;
 	private ArrayList<TileSet> tileSets;
 	private ArrayList<Map> maps;
+	private List<Constant> mapDataConstants;
 	
 	public Disassembly()
 	{}
@@ -42,4 +44,10 @@ public class Disassembly
 	
 	public void setMaps(ArrayList<Map> maps)
 	{ this.maps = maps; }
+
+	public List<Constant> getMapDataConstants()
+	{ return this.mapDataConstants; }
+
+	public void setMapDataConstants(List<Constant> mapDataConstants)
+	{ this.mapDataConstants = mapDataConstants; }
 }
