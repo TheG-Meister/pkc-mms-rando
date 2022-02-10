@@ -25,9 +25,9 @@ public class ObjectEvent
 	private OverworldPosition position;
 	//This sprite will become invisible and intangible when this flag is set
 	private Flag flag;
-	private Constant moveData; 
+	private SpriteMovementDataConstant moveData; 
 	
-	public ObjectEvent(OverworldPosition position, Flag flag, Constant moveData)
+	public ObjectEvent(OverworldPosition position, Flag flag, SpriteMovementDataConstant moveData)
 	{
 		this.position = position;
 		this.flag = flag;
@@ -46,10 +46,10 @@ public class ObjectEvent
 	public void setFlag(Flag flag)
 	{ this.flag = flag; }
 
-	public Constant getMoveData()
+	public SpriteMovementDataConstant getMoveData()
 	{ return this.moveData; }
 
-	public void setMoveData(Constant moveData)
+	public void setMoveData(SpriteMovementDataConstant moveData)
 	{ this.moveData = moveData; }
 	
 }

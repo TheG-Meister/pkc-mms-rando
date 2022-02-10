@@ -25,6 +25,7 @@ import com.gmeister.temp.pkcmmsrando.map.data.MapBlocks;
 import com.gmeister.temp.pkcmmsrando.map.data.MapConnection;
 import com.gmeister.temp.pkcmmsrando.map.data.ObjectEvent;
 import com.gmeister.temp.pkcmmsrando.map.data.OverworldPosition;
+import com.gmeister.temp.pkcmmsrando.map.data.SpriteMovementDataConstant;
 import com.gmeister.temp.pkcmmsrando.map.data.TileSet;
 import com.gmeister.temp.pkcmmsrando.map.data.Warp;
 
@@ -181,7 +182,7 @@ public class DisassemblyReader
 		return tileSets;
 	}
 	
-	public ArrayList<Map> readMaps(ArrayList<TileSet> tileSets, List<Flag> flags, List<Constant> mapDataConstants) throws IOException
+	public ArrayList<Map> readMaps(ArrayList<TileSet> tileSets, List<Flag> flags, List<SpriteMovementDataConstant> mapDataConstants) throws IOException
 	{
 		/*
 		 * Plan:
@@ -395,7 +396,7 @@ public class DisassemblyReader
 					int x = Integer.parseInt(args[0]);
 					int y = Integer.parseInt(args[1]);
 					Flag flag = flags.stream().filter(f -> args[12].equals(f.getName())).findFirst().orElse(null);
-					Constant moveData = mapDataConstants.stream().filter(c -> c.getName().equals(args[3])).findFirst().orElseThrow();
+					SpriteMovementDataConstant moveData = mapDataConstants.stream().filter(c -> c.getName().equals(args[3])).findFirst().orElseThrow();
 					
 					map.getObjectEvents().add(new ObjectEvent(new OverworldPosition(map, x, y), flag, moveData));
 				}
