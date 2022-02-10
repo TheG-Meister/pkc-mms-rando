@@ -133,7 +133,10 @@ public final class Player
 		
 		OverworldPosition nextPosition = this.position.move(this.facing);
 		//check object events for the next tile
-		if (!nextPosition.isWithinMap() || nextPosition.getMap().hasObjectEventAt(nextPosition.getX(), nextPosition.getY())) return new PlayerMovementResult(this.setSliding(false));
+		if (!nextPosition.isWithinMap()) return new PlayerMovementResult(this.setSliding(false));
+		for (ObjectEvent event : nextPosition.getMap().getObjectEvents())
+			if (event.isPresentAt(nextPosition.getX(), nextPosition.getY()))
+				return new PlayerMovementResult(this.setSliding(false));
 		
 		//check coord events for the next tile
 		List<CoordEvent> nextCoordEvents = this.position.getMap().getCoordEventsAt(this.position.getX(), this.position.getY());
