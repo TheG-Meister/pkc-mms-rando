@@ -231,7 +231,7 @@ public class EmpiricalDataReader
 					String[] args = line.split("\t");
 					if (args.length != 3) throw new IllegalArgumentException();
 					
-					constants.add(new SpriteMovementDataConstant(args[headers.indexOf("name")], Integer.parseInt(args[headers.indexOf("hex")], 16), args[headers.indexOf("big")] == "1" ? true : false));
+					constants.add(new SpriteMovementDataConstant(args[headers.indexOf("name")], Integer.parseInt(args[headers.indexOf("hex")], 16), args[headers.indexOf("big")].equals("1") ? true : false));
 				}
 			}
 			
