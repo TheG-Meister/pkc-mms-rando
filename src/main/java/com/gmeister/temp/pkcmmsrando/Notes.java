@@ -383,34 +383,35 @@ public class Notes
 				Map map = mapsToTest.remove(0);
 				
 				PlayerMapTravelResult result = Player.getMapTravelData(map, accessibleCollision.get(map), new ArrayList<>());
+				List<OverworldPosition> newPositions = new ArrayList<>();
 				
 				for (Warp otherWarp : result.warpsAccessed) if (!warpGroup.contains(otherWarp))
 				{
 					List<Warp> otherGroup = warpGroups.stream().filter(g -> g.contains(otherWarp)).findFirst().orElse(null);
-					if (otherGroup != null && !networkMap.get(warpGroup).contains(otherGroup)) networkMap.get(warpGroup).add(otherGroup);
+					if (otherGroup == null) newPositions.add(otherWarp.getDestination().getPosition());
+					else if (!networkMap.get(warpGroup).contains(otherGroup)) networkMap.get(warpGroup).add(otherGroup);
 				}
 				
-				for (MapConnection connection : result.connectionsAccessed.keySet())
+				for (MapConnection connection : result.connectionsAccessed.keySet()) newPositions.addAll(result.connectionsAccessed.get(connection));
+				List<Map> newMaps = newPositions.stream().map(p -> p.getMap()).distinct().collect(Collectors.toList());
+				
+				for (Map otherMap : newMaps)
 				{
 					boolean[][] mapCollision;
-					if (accessibleCollision.containsKey(connection.getMap())) mapCollision = accessibleCollision.get(connection.getMap());
-					else mapCollision = new boolean[connection.getMap().getBlocks().getCollisionYCapacity()][connection.getMap().getBlocks().getCollisionXCapacity()];
+					if (accessibleCollision.containsKey(otherMap)) mapCollision = accessibleCollision.get(otherMap);
+					else mapCollision = new boolean[otherMap.getBlocks().getCollisionYCapacity()][otherMap.getBlocks().getCollisionXCapacity()];
 					
 					boolean changed = false;
-					for (OverworldPosition position : result.connectionsAccessed.get(connection))
+					for (OverworldPosition position : newPositions) if (position.getMap() == otherMap && !mapCollision[position.getY()][position.getX()])
 					{
-						if (position.getMap() != connection.getMap()) throw new IllegalStateException();
-						if (!mapCollision[position.getY()][position.getX()])
-						{
-							changed = true;
-							mapCollision[position.getY()][position.getX()] = true;
-						}
+						changed = true;
+						mapCollision[position.getY()][position.getX()] = true;
 					}
 					
 					if (changed)
 					{
-						accessibleCollision.put(connection.getMap(), mapCollision);
-						if (!mapsToTest.contains(connection.getMap())) mapsToTest.add(connection.getMap());
+						accessibleCollision.put(otherMap, mapCollision);
+						if (!mapsToTest.contains(otherMap)) mapsToTest.add(otherMap);
 					}
 				}
 			}
