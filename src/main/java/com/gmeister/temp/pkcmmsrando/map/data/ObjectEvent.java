@@ -52,4 +52,10 @@ public class ObjectEvent
 	public void setMoveData(SpriteMovementDataConstant moveData)
 	{ this.moveData = moveData; }
 	
+	public boolean presentAt(int x, int y)
+	{
+		if (this.moveData != null && this.moveData.isBig()) return (x == this.position.getX() || x == this.position.getX() + 1) && (y == this.position.getY() || y == this.position.getY() + 1);
+		else return x == this.position.getX() && y == this.position.getY();
+	}
+	
 }
