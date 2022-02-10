@@ -17,6 +17,7 @@ import com.gmeister.temp.pkcmmsrando.map.data.CollisionPermission;
 import com.gmeister.temp.pkcmmsrando.map.data.Direction;
 import com.gmeister.temp.pkcmmsrando.map.data.Flag;
 import com.gmeister.temp.pkcmmsrando.map.data.PlayerMovementAction;
+import com.gmeister.temp.pkcmmsrando.map.data.SpriteMovementDataConstant;
 
 /**
  * Reads select empirical data from files within this project. <br>
@@ -204,6 +205,33 @@ public class EmpiricalDataReader
 					}
 					
 					constants.add(constant);
+				}
+			}
+			
+			return constants;
+		}
+	}
+	
+	public List<SpriteMovementDataConstant> readSpriteMovementDataConstants() throws IOException
+	{
+		try (InputStream stream = this.getClass().getClassLoader().getResourceAsStream("sprite-movement-data-constants.tsv"))
+		{
+			if (stream == null) throw new FileNotFoundException("Could not find sprite-movement-data-constants.tsv");
+			
+			List<SpriteMovementDataConstant> constants = new ArrayList<>();
+			
+			try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, "UTF-8")))
+			{
+				if (!reader.ready()) throw new IOException("The file could not be read or was empty");
+				List<String> headers = new ArrayList<>(Arrays.asList(reader.readLine().split("\t")));
+				
+				while (reader.ready())
+				{
+					String line = reader.readLine();
+					String[] args = line.split("\t");
+					if (args.length != 3) throw new IllegalArgumentException();
+					
+					constants.add(new SpriteMovementDataConstant(args[headers.indexOf("name")], Integer.parseInt(args[headers.indexOf("hex")], 16), args[headers.indexOf("big")] == "1" ? true : false));
 				}
 			}
 			

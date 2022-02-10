@@ -28,6 +28,7 @@ import com.gmeister.temp.pkcmmsrando.map.data.MapConnection;
 import com.gmeister.temp.pkcmmsrando.map.data.OverworldPosition;
 import com.gmeister.temp.pkcmmsrando.map.data.Player;
 import com.gmeister.temp.pkcmmsrando.map.data.Player.PlayerMapTravelResult;
+import com.gmeister.temp.pkcmmsrando.map.data.SpriteMovementDataConstant;
 import com.gmeister.temp.pkcmmsrando.map.data.TileSet;
 import com.gmeister.temp.pkcmmsrando.map.data.Warp;
 import com.gmeister.temp.pkcmmsrando.map.data.WarpNetwork;
@@ -562,6 +563,7 @@ public class Notes
 			allFlags.addAll(disassembly.getEventFlags());
 			
 			ArrayList<CollisionPermission> perms = empReader.readCollisionPermissions(allFlags);
+			List<SpriteMovementDataConstant> moveDataConstants = empReader.readSpriteMovementDataConstants();
 			
 			disassembly.setCollisionConstants(empReader.readCollisionConstants(perms));
 			disassembly.setTileSets(disReader.readTileSets(disassembly.getCollisionConstants()));
