@@ -320,6 +320,7 @@ public class Notes
 						"BRUNOS_ROOM", "KARENS_ROOM", "LANCES_ROOM", "HALL_OF_FAME", "POKECENTER_2F", "TRADE_CENTER",
 						"COLOSSEUM", "TIME_CAPSULE", "MOBILE_TRADE_ROOM", "MOBILE_BATTLE_ROOM", "SILVER_CAVE_ROOM_3"));
 		
+		List<Warp> warpsToRandomise = new ArrayList<>();
 		List<List<Warp>> warpGroups = new ArrayList<>();
 		for (Map map : maps)
 			if (!unrandomisedMapNames.contains(map.getConstName()) && !map.getConstName().contains("BETA"))
@@ -334,9 +335,27 @@ public class Notes
 			else if (dest.getDestination() == null) continue;
 			else if (!dest.hasAccessibleDestination()) continue;
 			
-			List<Warp> group = warpGroups.stream().filter(g -> g.stream().anyMatch(w -> w.isPairedWith(warp))).findFirst().orElse(new ArrayList<>());
-			if (!group.contains(warp)) group.add(warp);
-			if (!warpGroups.contains(group)) warpGroups.add(group);
+			warpsToRandomise.add(warp);
+			
+			List<Warp> group = new ArrayList<>();
+			group.add(warp);
+			warpGroups.add(group);
+		}
+		
+		for (int i = 0; i < warpsToRandomise.size(); i++)
+		{
+			Warp warp = warpsToRandomise.get(i);
+			List<Warp> group = warpGroups.stream().filter(g -> g.contains(warp)).findAny().orElseThrow();
+			for (int j = i + 1; j < warpsToRandomise.size(); j++)
+			{
+				Warp otherWarp = warpsToRandomise.get(j);
+				if (warp.isPairedWith(otherWarp))
+				{
+					List<Warp> otherGroup = warpGroups.stream().filter(g -> g.contains(otherWarp)).findAny().orElseThrow();
+					group.addAll(otherGroup);
+					warpGroups.remove(otherGroup);
+				}
+			}
 		}
 		
 		/*
