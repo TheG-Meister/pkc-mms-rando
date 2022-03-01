@@ -175,8 +175,8 @@ public class Notes
 			if (!warpGroups.contains(group)) warpGroups.add(group);
 		}
 		
-		java.util.Map<List<Warp>, List<List<Warp>>> accessibleGroups = new HashMap<>();
-		for (List<Warp> group : warpGroups) accessibleGroups.put(group, new ArrayList<>());
+		java.util.Map<List<Warp>, List<List<Warp>>> networkMap = new HashMap<>();
+		for (List<Warp> group : warpGroups) networkMap.put(group, new ArrayList<>());
 		
 		for (List<Map> mapGroup : mapGroups)
 		{
@@ -233,7 +233,7 @@ public class Notes
 								|| (accessibleCollision.keySet().contains(otherWarp.getDestination().getMap()) &&
 										accessibleCollision.get(otherWarp.getDestination().getMap())[otherWarp.getDestination().getY()][otherWarp.getDestination().getX()]))
 						{
-							accessibleGroups.get(warpGroup).add(otherGroup);
+							networkMap.get(warpGroup).add(otherGroup);
 						}
 					}
 				}
@@ -249,8 +249,8 @@ public class Notes
 		List<Warp> route7GateToSaffron = warpGroups.stream().filter(g -> g.stream().anyMatch(w -> w.getMap().getConstName().equals("ROUTE_7_SAFFRON_GATE"))).findFirst().orElseThrow();
 		
 		warpGroups.add(route16ToGate);
-		accessibleGroups.get(route7GateToSaffron).add(route16ToGate);
-		accessibleGroups.put(route16ToGate, new ArrayList<>(Arrays.asList(route7GateToSaffron)));
+		networkMap.get(route7GateToSaffron).add(route16ToGate);
+		networkMap.put(route16ToGate, new ArrayList<>(Arrays.asList(route7GateToSaffron)));
 		
 		Map route16Gate = maps.stream().filter(m -> m.getConstName().equals("ROUTE_16_GATE")).findFirst().orElseThrow();
 		List<Warp> route16GateToRoute = new ArrayList<>(route16Gate.getWarps().stream()
@@ -259,12 +259,22 @@ public class Notes
 		List<Warp> route17GateToRoute = warpGroups.stream().filter(g -> g.stream().anyMatch(w -> w.getMap().getConstName().equals("ROUTE_17_ROUTE_18_GATE"))).findFirst().orElseThrow();
 		
 		warpGroups.add(route16GateToRoute);
-		accessibleGroups.get(route17GateToRoute).add(route16GateToRoute);
-		accessibleGroups.put(route16GateToRoute, new ArrayList<>(Arrays.asList(route17GateToRoute)));
+		networkMap.get(route17GateToRoute).add(route16GateToRoute);
+		networkMap.put(route16GateToRoute, new ArrayList<>(Arrays.asList(route17GateToRoute)));
 		
-		WarpNetwork network = new WarpNetwork(accessibleGroups);
+		WarpNetwork network = new WarpNetwork(networkMap);
 		
-		return rando.buildWarpGroups(network, false, true, true);
+		List<List<Warp>> sourceNodes = new ArrayList<>();
+		List<List<Warp>> targetNodes = new ArrayList<>();
+		for (List<Warp> sourceNode : network.getNetwork().keySet())
+		{
+			Warp target = sourceNode.stream().map(w -> w.getDestination()).filter(w -> w != null).findAny().orElseThrow();
+			List<Warp> targetNode = network.getNetwork().keySet().stream().filter(n -> n.contains(target)).findAny().orElseThrow();
+			sourceNodes.add(sourceNode);
+			targetNodes.add(targetNode);
+		}
+		
+		return rando.buildWarpGroups(sourceNodes, targetNodes, network, false, false, false, false);
 	}
 	
 	public static List<Map> getMapsByNames(List<Map> maps, String... constNames)
@@ -320,28 +330,30 @@ public class Notes
 						"BRUNOS_ROOM", "KARENS_ROOM", "LANCES_ROOM", "HALL_OF_FAME", "POKECENTER_2F", "TRADE_CENTER",
 						"COLOSSEUM", "TIME_CAPSULE", "MOBILE_TRADE_ROOM", "MOBILE_BATTLE_ROOM", "SILVER_CAVE_ROOM_3"));
 		
+		//Select Warps to randomise
 		List<Warp> warpsToRandomise = new ArrayList<>();
 		List<List<Warp>> warpGroups = new ArrayList<>();
 		for (Map map : maps)
 			if (!unrandomisedMapNames.contains(map.getConstName()) && !map.getConstName().contains("BETA"))
-				for (Warp warp : map.getWarps())
+				for (Warp source : map.getWarps())
 		{
-			Warp dest = warp.getDestination();
-			if (dest == null) continue;
-			else if (unrandomisedMapNames.contains(dest.getMap().getConstName())) continue;
-			else if (dest.getMap().getConstName().contains("BETA")) continue;
-			else if (dest.equals(warp)) continue;
-			else if (!warp.hasAccessibleDestination()) continue;
-			else if (dest.getDestination() == null) continue;
-			else if (!dest.hasAccessibleDestination()) continue;
+			Warp target = source.getDestination();
+			if (target == null) continue;
+			else if (unrandomisedMapNames.contains(target.getMap().getConstName())) continue;
+			else if (target.getMap().getConstName().contains("BETA")) continue;
+			else if (target.equals(source)) continue;
+			else if (target.getDestination() == null) continue;
+			//Swap || for && to include one-way warps
+			else if (!source.hasAccessibleDestination() || !target.hasAccessibleDestination()) continue;
 			
-			warpsToRandomise.add(warp);
+			warpsToRandomise.add(source);
 			
 			List<Warp> group = new ArrayList<>();
-			group.add(warp);
+			group.add(source);
 			warpGroups.add(group);
 		}
 		
+		//Group warps together
 		for (int i = 0; i < warpsToRandomise.size(); i++)
 		{
 			Warp warp = warpsToRandomise.get(i);
@@ -352,19 +364,23 @@ public class Notes
 				if (warp.isPairedWith(otherWarp))
 				{
 					List<Warp> otherGroup = warpGroups.stream().filter(g -> g.contains(otherWarp)).findAny().orElseThrow();
-					group.addAll(otherGroup);
-					warpGroups.remove(otherGroup);
+					if (group != otherGroup)
+					{
+						group.addAll(otherGroup);
+						warpGroups.remove(otherGroup);
+					}
 				}
 			}
 		}
 		
-		/*
-		 * Take a list of warp groups and spit out a warp network
-		 * We do this by using player movement mechanics
-		 * Start at each warp
-		 * Without travelling through any warps, see which other warps can be accessed
-		 * Travelling through map connections is allowed
-		 */
+		//Remove groups whose targets don't lead back
+		for (int i = 0; i < warpGroups.size();)
+		{
+			List<Warp> source = warpGroups.get(i);
+			List<Warp> target = warpGroups.stream().filter(g -> g.contains(source.get(0).getDestination())).findAny().orElseThrow();
+			if (target.stream().noneMatch(t -> source.contains(t.getDestination()))) warpGroups.remove(i);
+			else i++;
+		}
 		
 		java.util.Map<List<Warp>, List<List<Warp>>> networkMap = new HashMap<>();
 		for (List<Warp> warp : warpGroups) networkMap.put(warp, new ArrayList<>());
@@ -415,12 +431,30 @@ public class Notes
 					}
 				}
 			}
+			
+			for (List<Warp> otherGroup : warpGroups)
+				for (Warp otherWarp : otherGroup) if (accessibleCollision.containsKey(otherWarp.getMap())
+						&& accessibleCollision.get(otherWarp.getMap())[otherWarp.getY()][otherWarp.getX()]
+						&& !networkMap.get(warpGroup)
+								.contains(otherGroup))
+					networkMap.get(warpGroup)
+							.add(otherGroup);
 		}
 		
 		WarpNetwork network = new WarpNetwork(networkMap);
-		network.print();
+		//network.print();
 		
-		return rando.buildWarpGroups(network, false, true, true);
+		List<List<Warp>> sourceNodes = new ArrayList<>();
+		List<List<Warp>> targetNodes = new ArrayList<>();
+		for (List<Warp> sourceNode : network.getNetwork().keySet())
+		{
+			Warp target = sourceNode.stream().map(w -> w.getDestination()).filter(w -> w != null).findAny().orElseThrow();
+			List<Warp> targetNode = network.getNetwork().keySet().stream().filter(n -> n.contains(target)).findAny().orElseThrow();
+			sourceNodes.add(sourceNode);
+			targetNodes.add(targetNode);
+		}
+		
+		return rando.buildWarpGroups(sourceNodes, targetNodes, network, false, false, false, false);
 	}
 	
 	public static ArrayList<String> randomiseMusicPointers(DisassemblyReader reader, Randomiser rando) throws FileNotFoundException, IOException
@@ -508,7 +542,8 @@ public class Notes
 				
 				case "--warp-areas":
 				{
-					System.err.println("The --warp-areas randomiser is out of action until flag-based progression can be processed.");
+					//System.err.println("The --warp-areas randomiser is out of action until flag-based progression can be processed.");
+					warpAreas = true;
 					return;
 				}
 				

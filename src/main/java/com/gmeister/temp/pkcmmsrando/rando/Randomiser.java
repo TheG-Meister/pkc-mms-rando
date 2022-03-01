@@ -204,139 +204,109 @@ public class Randomiser
 		}
 	}
 	
-	public java.util.Map<Warp, Warp> buildWarpGroups(WarpNetwork inputNetwork, boolean selfWarps, boolean twoWay, boolean oneIn)
+	public java.util.Map<Warp, Warp> buildWarpGroups(List<List<Warp>> originalSources, List<List<Warp>> originalTargets,
+			WarpNetwork inputNetwork, boolean oneWayBranches, boolean selfBranches, boolean unusedTargets, boolean reduceTargets)
 	{
+		if (originalSources.size() != originalTargets.size()) throw new IllegalArgumentException("Differing number of sources and targets");
+		if (!inputNetwork.getNetwork().keySet().containsAll(originalSources)) throw new IllegalArgumentException("Not all sources are found in the network");
+		if (!inputNetwork.getNetwork().keySet().containsAll(originalTargets)) throw new IllegalArgumentException("Not all targets are found in the network");
+		if (!oneWayBranches && !originalTargets.containsAll(originalSources)) throw new IllegalArgumentException("Some source warps were omitted as target warps");
+		
+		//Suppressing this error until I understand how it works with merging warps or existing one-way warps
+		//if (twoWay && !selfWarps && originalSources.size() + originalTargets.stream().filter(t -> !originalSources.contains(t)).count() % 2 != 0)
+		//	throw new IllegalArgumentException("Could not avoid self warps as there are an odd number of branches being created.");
+		
 		Random random = new Random(this.random.nextLong());
 		WarpNetwork network = new WarpNetwork(inputNetwork);
 		
-		if (twoWay && !selfWarps && network.getNetwork().keySet().size() % 2 != 0) throw new IllegalArgumentException("Could not avoid self warps as there are an odd number of groups");
-		
 		boolean testedAllSources = false;
 		
-		//Create a random list of destinations
-		List<List<Warp>> sources = new ArrayList<>(network.getNetwork().keySet());
-		List<List<Warp>> targets = new ArrayList<>(sources);
-		if (oneIn) Collections.shuffle(targets, random);
+		List<List<Warp>> sources = new ArrayList<>(originalSources);
+		List<List<Warp>> allWarps = new ArrayList<>(originalSources);
+		for (List<Warp> warp : originalTargets) if (Collections.frequency(allWarps, warp) < Collections.frequency(sources, warp)) allWarps.add(warp);
+		
+		//Create lists to loop through
+		List<List<Warp>> sourceList = new ArrayList<>(allWarps);
+		List<List<Warp>> targets = new ArrayList<>(allWarps);
 		
 		//Pull random destinations
 		List<List<Warp>> newSources = new ArrayList<>();
 		List<List<Warp>> newTargets = new ArrayList<>();
 		
-		for (int sourceIndex = 0; sourceIndex < sources.size();)
+		if (!this.canSolveAllUnreturnableBranches(network, sources, targets))
+			throw new IllegalArgumentException("An unreturnable branch in the network cannot be made returnable.");
+		
+		if (!this.canConnectAllComponents(network, sources, targets))
+			throw new IllegalArgumentException("A network component could not be connected to another component.");
+		
+		long controllableBranches = this.countControllableBranches(network, sources, targets, oneWayBranches);
+		long neededBranches = this.countNeededBranches(network, null, oneWayBranches);
+		
+		if (controllableBranches < neededBranches)
+			throw new IllegalArgumentException("More branches are necessary for each warp to access every other warp.");
+		
+		for (int sourceIndex = 0; sourceIndex < sourceList.size();)
 		{
-			//Store the number of branches that can be controlled
-			int controllableBranches;
-			if (twoWay) controllableBranches = Math.floorDiv(sources.size(), 2);
-			else controllableBranches = sources.size();
+			if (unusedTargets) targets = new ArrayList<>(allWarps);
+			Collections.shuffle(targets, random);
 			
-			//Store the sum of all one-way branches that are parallel to another in forks and merges
-			long forkSum = network.getComponents().stream().mapToLong(c -> network.countBottomTiers(c) - 1).sum();
-			long mergeSum = network.getComponents().stream().mapToLong(c -> network.countTopTiers(c) - 1).sum();
-			
-			//Store the number of branches necessary to make a completable overworld
-			long neededBranches = Math.max(forkSum, mergeSum) + network.getComponents().size() - 1;
-			if (network.getOneWayBranches().size() > 0 || (!twoWay && network.getComponents().size() > 1)) neededBranches++;
-			
-			//If there are less controllable branches than needed branches, throw an error
-			if (controllableBranches < neededBranches)
-			{
-				//If this is the first loop, the provided network cannot generate a completable overworld
-				if (sources.containsAll(network.getNetwork().keySet())) throw new IllegalArgumentException("accessibleGroups does not contain enough connections to fulfil all provided settings");
-				//If this is any other loop, the coded logic is wrong
-				else throw new IllegalStateException("Too many optional branches were created");
-			}
-			
-			List<Warp> source = sources.get(sourceIndex);
-			
-			final List<List<Warp>> localTargets;
-			if (oneIn) localTargets = targets;
-			else
-			{
-				localTargets = new ArrayList<>(network.getNetwork().keySet());
-				Collections.shuffle(targets, random);
-			}
+			List<Warp> source = sourceList.get(sourceIndex);
+			if (oneWayBranches && !sources.contains(source)) continue;
+			boolean targetAcquired = false;
 			
 			targetLoop:
-			for (List<Warp> target : localTargets) 
+			for (List<Warp> target : targets) 
 			{
-				if (!selfWarps && source == target) continue targetLoop;
+				if (!selfBranches && source == target) continue targetLoop;
+				
+				List<Branch> trackedBranches = new ArrayList<>();
+				trackedBranches.add(new Branch(source, target, null, null));
+				if (!oneWayBranches && source != target) trackedBranches.add(new Branch(target, source, null, null));
 				
 				List<Branch> newBranches = new ArrayList<>();
-				newBranches.add(new Branch(source, target, null, null));
-				if (twoWay && source != target) newBranches.add(new Branch(target, source, null, null));
+				for (Branch branch : trackedBranches) if (sources.contains(branch.source)) newBranches.add(branch);
 				
-				List<List<Warp>> nextSources = new ArrayList<>(sources);
-				nextSources.remove(source);
-				if (twoWay) nextSources.remove(target);
-				
-				List<List<Warp>> nextTargets = new ArrayList<>(localTargets);
-				nextTargets.remove(target);
-				if (twoWay) nextTargets.remove(source);
+				if (newBranches.isEmpty())
+					continue targetLoop;
 				
 				WarpNetwork nextNetwork = new WarpNetwork(network);
-				for (Branch branch : newBranches) nextNetwork.addBranch(branch.source, branch.target);
-				
-				for (Branch branch : nextNetwork.getOneWayBranches())
+				List<List<Warp>> nextSources = new ArrayList<>(sources);
+				List<List<Warp>> nextTargets = new ArrayList<>(targets);
+				for (Branch branch : newBranches)
 				{
-					List<List<Warp>> warpsAbove = nextNetwork.getAllAccessorTiers(nextNetwork.getTierOf(branch.source))
-							.stream()
-							.flatMap(List::stream)
-							.collect(Collectors.toList());
-					List<List<Warp>> warpsBelow = nextNetwork.getAllAccesseeTiers(nextNetwork.getTierOf(branch.target))
-							.stream()
-							.flatMap(List::stream)
-							.collect(Collectors.toList());
-					
-					//If any new one-way branch would have no targets above or sources below, continue
-					if (warpsAbove.stream().filter(w -> nextTargets.contains(w)).count() < 1)
-						continue targetLoop;
-					if (warpsBelow.stream().filter(w -> nextSources.contains(w)).count() < 1)
-						continue targetLoop;
+					nextNetwork.addBranch(branch.source, branch.target);
+					nextSources.remove(branch.source);
+					nextTargets.remove(branch.target);
 				}
 				
-				//If there is more than one component, and any component has no remaining sources or targets, continue;
-				if (nextNetwork.getComponents().size() > 1)
-					for (List<List<Warp>> component : nextNetwork.getComponents())
-				{
-					if (component.stream().filter(w -> nextSources.contains(w)).count() < 1)
-						continue targetLoop;
-					if (component.stream().filter(w -> nextTargets.contains(w)).count() < 1)
-						continue targetLoop;
-				}
-				
-				//if the new controllable branches is less than the new needed branches, continue
-				int nextControllableBranches;
-				if (twoWay) nextControllableBranches = Math.floorDiv(nextSources.size(), 2);
-				else nextControllableBranches = nextSources.size();
-				
-				long nextForkSum = nextNetwork.getComponents().stream().mapToLong(c -> nextNetwork.countBottomTiers(c) - 1).sum();
-				long nextMergeSum = nextNetwork.getComponents().stream().mapToLong(c -> nextNetwork.countTopTiers(c) - 1).sum();
-				
-				long nextNeededBranches = Math.max(nextForkSum, nextMergeSum) + nextNetwork.getComponents().size() - 1;
-				if (nextNetwork.getOneWayBranches().size() > 0 || (!twoWay && nextNetwork.getComponents().size() > 1)) nextNeededBranches++;
-				
-				if (nextControllableBranches < nextNeededBranches)
+				if (!this.validateNetwork(nextNetwork, nextSources, nextTargets, oneWayBranches))
 					continue targetLoop;
 				
 				//Create the branch and update tracking data
-				for (Branch branch : newBranches)
+				for (Branch branch : trackedBranches)
 				{
-					sources.remove(branch.source);
-					localTargets.remove(branch.target);
+					sourceList.remove(branch.source);
+					targets.remove(branch.target);
 					newSources.add(branch.source);
 					newTargets.add(branch.target);
-					network.addBranch(branch.source, branch.target);
+					
+					if (newBranches.contains(branch))
+					{
+						sources.remove(branch.source);
+						network.addBranch(branch.source, branch.target);
+					}
 				}
 				
+				targetAcquired = true;
 				break targetLoop;
 			}
 			
-			if (sources.contains(source)) throw new IllegalStateException("Could not find a destination warp for source " + source);
+			if (!targetAcquired) throw new IllegalStateException("Could not find a destination warp for source " + source);
 			
-			if (!selfWarps && !testedAllSources)
+			if (!selfBranches && !testedAllSources)
 			{
-				while (sourceIndex < sources.size() && newTargets.contains(sources.get(sourceIndex))) sourceIndex++;
-				if (sourceIndex >= sources.size())
+				while (sourceIndex < sourceList.size() && newTargets.contains(sourceList.get(sourceIndex))) sourceIndex++;
+				if (sourceIndex >= sourceList.size())
 				{
 					sourceIndex = 0;
 					testedAllSources = true;
@@ -344,18 +314,9 @@ public class Randomiser
 			}
 		}
 		
-		if (!sources.isEmpty()) throw new IllegalStateException("Not all sources were assigned a destination");
+		if (!sourceList.isEmpty()) throw new IllegalStateException("Not all sources were assigned a destination");
 		if (network.getComponents().size() > 1) throw new IllegalStateException("Not all components were joined together");
 		if (!network.getOneWayBranches().isEmpty()) throw new IllegalStateException("Not all one-way branches were given an alternative path");
-		
-		/*for (List<Warp> warpGroup : network.getNetwork().keySet())
-		{
-			List<List<Warp>> groupsBelow = network.getAllAccessees(warpGroup);
-			
-			System.out.print(warpGroup.get(0).getPosition());
-			for (List<Warp> otherGroup : network.getNetwork().keySet()) System.out.print("\t" + (groupsBelow.contains(otherGroup) ? 1 : 0));
-			System.out.println();
-		}*/
 		
 		java.util.Map<Warp, Warp> output = new HashMap<>();
 		for (int i = 0; i < newSources.size(); i++)
@@ -366,6 +327,106 @@ public class Randomiser
 		}
 		
 		return output;
+	}
+	
+	private boolean validateNetwork(WarpNetwork network, List<List<Warp>> sources, List<List<Warp>> targets, boolean oneWayBranches)
+	{
+		if (!this.canSolveAllUnreturnableBranches(network, sources, targets)) return false;
+		else if (!this.canConnectAllComponents(network, sources, targets)) return false;
+		else
+		{
+			long controllableBranches = this.countControllableBranches(network, sources, targets, oneWayBranches);
+			long neededBranches = this.countNeededBranches(network, null, oneWayBranches);
+			
+			if (controllableBranches < neededBranches) return false;
+			else return true;
+		}
+	}
+	
+	private boolean canSolveAllUnreturnableBranches(WarpNetwork network, List<List<Warp>> sources, List<List<Warp>> targets)
+	{
+		for (Branch branch : network.getOneWayBranches())
+		{
+			//Might be able to do this for only the top and bottom tiers of each component
+			List<List<Warp>> warpsAbove = network.getAllAccessorTiers(network.getTierOf(branch.source))
+					.stream()
+					.flatMap(List::stream)
+					.collect(Collectors.toList());
+			List<List<Warp>> warpsBelow = network.getAllAccesseeTiers(network.getTierOf(branch.target))
+					.stream()
+					.flatMap(List::stream)
+					.collect(Collectors.toList());
+			
+			//If any new one-way branch would have no targets above or sources below, continue
+			if (warpsAbove.stream().filter(w -> targets.contains(w)).count() < 1)
+				return false;
+			if (warpsBelow.stream().filter(w -> sources.contains(w)).count() < 1)
+				return false;
+		}
+		
+		return true;
+	}
+	
+	private boolean canConnectAllComponents(WarpNetwork network, List<List<Warp>> sources, List<List<Warp>> targets)
+	{
+		if (network.getComponents().size() > 1)
+			for (List<List<Warp>> component : network.getComponents())
+		{
+			if (component.stream().filter(w -> sources.contains(w)).count() < 1)
+				return false;
+			if (component.stream().filter(w -> targets.contains(w)).count() < 1)
+				return false;
+		}
+		
+		return true;
+	}
+	
+	private int countSpareBranches(WarpNetwork network, List<List<Warp>> sources, List<List<Warp>> targets, boolean oneWayBranches, boolean unusedTargets, boolean reduceTargets)
+	{
+		//if unused targets are allowed
+		//still gotta solve all one way branches
+		//still gotta connect all components
+		//don't bother connecting any nodes that are already connected
+		return -1;
+	}
+	
+	private long countControllableBranches(WarpNetwork network, List<List<Warp>> sources, List<List<Warp>> targets, boolean oneWayBranches)
+	{
+		//allWarps.stream().distinct().mapToInt(w -> Math.max(0, Collections.frequency(tempTargetList, w) - Collections.frequency(sources, w))).sum();
+		
+		//if (!oneWayBranches) return Math.floorDiv(sources.size() + targets.stream().filter(t -> !sources.contains(t)).count(), 2);
+		//else return sources.size();
+		
+		if (!oneWayBranches) return Math.floorDiv(sources.size(), 2);
+		else return sources.size();
+	}
+	
+	private long countNeededBranches(WarpNetwork network, List<List<Warp>> targetOnlyWarps, boolean oneWayBranches)
+	{
+		/*long forkSum = 0;
+		long mergeSum = 0;
+		
+		for (List<List<Warp>> component : network.getComponents())
+		{
+			List<List<List<Warp>>> tiers = network.getTiersOf(component);
+			if (tiers.size() > 1) for (List<List<Warp>> tier : tiers)
+			{
+				if (network.isTopTier(tier)) mergeSum += Math.max(1, tier.stream().filter(w -> targetOnlyWarps.contains(w)).count());
+				else
+				{
+					if (network.isBottomTier(tier)) forkSum++;
+					mergeSum += tier.stream().filter(w -> targetOnlyWarps.contains(w)).count();
+				}
+			}
+		}*/
+		
+		long forkSum = network.getComponents().stream().mapToLong(c -> network.countBottomTiers(c) - 1).sum();
+		long mergeSum = network.getComponents().stream().mapToLong(c -> network.countTopTiers(c) - 1).sum();
+		
+		long neededBranches = Math.max(forkSum, mergeSum) + network.getComponents().size() - 1;
+		if (network.getOneWayBranches().size() > 0 || (oneWayBranches && network.getComponents().size() > 1)) neededBranches++;
+		
+		return neededBranches;
 	}
 	
 	public java.util.Map<Warp, Warp> shuffleWarpGroups(List<List<Warp>> warpGroups, boolean allowSelfWarps, boolean twoWay)

@@ -321,103 +321,26 @@ public class WarpNetwork
 		return accessees;
 	}
 	
-	//countSourceTiers
-	//countTargetTiers
-	
 	public long countTopTiers(List<List<Warp>> component)
 	{
-		List<List<List<Warp>>> componentTiers = this.tiers.stream().filter(t -> component.contains(t.get(0))).collect(Collectors.toList());
+		List<List<List<Warp>>> componentTiers = this.getTiersOf(component);
 		return componentTiers.stream().filter(t -> this.oneWayBranches.stream().noneMatch(b -> b.targetTier == t)).count();
 	}
 	
 	public long countBottomTiers(List<List<Warp>> component)
 	{
-		List<List<List<Warp>>> componentTiers = this.tiers.stream().filter(t -> component.contains(t.get(0))).collect(Collectors.toList());
+		List<List<List<Warp>>> componentTiers = this.getTiersOf(component);
 		return componentTiers.stream().filter(t -> this.oneWayBranches.stream().noneMatch(b -> b.sourceTier == t)).count();
 	}
 	
-	/**
-	 * Counts the number of unique tiers that can access this tier.
-	 * @param tier the tier to sample
-	 * @return the number of unique source tiers
-	 */
-	public long countIsolatedSourceTiers(List<List<Warp>> tier)
+	public boolean isTopTier(List<List<Warp>> tier)
 	{
-		List<List<List<Warp>>> sourceTiers = this.oneWayBranches.stream().filter(b -> b.targetTier == tier).map(b -> b.sourceTier).distinct().collect(Collectors.toList());
-		
-		//Count the number of source tiers that would be in separate components if they lost all their branches to tier
-		int count = 0;
-		while (sourceTiers.size() > 0)
-		{
-			List<List<List<Warp>>> connectedTiers = new ArrayList<>();
-			connectedTiers.add(sourceTiers.get(0));
-			
-			for (int i = 0; i < connectedTiers.size(); i++)
-			{
-				List<List<Warp>> t = connectedTiers.get(i);
-				this.oneWayBranches.stream()
-						.filter(b -> b.sourceTier == t && !connectedTiers.contains(b.targetTier)
-								&& b.targetTier != tier)
-						.distinct()
-						.forEach(b -> connectedTiers.add(b.targetTier));
-				this.oneWayBranches.stream()
-						.filter(b -> b.targetTier == t && !connectedTiers.contains(b.sourceTier)
-								&& b.sourceTier != tier)
-						.distinct()
-						.forEach(b -> connectedTiers.add(b.sourceTier));
-				
-				if (connectedTiers.containsAll(sourceTiers)) break;
-			}
-			
-			sourceTiers.removeAll(connectedTiers);
-			count++;
-		}
-		
-		return count;
+		return this.oneWayBranches.stream().noneMatch(b -> b.targetTier == tier);
 	}
 	
-	/**
-	 * Counts the number of unique tiers that can be accessed from this tier.
-	 * @param tier the tier to sample
-	 * @return the number of unique target tiers
-	 */
-	public long countIsolatedTargetTiers(List<List<Warp>> tier)
+	public boolean isBottomTier(List<List<Warp>> tier)
 	{
-		List<List<List<Warp>>> targetTiers = this.oneWayBranches.stream()
-				.filter(b -> b.sourceTier == tier)
-				.map(b -> b.targetTier)
-				.distinct()
-				.collect(Collectors.toList());
-		
-		//Count the number of source tiers that would be in separate components if they lost all their branches from tier
-		int count = 0;
-		while (targetTiers.size() > 0)
-		{
-			List<List<List<Warp>>> connectedTiers = new ArrayList<>();
-			connectedTiers.add(targetTiers.get(0));
-			
-			for (int i = 0; i < connectedTiers.size(); i++)
-			{
-				List<List<Warp>> t = connectedTiers.get(i);
-				this.oneWayBranches.stream()
-						.filter(b -> b.sourceTier == t && !connectedTiers.contains(b.targetTier)
-								&& b.targetTier != tier)
-						.distinct()
-						.forEach(b -> connectedTiers.add(b.targetTier));
-				this.oneWayBranches.stream()
-						.filter(b -> b.targetTier == t && !connectedTiers.contains(b.sourceTier)
-								&& b.sourceTier != tier)
-						.distinct()
-						.forEach(b -> connectedTiers.add(b.sourceTier));
-				
-				if (connectedTiers.containsAll(targetTiers)) break;
-			}
-			
-			targetTiers.removeAll(connectedTiers);
-			count++;
-		}
-		
-		return count;
+		return this.oneWayBranches.stream().noneMatch(b -> b.sourceTier == tier);
 	}
 	
 	public List<List<Warp>> getTierOf(List<Warp> source)
@@ -428,6 +351,17 @@ public class WarpNetwork
 	public List<List<Warp>> getComponentOf(List<Warp> source)
 	{
 		return this.components.stream().filter(c -> c.contains(source)).findAny().orElseThrow();
+	}
+	
+	public List<List<Warp>> getComponentOfTier(List<List<Warp>> tier)
+	{
+		return this.components.stream().filter(c -> c.contains(tier.get(0))).findAny().orElseThrow();
+	}
+	
+	public List<List<List<Warp>>> getTiersOf(List<List<Warp>> component)
+	{
+		if (!this.components.contains(component)) throw new IllegalArgumentException("This network does not contain the provided component");
+		return this.tiers.stream().filter(t -> component.contains(t.get(0))).collect(Collectors.toList());
 	}
 	
 	public boolean canAccessTier(List<List<Warp>> sourceTier, List<List<Warp>> targetTier)
