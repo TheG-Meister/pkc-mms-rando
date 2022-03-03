@@ -357,7 +357,7 @@ public class Randomiser
 					.flatMap(List::stream)
 					.collect(Collectors.toList());
 			
-			//If any new one-way branch would have no targets above or sources below, continue
+			//If any unreturnable branch would have no targets above or sources below, return false
 			if (warpsAbove.stream().filter(w -> targets.contains(w)).count() < 1)
 				return false;
 			if (warpsBelow.stream().filter(w -> sources.contains(w)).count() < 1)
@@ -372,6 +372,7 @@ public class Randomiser
 		if (network.getComponents().size() > 1)
 			for (List<List<Warp>> component : network.getComponents())
 		{
+			//If any component has no sources or targets left, return false
 			if (component.stream().filter(w -> sources.contains(w)).count() < 1)
 				return false;
 			if (component.stream().filter(w -> targets.contains(w)).count() < 1)
