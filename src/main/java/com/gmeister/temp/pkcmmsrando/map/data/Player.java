@@ -20,6 +20,7 @@ public final class Player
 		public Player player;
 		public List<Warp> warpsUsed;
 		public List<MapConnection> connectionsUsed;
+		public List<Flag> necessaryFlags;
 		
 		public PlayerMovementResult()
 		{
@@ -34,11 +35,12 @@ public final class Player
 			this.connectionsUsed = new ArrayList<>();
 		}
 		
-		public PlayerMovementResult(Player player, List<Warp> warpsUsed, List<MapConnection> connectionsUsed)
+		public PlayerMovementResult(Player player, List<Warp> warpsUsed, List<MapConnection> connectionsUsed, List<Flag> necessaryFlags)
 		{
 			this.player = player;
 			this.warpsUsed = warpsUsed;
 			this.connectionsUsed = connectionsUsed;
+			this.necessaryFlags = necessaryFlags;
 		}
 	}
 	
@@ -209,7 +211,7 @@ public final class Player
 	
 	public PlayerMovementResult getWarpAction(Warp warp)
 	{
-		return new PlayerMovementResult(new Player(this.position.warpTo(warp), this.facing, false, this.flags), new ArrayList<>(Arrays.asList(warp)), null);
+		return new PlayerMovementResult(new Player(this.position.warpTo(warp), this.facing, false, this.flags), new ArrayList<>(Arrays.asList(warp)), null, null);
 	}
 	
 	public Player attemptWarp()
@@ -235,7 +237,7 @@ public final class Player
 			connectionsUsed.add(movement.connectionUsed);
 		}
 		
-		return new PlayerMovementResult(player, null, connectionsUsed);
+		return new PlayerMovementResult(player, null, connectionsUsed, null);
 	}
 	
 	public Player hop()
@@ -258,7 +260,7 @@ public final class Player
 			connectionsUsed.add(movement.connectionUsed);
 		}
 		
-		return new PlayerMovementResult(player, null, connectionsUsed);
+		return new PlayerMovementResult(player, null, connectionsUsed, null);
 	}
 	
 	public Player step(boolean sliding)
