@@ -123,6 +123,8 @@ public final class Player
 	
 	public PlayerMovementResult getMovement()
 	{
+		List<Flag> necessaryFlags = new ArrayList<>();
+		
 		List<CoordEvent> coordEvents = this.position.getMap().getCoordEventsAt(this.position.getX(), this.position.getY());
 		for (CoordEvent event : coordEvents)
 		{
@@ -130,7 +132,9 @@ public final class Player
 			if (result != null) return result;
 		}
 		
-		PlayerMovementResult stepOffResult = this.getMovement(this.position.getCollision().getPermissionsForStep(this.facing, false), this.position);
+		CollisionPermission stepOffPerm = this.position.getCollision().getPermissionsForStep(this.facing, false);
+		necessaryFlags.addAll(stepOffPerm.getFlags());
+		PlayerMovementResult stepOffResult = this.getMovement(stepOffPerm, this.position);
 		if (stepOffResult != null) return stepOffResult;
 		
 		OverworldPosition nextPosition = this.position.move(this.facing);
@@ -149,27 +153,27 @@ public final class Player
 		}
 		
 		//check movement permission for the next tile
-		PlayerMovementResult stepOnResult = this.getMovement(nextPosition.getCollision().getPermissionsForStep(this.facing, true), nextPosition);
+		CollisionPermission stepOnPerm = nextPosition.getCollision().getPermissionsForStep(this.facing, true);
+		necessaryFlags.addAll(stepOffPerm.getFlags());
+		PlayerMovementResult stepOnResult = this.getMovement(stepOnPerm, nextPosition);
 		if (stepOnResult != null) return stepOnResult;
 		
 		//return step
-		return this.getStepMovement();
+		return this.getStepMovement(necessaryFlags);
 	}
 	
 	private PlayerMovementResult getMovement(CollisionPermission perm, OverworldPosition position)
 	{
-		PlayerMovementResult stop = new PlayerMovementResult(this.setSliding(false));
+		//This currently returns all the flags but I'll move over to a model that returns them anyway
+		List<Flag> necessaryFlags = null;
+		if (!this.flags.containsAll(perm.getFlags())) necessaryFlags = new ArrayList<>(perm.getFlags());
 		
-		if (!this.flags.containsAll(perm.getFlags())) return stop;
-		else
-		{
-			Warp warp = position.getMap().findWarpAt(position.getX(), position.getY());
-			
-			if (PlayerMovementAction.WARP.equals(perm.getAction()) && warp != null && warp.getDestination() != null) return this.getWarpAction(warp);
-			else if (!perm.isAllowed()) return stop;
-			else if (PlayerMovementAction.HOP.equals(perm.getAction())) return this.getHopMovement();
-			else return null;
-		}
+		Warp warp = position.getMap().findWarpAt(position.getX(), position.getY());
+		
+		if (PlayerMovementAction.WARP.equals(perm.getAction()) && warp != null && warp.getDestination() != null) return this.getWarpAction(warp, necessaryFlags);
+		else if (!perm.isAllowed()) return new PlayerMovementResult(this.setSliding(false), null, null, necessaryFlags);
+		else if (PlayerMovementAction.HOP.equals(perm.getAction())) return this.getHopMovement(necessaryFlags);
+		else return null;
 	}
 	
 	public Player move(Direction direction)
@@ -209,9 +213,9 @@ public final class Player
 		}
 	}
 	
-	public PlayerMovementResult getWarpAction(Warp warp)
+	public PlayerMovementResult getWarpAction(Warp warp, List<Flag> necessaryFlags)
 	{
-		return new PlayerMovementResult(new Player(this.position.warpTo(warp), this.facing, false, this.flags), new ArrayList<>(Arrays.asList(warp)), null, null);
+		return new PlayerMovementResult(new Player(this.position.warpTo(warp), this.facing, false, this.flags), new ArrayList<>(Arrays.asList(warp)), null, necessaryFlags);
 	}
 	
 	public Player attemptWarp()
@@ -224,7 +228,7 @@ public final class Player
 		else return null;
 	}
 	
-	public PlayerMovementResult getHopMovement()
+	public PlayerMovementResult getHopMovement(List<Flag> necessaryFlags)
 	{
 		PositionMovementResult movement = this.position.getMovement(this.facing, 2);
 		boolean sliding = PlayerMovementAction.SLIDE.equals(movement.position.getCollision().getPermissionsForStep(this.facing, true).getAction());
@@ -237,7 +241,7 @@ public final class Player
 			connectionsUsed.add(movement.connectionUsed);
 		}
 		
-		return new PlayerMovementResult(player, null, connectionsUsed, null);
+		return new PlayerMovementResult(player, null, connectionsUsed, necessaryFlags);
 	}
 	
 	public Player hop()
@@ -247,7 +251,7 @@ public final class Player
 		return new Player(nextPosition, this.facing, sliding, this.flags);
 	}
 	
-	public PlayerMovementResult getStepMovement()
+	public PlayerMovementResult getStepMovement(List<Flag> necessaryFlags)
 	{
 		PositionMovementResult movement = this.position.getMovement(this.facing, 1);
 		boolean sliding = PlayerMovementAction.SLIDE.equals(movement.position.getCollision().getPermissionsForStep(this.facing, true).getAction());
@@ -260,7 +264,7 @@ public final class Player
 			connectionsUsed.add(movement.connectionUsed);
 		}
 		
-		return new PlayerMovementResult(player, null, connectionsUsed, null);
+		return new PlayerMovementResult(player, null, connectionsUsed, necessaryFlags);
 	}
 	
 	public Player step(boolean sliding)
