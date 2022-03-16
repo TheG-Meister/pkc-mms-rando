@@ -3,7 +3,9 @@ package com.gmeister.temp.pkcmmsrando.map.data;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import com.gmeister.temp.pkcmmsrando.map.data.OverworldPosition.PositionMovementResult;
 
@@ -49,6 +51,13 @@ public final class Player
 		public boolean[][] tilesAccessed;
 		public List<Warp> warpsAccessed;
 		public java.util.Map<MapConnection, List<OverworldPosition>> connectionsAccessed;
+		
+		public PlayerMapTravelResult(int xCapacity, int yCapacity)
+		{
+			this.tilesAccessed = new boolean[yCapacity][xCapacity];
+			this.warpsAccessed = new ArrayList<>();
+			this.connectionsAccessed = new HashMap<>();
+		}
 		
 		public PlayerMapTravelResult(boolean[][] tilesAccessed, List<Warp> warpsAccessed,
 				java.util.Map<MapConnection, List<OverworldPosition>> connectionsAccessed)
@@ -154,7 +163,7 @@ public final class Player
 		
 		//check movement permission for the next tile
 		CollisionPermission stepOnPerm = nextPosition.getCollision().getPermissionsForStep(this.facing, true);
-		necessaryFlags.addAll(stepOffPerm.getFlags());
+		necessaryFlags.addAll(stepOnPerm.getFlags());
 		PlayerMovementResult stepOnResult = this.getMovement(stepOnPerm, nextPosition);
 		if (stepOnResult != null) return stepOnResult;
 		
@@ -359,61 +368,134 @@ public final class Player
 		return accessibleCollision;
 	}
 	
-	public static PlayerMapTravelResult getMapTravelData(Map map, boolean[][] collisionToTest, List<Flag> flags)
+	public static java.util.Map<Set<Flag>, PlayerMapTravelResult> getMapTravelData(Map map, boolean[][] collisionToTest)
 	{
-		List<Warp> warpsAccessed = new ArrayList<>();
-		java.util.Map<MapConnection, List<OverworldPosition>> connectionsAccessed = new HashMap<>();
+		if (map == null) throw new IllegalArgumentException("map cannot be null");
+		if (collisionToTest == null) throw new IllegalArgumentException("collisionToTest cannot be null");
 		
-		boolean[][] newCollisionToTest = new boolean[collisionToTest.length][];
-		for (int y = 0; y < collisionToTest.length; y++) newCollisionToTest[y] = Arrays.copyOf(collisionToTest[y], collisionToTest[y].length);
-		boolean[][] collisionTested = new boolean[newCollisionToTest.length][newCollisionToTest[0].length];
-		boolean[][] collisionValid = new boolean[newCollisionToTest.length][newCollisionToTest[0].length];
+		int yCapacity = map.getBlocks().getCollisionYCapacity();
+		int xCapacity = map.getBlocks().getCollisionXCapacity();
 		
-		boolean mapChanged;
-		do
+		if (collisionToTest.length != yCapacity) throw new IllegalArgumentException("yCapacity of collisionToTest does not match map block collision capacity");
+		for (int y = 0; y < collisionToTest.length; y++) if (collisionToTest[y].length != xCapacity)
+			throw new IllegalArgumentException("xCapacity of collisionToTest row " + y + " does not match map block collision capacity");
+		
+		java.util.Map<Set<Flag>, PlayerMapTravelResult> results = new HashMap<>();
+		results.put(new HashSet<>(), new PlayerMapTravelResult(collisionToTest, new ArrayList<>(), new HashMap<>()));
+		
+		List<Set<Flag>> flagSets = new ArrayList<>();
+		flagSets.add(new HashSet<>());
+		
+		while (!flagSets.isEmpty())
 		{
-			mapChanged = false;
+			//Find the smallest set of flags
+			//This reduces the number of movements to simulate and avoids some bugs of double-simulating a tile
+			Set<Flag> flags = flagSets.get(0);
+			for (Set<Flag> set : flagSets) if (set.size() < flags.size()) flags = set;
+			flagSets.remove(flags);
 			
-			for (int y = 0; y < newCollisionToTest.length; y++) for (int x = 0; x < newCollisionToTest[y].length; x++) if (!collisionTested[y][x] && newCollisionToTest[y][x])
+			PlayerMapTravelResult result = results.get(flags);
+			
+			//Copy the result's accessed tiles into an array of tiles to simulate from
+			boolean[][] newCollisionToTest = new boolean[yCapacity][];
+			for (int y = 0; y < yCapacity; y++) newCollisionToTest[y] = Arrays.copyOf(result.tilesAccessed[y], xCapacity);
+			
+			//Find results that this flag set contains all the flags of
+			//Copy their accessed tiles into this result's accessed tiles
+			boolean[][] collisionTested = new boolean[yCapacity][xCapacity];
+			for (Set<Flag> otherFlags : results.keySet()) if (!otherFlags.equals(flags) && flags.containsAll(otherFlags))
 			{
-				OverworldPosition position = new OverworldPosition(map, x, y);
-				for (Direction direction : Direction.values())
+				PlayerMapTravelResult otherResult = results.get(otherFlags);
+				for (int y = 0; y < yCapacity; y++)
+					for (int x = 0; x < xCapacity; x++)
 				{
-					Player player = new Player(position, direction, false, flags);
+					result.tilesAccessed[y][x] = result.tilesAccessed[y][x] || otherResult.tilesAccessed[y][x];
+					collisionTested[y][x] = collisionTested[y][x] || otherResult.tilesAccessed[y][x];
+				}
+				result.connectionsAccessed.putAll(otherResult.connectionsAccessed);
+				result.warpsAccessed.addAll(otherResult.warpsAccessed);
+			}
+			
+			boolean mapChanged;
+			do
+			{
+				mapChanged = false;
+				
+				for (int y = 0; y < yCapacity; y++) for (int x = 0; x < xCapacity; x++) if (!collisionTested[y][x] && newCollisionToTest[y][x])
+				{
+					OverworldPosition position = new OverworldPosition(map, x, y);
 					
-					boolean warped = false;
-					do
+					for (Direction direction : Direction.values())
 					{
-						PlayerMovementResult movement = player.getMovement();
-						player = movement.player;
+						Player player = new Player(position, direction, false);
 						
-						if (movement.connectionsUsed != null) for (MapConnection connection : movement.connectionsUsed)
+						Set<Flag> currentFlags = new HashSet<>(flags);
+						PlayerMapTravelResult currentResult = results.get(currentFlags);
+						
+						boolean warped = false;
+						do
 						{
-							if (!connectionsAccessed.containsKey(connection)) connectionsAccessed.put(connection, new ArrayList<>());
-							connectionsAccessed.get(connection).add(movement.player.getPosition());
+							PlayerMovementResult movement = player.getMovement();
+							
+							//If we don't have necessary flags, stop before the movement with current flags
+							if (movement.necessaryFlags != null && !currentFlags.containsAll(movement.necessaryFlags))
+							{
+								//Stop the current player
+								OverworldPosition currentPosition = player.getPosition();
+								if (!position.equals(currentPosition) && !warped && currentPosition.getMap().equals(map))
+								{
+									if (currentFlags.equals(flags)) newCollisionToTest[currentPosition.getY()][currentPosition.getX()] = true;
+									else currentResult.tilesAccessed[currentPosition.getY()][currentPosition.getX()] = true;
+								}
+								
+								//Add the new required flags for this movement
+								currentFlags.addAll(movement.necessaryFlags);
+								
+								//Update the current result to match the current flag set
+								currentResult = results.get(currentFlags);
+								if (currentResult == null)
+								{
+									currentResult = new PlayerMapTravelResult(xCapacity, yCapacity);
+									results.put(currentFlags, currentResult);
+									flagSets.add(currentFlags);
+								}
+							}
+							
+							player = movement.player;
+							
+							if (movement.connectionsUsed != null) for (MapConnection connection : movement.connectionsUsed)
+							{
+								if (!currentResult.connectionsAccessed.containsKey(connection)) currentResult.connectionsAccessed.put(connection, new ArrayList<>());
+								currentResult.connectionsAccessed.get(connection).add(movement.player.getPosition());
+							}
+							
+							if (movement.warpsUsed != null && !movement.warpsUsed.isEmpty())
+							{
+								currentResult.warpsAccessed.addAll(movement.warpsUsed);
+								warped = true;
+								break;
+							}
 						}
+						while (player.isSliding());
 						
-						if (movement.warpsUsed != null && !movement.warpsUsed.isEmpty())
+						//This is duplicated code from above
+						OverworldPosition currentPosition = player.getPosition();
+						if (!position.equals(currentPosition) && !warped && currentPosition.getMap().equals(map))
 						{
-							warpsAccessed.addAll(movement.warpsUsed);
-							warped = true;
-							break;
+							if (currentFlags.equals(flags)) newCollisionToTest[currentPosition.getY()][currentPosition.getX()] = true;
+							else currentResult.tilesAccessed[currentPosition.getY()][currentPosition.getX()] = true;
 						}
 					}
-					while (player.isSliding());
 					
-					OverworldPosition nextPosition = player.getPosition();
-					if (!position.equals(nextPosition) && !warped && nextPosition.getMap().equals(map)) newCollisionToTest[nextPosition.getY()][nextPosition.getX()] = true;
+					mapChanged = true;
+					collisionTested[y][x] = true;
+					result.tilesAccessed[y][x] = true;
 				}
-				
-				mapChanged = true;
-				collisionTested[y][x] = true;
-				collisionValid[y][x] = true;
 			}
+			while (mapChanged);
 		}
-		while (mapChanged);
 		
-		return new PlayerMapTravelResult(collisionValid, warpsAccessed, connectionsAccessed);
+		return results;
 	}
 	
 }

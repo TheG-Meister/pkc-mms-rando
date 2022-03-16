@@ -10,7 +10,9 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -398,7 +400,8 @@ public class Notes
 			{
 				Map map = mapsToTest.remove(0);
 				
-				PlayerMapTravelResult result = Player.getMapTravelData(map, accessibleCollision.get(map), new ArrayList<>());
+				java.util.Map<Set<Flag>, PlayerMapTravelResult> results = Player.getMapTravelData(map, accessibleCollision.get(map));
+				PlayerMapTravelResult result = results.get(new HashSet<>());
 				List<OverworldPosition> newPositions = new ArrayList<>();
 				
 				for (Warp otherWarp : result.warpsAccessed) if (!warpGroup.contains(otherWarp))
@@ -432,7 +435,7 @@ public class Notes
 				}
 			}
 			
-			for (List<Warp> otherGroup : warpGroups)
+			for (List<Warp> otherGroup : warpGroups) if (warpGroup != otherGroup)
 				for (Warp otherWarp : otherGroup) if (accessibleCollision.containsKey(otherWarp.getMap())
 						&& accessibleCollision.get(otherWarp.getMap())[otherWarp.getY()][otherWarp.getX()]
 						&& !networkMap.get(warpGroup)
