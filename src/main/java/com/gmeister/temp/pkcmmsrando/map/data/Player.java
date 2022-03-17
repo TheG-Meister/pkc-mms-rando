@@ -52,9 +52,9 @@ public final class Player
 		public List<Warp> warpsAccessed;
 		public java.util.Map<MapConnection, List<OverworldPosition>> connectionsAccessed;
 		
-		public PlayerMapTravelResult(int xCapacity, int yCapacity)
+		public PlayerMapTravelResult(Map map)
 		{
-			this.tilesAccessed = new boolean[yCapacity][xCapacity];
+			this.tilesAccessed = new boolean[map.getBlocks().getCollisionYCapacity()][map.getBlocks().getCollisionXCapacity()];
 			this.warpsAccessed = new ArrayList<>();
 			this.connectionsAccessed = new HashMap<>();
 		}
@@ -455,7 +455,7 @@ public final class Player
 								currentResult = results.get(currentFlags);
 								if (currentResult == null)
 								{
-									currentResult = new PlayerMapTravelResult(xCapacity, yCapacity);
+									currentResult = new PlayerMapTravelResult(map);
 									results.put(currentFlags, currentResult);
 									flagSets.add(currentFlags);
 								}
