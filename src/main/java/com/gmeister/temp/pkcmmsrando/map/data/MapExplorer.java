@@ -46,6 +46,11 @@ public class MapExplorer
 	public void setMap(Map map)
 	{ this.map = map; }
 	
+	public java.util.Map<Set<Flag>, MapExplorationEntry> getMapExplorationTable()
+	{
+		return this.mapExplorationTable;
+	}
+	
 	//This is the more general case which gives solutions for every set of flags
 	//Explore for every combination of flags necessary to explore the whole map
 	public void explore()
