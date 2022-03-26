@@ -225,7 +225,7 @@ public class MapExplorer
 											.getY()][currentPosition.getX()])
 							{
 								currentEntry.collisionToExplore[currentPosition.getY()][currentPosition.getX()] = true;
-								if (!currentFlags.equals(flags) && !flagSetsToUpdate.contains(flags)) flagSetsToUpdate.add(flags);
+								if (!flags.equals(currentFlags) && !flagSetsToUpdate.contains(currentFlags)) flagSetsToUpdate.add(currentFlags);
 							}
 							
 							//Add the new required flags for this movement
@@ -266,7 +266,7 @@ public class MapExplorer
 									.getY()][currentPosition.getX()])
 					{
 						currentEntry.collisionToExplore[currentPosition.getY()][currentPosition.getX()] = true;
-						if (!currentFlags.equals(flags) && !flagSetsToUpdate.contains(flags)) flagSetsToUpdate.add(flags);
+						if (!flags.equals(currentFlags) && !flagSetsToUpdate.contains(currentFlags)) flagSetsToUpdate.add(currentFlags);
 					}
 				}
 				

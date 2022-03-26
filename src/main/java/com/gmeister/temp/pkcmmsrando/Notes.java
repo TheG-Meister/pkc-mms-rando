@@ -477,7 +477,6 @@ public class Notes
 					{
 						if (explorerMap.get(otherMap) == null) explorerMap.put(otherMap, new MapExplorer(otherMap));
 						
-						//Might be null
 						boolean changed = false;
 						for (OverworldPosition position : newPositions) if (position.getMap() == otherMap &&
 								!explorerMap.get(otherMap).getEntry(flags).getMapExploration().getTilesAccessed()[position.getY()][position.getX()])
@@ -504,7 +503,7 @@ public class Notes
 		}
 		
 		ConditionalWarpNetwork network = new ConditionalWarpNetwork(nodes, branches);
-		//network.print();
+		//network.printEdgeTable();
 		
 		List<List<Warp>> sourceNodes = new ArrayList<>();
 		List<List<Warp>> targetNodes = new ArrayList<>();

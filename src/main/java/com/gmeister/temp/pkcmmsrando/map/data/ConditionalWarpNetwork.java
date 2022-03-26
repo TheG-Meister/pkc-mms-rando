@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class ConditionalWarpNetwork
 {
@@ -60,7 +61,7 @@ public class ConditionalWarpNetwork
 	{
 		List<Flag> flags = new ArrayList<>();
 		for (Branch branch : this.branches)
-			for (Flag flag : branch.requiredFlags) if (flags.contains(flag)) flags.add(flag);
+			for (Flag flag : branch.requiredFlags) if (!flags.contains(flag)) flags.add(flag);
 		return this.collapse(flags);
 	}
 	
@@ -73,6 +74,12 @@ public class ConditionalWarpNetwork
 					.add(branch.target.warps);
 		
 		return new WarpNetwork(networkMap);
+	}
+	
+	public void printEdgeTable()
+	{
+		System.out.println("Source\tTarget\tFlags");
+		for (Branch branch : branches) System.out.println(branch.source.warps.get(0).getPosition() + "\t" + branch.target.warps.get(0).getPosition() + "\t" + branch.requiredFlags.stream().map(f -> f.getName()).collect(Collectors.toList()));
 	}
 	
 }
