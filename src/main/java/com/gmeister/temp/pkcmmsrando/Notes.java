@@ -22,14 +22,18 @@ import com.gmeister.temp.pkcmmsrando.io.DisassemblyWriter;
 import com.gmeister.temp.pkcmmsrando.io.EmpiricalDataReader;
 import com.gmeister.temp.pkcmmsrando.map.data.CollisionConstant;
 import com.gmeister.temp.pkcmmsrando.map.data.CollisionPermission;
+import com.gmeister.temp.pkcmmsrando.map.data.ConditionalWarpNetwork;
+import com.gmeister.temp.pkcmmsrando.map.data.ConditionalWarpNetwork.Branch;
+import com.gmeister.temp.pkcmmsrando.map.data.ConditionalWarpNetwork.Node;
 import com.gmeister.temp.pkcmmsrando.map.data.CoordEvent;
 import com.gmeister.temp.pkcmmsrando.map.data.Disassembly;
 import com.gmeister.temp.pkcmmsrando.map.data.Flag;
 import com.gmeister.temp.pkcmmsrando.map.data.Map;
 import com.gmeister.temp.pkcmmsrando.map.data.MapConnection;
+import com.gmeister.temp.pkcmmsrando.map.data.MapExploration;
+import com.gmeister.temp.pkcmmsrando.map.data.MapExplorer;
 import com.gmeister.temp.pkcmmsrando.map.data.OverworldPosition;
 import com.gmeister.temp.pkcmmsrando.map.data.Player;
-import com.gmeister.temp.pkcmmsrando.map.data.Player.PlayerMapTravelResult;
 import com.gmeister.temp.pkcmmsrando.map.data.SpriteMovementDataConstant;
 import com.gmeister.temp.pkcmmsrando.map.data.TileSet;
 import com.gmeister.temp.pkcmmsrando.map.data.Warp;
@@ -287,7 +291,7 @@ public class Notes
 		return selectedMaps;
 	}
 	
-	public static java.util.Map<Warp, Warp> randomiseWarps(ArrayList<Map> maps, Randomiser rando, List<Flag> flags) throws IOException
+	public static java.util.Map<Warp, Warp> randomiseWarps(ArrayList<Map> maps, Randomiser rando) throws IOException
 	{
 		//Collect a bunch of maps to manually edit warps
 		Map victoryRoadGate = maps.stream().filter(m -> m.getConstName().equals("VICTORY_ROAD_GATE")).findFirst().orElseThrow();
@@ -384,80 +388,135 @@ public class Notes
 			else i++;
 		}
 		
-		java.util.Map<List<Warp>, List<List<Warp>>> networkMap = new HashMap<>();
-		for (List<Warp> warp : warpGroups) networkMap.put(warp, new ArrayList<>());
-		for (List<Warp> warpGroup : warpGroups)
+		//Create lists of Nodes and Branches to form a ConditionalWarpNetwork
+		List<Node> nodes = new ArrayList<>();
+		List<Branch> branches = new ArrayList<>();
+		
+		//Add a node for every warp group
+		for (List<Warp> warp : warpGroups) nodes.add(new ConditionalWarpNetwork.Node(warp, new HashSet<>()));
+		
+		//Find all the nodes that each node can access, and create a branch for it 
+		for (ConditionalWarpNetwork.Node node : nodes)
 		{
+			//Get the warp group from the node and select a representative warp
+			List<Warp> warpGroup = node.warps;
 			Warp warp = warpGroup.get(0);
-			java.util.Map<Map, boolean[][]> accessibleCollision = new HashMap<>();
-			boolean[][] startCollision = new boolean[warp.getMap().getBlocks().getCollisionYCapacity()][warp.getMap().getBlocks().getCollisionXCapacity()];
-			startCollision[warp.getY()][warp.getX()] = true;
-			accessibleCollision.put(warp.getMap(), startCollision);
 			
-			List<Map> mapsToTest = new ArrayList<>(accessibleCollision.keySet());
+			//Create a map of maps to map explorers, and add an explorer for the starting map
+			java.util.Map<Map, MapExplorer> explorerMap = new HashMap<>();
+			MapExplorer startExplorer = new MapExplorer(warp.getMap());
+			startExplorer.exploreFrom(warp.getPosition(), new HashSet<>());
+			explorerMap.put(warp.getMap(), startExplorer);
 			
+			//Create a list of maps to test, and add the starting map
+			List<Map> mapsToTest = new ArrayList<>();
+			mapsToTest.add(warp.getMap());
+			
+			//Test all remaining maps
 			while (mapsToTest.size() > 0)
 			{
 				Map map = mapsToTest.remove(0);
 				
-				java.util.Map<Set<Flag>, PlayerMapTravelResult> results = Player.getMapTravelData(map, accessibleCollision.get(map));
-				PlayerMapTravelResult result = results.get(new HashSet<>());
-				List<OverworldPosition> newPositions = new ArrayList<>();
+				//Get the explorer for this map
+				MapExplorer explorer = explorerMap.get(map);
+				if (explorer == null) throw new IllegalStateException();
 				
-				for (Warp otherWarp : result.warpsAccessed) if (!warpGroup.contains(otherWarp))
+				//Explore the map
+				explorer.explore();
+				
+				//For every combination of flags neceessary for movements
+				for (Set<Flag> flags : explorer.getMapExplorationTable().keySet())
 				{
-					List<Warp> otherGroup = warpGroups.stream().filter(g -> g.contains(otherWarp)).findFirst().orElse(null);
-					if (otherGroup == null) newPositions.add(otherWarp.getDestination().getPosition());
-					else if (!networkMap.get(warpGroup).contains(otherGroup)) networkMap.get(warpGroup).add(otherGroup);
-				}
-				
-				for (MapConnection connection : result.connectionsAccessed.keySet()) newPositions.addAll(result.connectionsAccessed.get(connection));
-				List<Map> newMaps = newPositions.stream().map(p -> p.getMap()).distinct().collect(Collectors.toList());
-				
-				for (Map otherMap : newMaps)
-				{
-					boolean[][] mapCollision;
-					if (accessibleCollision.containsKey(otherMap)) mapCollision = accessibleCollision.get(otherMap);
-					else mapCollision = new boolean[otherMap.getBlocks().getCollisionYCapacity()][otherMap.getBlocks().getCollisionXCapacity()];
+					//Get the map exploration
+					MapExploration exploration = explorer.getMapExplorationTable().get(flags).getMapExploration();
 					
-					boolean changed = false;
-					for (OverworldPosition position : newPositions) if (position.getMap() == otherMap && !mapCollision[position.getY()][position.getX()])
+					//Create a list of positions to continue movement through
+					List<OverworldPosition> newPositions = new ArrayList<>();
+					
+					//For all accessed warps which aren't part of the current group
+					for (Warp otherWarp : exploration.getWarpsAccessed()) if (!warpGroup.contains(otherWarp))
 					{
-						changed = true;
-						mapCollision[position.getY()][position.getX()] = true;
+						//Find the group this warp is part of
+						List<Warp> otherGroup = warpGroups.stream().filter(g -> g.contains(otherWarp)).findAny().orElse(null);
+						
+						//If this warp isn't part of a group, continue movement through it's target
+						if (otherGroup == null) newPositions.add(otherWarp.getDestination().getPosition());
+						else
+						{
+							//This section might be unnecessary if we can scan everything altogether at the end
+							
+							//Find the node this warp is a part of
+							Node otherNode = nodes.stream().filter(n -> n.warps == otherGroup).findAny().orElseThrow();
+							
+							//Find all existing branches with the same source and target node
+							List<Branch> currentBranches = branches.stream().filter(b -> b.source == node && b.target == otherNode).collect(Collectors.toList());
+							
+							//Create the new branch and track whether it should be added
+							Branch newBranch = new Branch(node, otherNode, new HashSet<>(flags));
+							boolean addBranch = true;
+							
+							//For all existing branches
+							for (Branch branch : currentBranches)
+							{
+								//If this branch contains the same or less flags, don't add the new branch 
+								if (newBranch.requiredFlags.containsAll(branch.requiredFlags)) addBranch = false;
+								//Otherwise, if this branch contains more flags, remove it
+								else if (branch.requiredFlags.containsAll(newBranch.requiredFlags)) branches.remove(branch);
+							}
+							
+							if (addBranch) branches.add(newBranch);
+						}
 					}
 					
-					if (changed)
+					//Continue movement through all map connections
+					for (MapConnection connection : exploration.getConnectionsAccessed().keySet()) newPositions.addAll(exploration.getConnectionsAccessed().get(connection));
+					
+					//Create a list of new unique maps to update the tracking of, and loop through it
+					List<Map> newMaps = newPositions.stream().map(p -> p.getMap()).distinct().collect(Collectors.toList());
+					for (Map otherMap : newMaps)
 					{
-						accessibleCollision.put(otherMap, mapCollision);
-						if (!mapsToTest.contains(otherMap)) mapsToTest.add(otherMap);
+						if (explorerMap.get(otherMap) == null) explorerMap.put(otherMap, new MapExplorer(otherMap));
+						
+						//Might be null
+						boolean changed = false;
+						for (OverworldPosition position : newPositions) if (position.getMap() == otherMap &&
+								!explorerMap.get(otherMap).getEntry(flags).getMapExploration().getTilesAccessed()[position.getY()][position.getX()])
+						{
+							changed = true;
+							explorerMap.get(otherMap).exploreFrom(position, flags);
+						}
+						
+						if (changed && !mapsToTest.contains(otherMap)) mapsToTest.add(otherMap);
 					}
 				}
 			}
 			
-			for (List<Warp> otherGroup : warpGroups) if (warpGroup != otherGroup)
-				for (Warp otherWarp : otherGroup) if (accessibleCollision.containsKey(otherWarp.getMap())
-						&& accessibleCollision.get(otherWarp.getMap())[otherWarp.getY()][otherWarp.getX()]
-						&& !networkMap.get(warpGroup)
-								.contains(otherGroup))
-					networkMap.get(warpGroup)
-							.add(otherGroup);
+			for (Node otherNode : nodes) if (otherNode != node)
+				for (Warp otherWarp : otherNode.warps) if (!warp.hasAccessibleDestination() && explorerMap.containsKey(otherWarp.getMap()))
+			{
+				//Get all flags that can access this warp
+				//If the branch does not exist, add it
+				List<Set<Flag>> flagSets = explorerMap.get(otherWarp.getMap()).getFlagsToAccess(otherWarp.getPosition());
+				List<Branch> existingBranches = branches.stream().filter(b -> b.source == node && b.target == otherNode).collect(Collectors.toList());
+				
+				flagSets.stream().filter(s -> existingBranches.stream().noneMatch(b -> b.requiredFlags.equals(s))).forEach(s -> branches.add(new Branch(node, otherNode, s)));
+			}
 		}
 		
-		WarpNetwork network = new WarpNetwork(networkMap);
+		ConditionalWarpNetwork network = new ConditionalWarpNetwork(nodes, branches);
 		//network.print();
 		
 		List<List<Warp>> sourceNodes = new ArrayList<>();
 		List<List<Warp>> targetNodes = new ArrayList<>();
-		for (List<Warp> sourceNode : network.getNetwork().keySet())
+		for (Node source : nodes)
 		{
-			Warp target = sourceNode.stream().map(w -> w.getDestination()).filter(w -> w != null).findAny().orElseThrow();
-			List<Warp> targetNode = network.getNetwork().keySet().stream().filter(n -> n.contains(target)).findAny().orElseThrow();
-			sourceNodes.add(sourceNode);
-			targetNodes.add(targetNode);
+			//Errors for null destinations
+			Node target = nodes.stream().filter(n -> n.warps.contains(source.warps.get(0))).findAny().orElseThrow();
+			sourceNodes.add(source.warps);
+			targetNodes.add(target.warps);
 		}
 		
-		return rando.buildWarpGroups(sourceNodes, targetNodes, network, false, false, false, false);
+		return rando.buildWarpGroups(sourceNodes, targetNodes, network.collapse(new ArrayList<>()), false, false, false, false);
 	}
 	
 	public static ArrayList<String> randomiseMusicPointers(DisassemblyReader reader, Randomiser rando) throws FileNotFoundException, IOException
@@ -640,7 +699,7 @@ public class Notes
 		else if (warps)
 		{
 			if (disReader == null) System.out.println("Error: Randomisers require -d");
-			java.util.Map<Warp, Warp> newTargets = Notes.randomiseWarps(disassembly.getMaps(), rando, allFlags);
+			java.util.Map<Warp, Warp> newTargets = Notes.randomiseWarps(disassembly.getMaps(), rando);
 			
 			for (Map map : disassembly.getMaps()) for (Warp warp : map.getWarps()) if (newTargets.containsKey(warp)) warp.setDestination(newTargets.get(warp));
 			

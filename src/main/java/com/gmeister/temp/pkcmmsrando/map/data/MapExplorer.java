@@ -6,13 +6,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import com.gmeister.temp.pkcmmsrando.map.data.Player.PlayerMovementResult;
 
 public class MapExplorer
 {
 	
-	private static class MapExplorationEntry
+	public static class MapExplorationEntry
 	{
 		private MapExploration mapExploration;
 		private boolean[][] collisionToExplore;
@@ -28,10 +29,16 @@ public class MapExplorer
 			this.mapExploration = mapExploration;
 			this.collisionToExplore = collisionToExplore;
 		}
+
+		public MapExploration getMapExploration()
+		{ return this.mapExploration; }
+
+		public boolean[][] getCollisionToExplore()
+		{ return this.collisionToExplore; }
 	}
 	
-	private Map map;
-	private java.util.Map<Set<Flag>, MapExplorationEntry> mapExplorationTable;
+	private final Map map;
+	private final java.util.Map<Set<Flag>, MapExplorationEntry> mapExplorationTable;
 
 	public MapExplorer(Map map)
 	{
@@ -39,16 +46,77 @@ public class MapExplorer
 		this.map = map;
 		this.mapExplorationTable = new HashMap<>();
 	}
+	
+	public MapExplorer(Map map, OverworldPosition start)
+	{
+		this(map);
+		
+		MapExplorationEntry entry = new MapExplorationEntry(map);
+		entry.collisionToExplore[start.getY()][start.getX()] = true;
+		this.mapExplorationTable.put(new HashSet<>(), entry);
+	}
 
 	public Map getMap()
 	{ return this.map; }
-
-	public void setMap(Map map)
-	{ this.map = map; }
 	
 	public java.util.Map<Set<Flag>, MapExplorationEntry> getMapExplorationTable()
 	{
 		return this.mapExplorationTable;
+	}
+	
+	public MapExplorationEntry getEntry(Set<Flag> flags)
+	{
+		MapExplorationEntry entry = this.mapExplorationTable.get(flags);
+		if (entry == null)
+		{
+			entry = new MapExplorationEntry(this.map);
+			this.mapExplorationTable.put(flags, entry);
+		}
+		
+		return entry;
+	}
+	
+	/**
+	 * Marks a position to be explored.
+	 * @param position
+	 * @return whether the provided position has already been accessed with these flags
+	 */
+	public boolean exploreFrom(OverworldPosition position, Set<Flag> flags)
+	{
+		if (position.getMap() != map) throw new IllegalArgumentException("Position is on a different map");
+		if (!position.isWithinMap()) throw new IllegalArgumentException("Position is out of bounds");
+		
+		boolean accessed = this.getEntry(flags).mapExploration.getTilesAccessed()[position.getY()][position.getX()];
+		if (!accessed) this.getEntry(flags).collisionToExplore[position.getY()][position.getX()] = true;
+		
+		return accessed;
+	}
+	
+	public List<Set<Flag>> getFlagsToAccess(OverworldPosition position)
+	{
+		if (position.getMap() != map) throw new IllegalArgumentException("Position is on a different map");
+		if (!position.isWithinMap()) throw new IllegalArgumentException("Position is out of bounds");
+		
+		List<Set<Flag>> flagSets = new ArrayList<>(this.mapExplorationTable.keySet());
+		
+		//Remove all sets which cannot access this position
+		flagSets.removeAll(flagSets.stream()
+				.filter(s -> this.mapExplorationTable.get(s)
+						.getMapExploration()
+						.getTilesAccessed()[position.getY()][position.getX()])
+				.collect(Collectors.toList()));
+		
+		//For every set
+		for (int i = 0; i < flagSets.size(); i++)
+		{
+			Set<Flag> set = flagSets.get(i);
+			
+			//Remove all other sets that contain all the permissions of this set
+			for (int j = i + 1; j < flagSets.size();) if (set.containsAll(flagSets.get(j))) flagSets.remove(j);
+			else j++;
+		}
+		
+		return flagSets;
 	}
 	
 	//This is the more general case which gives solutions for every set of flags
@@ -203,6 +271,7 @@ public class MapExplorer
 				}
 				
 				mapChanged = true;
+				entry.collisionToExplore[y][x] = false;
 				entry.mapExploration.getTilesAccessed()[y][x] = true;
 			}
 		}
