@@ -291,7 +291,7 @@ public class Notes
 		return selectedMaps;
 	}
 	
-	public static java.util.Map<Warp, Warp> randomiseWarps(ArrayList<Map> maps, Randomiser rando) throws IOException
+	public static java.util.Map<Warp, Warp> randomiseWarps(ArrayList<Map> maps, Randomiser rando, EmpiricalDataReader empReader, List<Flag> flags) throws IOException
 	{
 		//Collect a bunch of maps to manually edit warps
 		Map victoryRoadGate = maps.stream().filter(m -> m.getConstName().equals("VICTORY_ROAD_GATE")).findFirst().orElseThrow();
@@ -425,10 +425,10 @@ public class Notes
 				explorer.explore();
 				
 				//For every combination of flags neceessary for movements
-				for (Set<Flag> flags : explorer.getMapExplorationTable().keySet())
+				for (Set<Flag> otherFlags : explorer.getMapExplorationTable().keySet())
 				{
 					//Get the map exploration
-					MapExploration exploration = explorer.getMapExplorationTable().get(flags).getMapExploration();
+					MapExploration exploration = explorer.getMapExplorationTable().get(otherFlags).getMapExploration();
 					
 					//Create a list of positions to continue movement through
 					List<OverworldPosition> newPositions = new ArrayList<>();
@@ -452,7 +452,7 @@ public class Notes
 							List<Branch> currentBranches = branches.stream().filter(b -> b.source == node && b.target == otherNode).collect(Collectors.toList());
 							
 							//Create the new branch and track whether it should be added
-							Branch newBranch = new Branch(node, otherNode, new HashSet<>(flags));
+							Branch newBranch = new Branch(node, otherNode, new HashSet<>(otherFlags));
 							boolean addBranch = true;
 							
 							//For all existing branches
@@ -479,10 +479,10 @@ public class Notes
 						
 						boolean changed = false;
 						for (OverworldPosition position : newPositions) if (position.getMap() == otherMap &&
-								!explorerMap.get(otherMap).getEntry(flags).getMapExploration().getTilesAccessed()[position.getY()][position.getX()])
+								!explorerMap.get(otherMap).getEntry(otherFlags).getMapExploration().getTilesAccessed()[position.getY()][position.getX()])
 						{
 							changed = true;
-							explorerMap.get(otherMap).exploreFrom(position, flags);
+							explorerMap.get(otherMap).exploreFrom(position, otherFlags);
 						}
 						
 						if (changed && !mapsToTest.contains(otherMap)) mapsToTest.add(otherMap);
@@ -514,6 +514,8 @@ public class Notes
 			sourceNodes.add(source.warps);
 			targetNodes.add(target.warps);
 		}
+		
+		java.util.Map<Flag, List<Warp>> flagRequirements = empReader.readFlagRequirements(flags, maps);
 		
 		return rando.buildWarpGroups(sourceNodes, targetNodes, network.collapse(new ArrayList<>()), false, false, false, false);
 	}
@@ -698,7 +700,7 @@ public class Notes
 		else if (warps)
 		{
 			if (disReader == null) System.out.println("Error: Randomisers require -d");
-			java.util.Map<Warp, Warp> newTargets = Notes.randomiseWarps(disassembly.getMaps(), rando);
+			java.util.Map<Warp, Warp> newTargets = Notes.randomiseWarps(disassembly.getMaps(), rando, empReader, allFlags);
 			
 			for (Map map : disassembly.getMaps()) for (Warp warp : map.getWarps()) if (newTargets.containsKey(warp)) warp.setDestination(newTargets.get(warp));
 			
