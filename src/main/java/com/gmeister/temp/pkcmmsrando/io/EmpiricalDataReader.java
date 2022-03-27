@@ -9,6 +9,7 @@ import java.io.InputStreamReader;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -16,8 +17,10 @@ import com.gmeister.temp.pkcmmsrando.map.data.CollisionConstant;
 import com.gmeister.temp.pkcmmsrando.map.data.CollisionPermission;
 import com.gmeister.temp.pkcmmsrando.map.data.Direction;
 import com.gmeister.temp.pkcmmsrando.map.data.Flag;
+import com.gmeister.temp.pkcmmsrando.map.data.Map;
 import com.gmeister.temp.pkcmmsrando.map.data.PlayerMovementAction;
 import com.gmeister.temp.pkcmmsrando.map.data.SpriteMovementDataConstant;
+import com.gmeister.temp.pkcmmsrando.map.data.Warp;
 
 /**
  * Reads select empirical data from files within this project. <br>
@@ -236,6 +239,52 @@ public class EmpiricalDataReader
 			}
 			
 			return constants;
+		}
+	}
+	
+	public java.util.Map<Flag, List<Warp>> readFlagRequirements(List<Flag> flags, List<Map> maps) throws IOException
+	{
+		try (InputStream stream = this.getClass().getClassLoader().getResourceAsStream("flag-requirements.tsv"))
+		{
+			if (stream == null) throw new FileNotFoundException("Could not find flag-requirements.tsv");
+			
+			java.util.Map<Flag, List<Warp>> output = new HashMap<>();
+			
+			try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, "UTF-8")))
+			{
+				if (!reader.ready()) throw new IOException("The file could not be read or was empty");
+				List<String> headers = new ArrayList<>(Arrays.asList(reader.readLine().split("\t")));
+				
+				while (reader.ready())
+				{
+					String line = reader.readLine();
+					String[] args = line.split("\t");
+					if (args.length != 2) throw new IOException("Table is not of uniform length");
+					
+					Flag flag = flags.stream().filter(f -> f.getName().equals(args[headers.indexOf("flag")])).findAny().orElseThrow();
+					List<Warp> warps = new ArrayList<>();
+					
+					String[] warpStrings = args[headers.indexOf("warps")].split(";");
+					for (String warpString : warpStrings)
+					{
+						String[] warpArgs = warpString.split(",");
+						
+						Map map = maps.stream().filter(m -> m.getConstName().equals(warpArgs[0])).findAny().orElseThrow();
+						int x = Integer.parseInt(warpArgs[1]);
+						int y = Integer.parseInt(warpArgs[2]);
+						
+						Warp warp = map.findWarpAt(x, y);
+						
+						if (warp == null) throw new IOException("A warp could not be found on " + map.getConstName() + " at " + x + ", " + y);
+						else warps.add(warp);
+					}
+					
+					//A hashmap doesn't work for duplicate keys
+					output.put(flag, warps);
+				}
+			}
+			
+			return output;
 		}
 	}
 	
