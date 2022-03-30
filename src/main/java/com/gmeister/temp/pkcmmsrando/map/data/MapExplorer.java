@@ -188,7 +188,14 @@ public class MapExplorer
 			for (int y = 0; y < yCapacity; y++)
 				for (int x = 0; x < xCapacity; x++)
 					entry.mapExploration.getTilesAccessed()[y][x] = entry.mapExploration.getTilesAccessed()[y][x] || otherExploration.getTilesAccessed()[y][x];
-			entry.mapExploration.getConnectionsAccessed().putAll(otherExploration.getConnectionsAccessed());
+			
+			java.util.Map<MapConnection, Set<OverworldPosition>> connectionsAccessed = entry.mapExploration.getConnectionsAccessed();
+			for (MapConnection connection : otherExploration.getConnectionsAccessed().keySet())
+			{
+				if (!connectionsAccessed.containsKey(connection)) connectionsAccessed.put(connection, new HashSet<>());
+				connectionsAccessed.get(connection).addAll(otherExploration.getConnectionsAccessed().get(connection));
+			}
+			
 			entry.mapExploration.getWarpsAccessed().addAll(otherExploration.getWarpsAccessed());
 		}
 		
@@ -245,13 +252,15 @@ public class MapExplorer
 						if (movement.connectionsUsed != null) for (MapConnection connection : movement.connectionsUsed)
 						{
 							if (!currentEntry.mapExploration.getConnectionsAccessed().containsKey(connection))
-								currentEntry.mapExploration.getConnectionsAccessed().put(connection, new ArrayList<>());
+								currentEntry.mapExploration.getConnectionsAccessed().put(connection, new HashSet<>());
 							currentEntry.mapExploration.getConnectionsAccessed().get(connection).add(movement.player.getPosition());
 						}
 						
 						if (movement.warpsUsed != null && !movement.warpsUsed.isEmpty())
 						{
-							currentEntry.mapExploration.getWarpsAccessed().addAll(movement.warpsUsed);
+							for (Warp warp : movement.warpsUsed)
+								if (!currentEntry.mapExploration.getWarpsAccessed().contains(warp))
+									currentEntry.mapExploration.getWarpsAccessed().add(warp);
 							warped = true;
 							break;
 						}

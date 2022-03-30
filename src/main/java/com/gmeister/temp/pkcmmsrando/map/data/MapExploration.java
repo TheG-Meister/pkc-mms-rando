@@ -1,27 +1,27 @@
 package com.gmeister.temp.pkcmmsrando.map.data;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 public class MapExploration
 {
 	
 	private boolean[][] tilesAccessed;
-	private List<Warp> warpsAccessed;
-	private java.util.Map<MapConnection, List<OverworldPosition>> connectionsAccessed;
+	private Set<Warp> warpsAccessed;
+	private java.util.Map<MapConnection, Set<OverworldPosition>> connectionsAccessed;
 	
 	public MapExploration(Map map)
 	{
 		this.tilesAccessed = new boolean[map.getBlocks()
 				.getCollisionYCapacity()][map.getBlocks()
 						.getCollisionXCapacity()];
-		this.warpsAccessed = new ArrayList<>();
+		this.warpsAccessed = new HashSet<>();
 		this.connectionsAccessed = new HashMap<>();
 	}
 	
-	public MapExploration(boolean[][] tilesAccessed, List<Warp> warpsAccessed,
-			java.util.Map<MapConnection, List<OverworldPosition>> connectionsAccessed)
+	public MapExploration(boolean[][] tilesAccessed, Set<Warp> warpsAccessed,
+			java.util.Map<MapConnection, Set<OverworldPosition>> connectionsAccessed)
 	{
 		super();
 		this.tilesAccessed = tilesAccessed;
@@ -35,16 +35,16 @@ public class MapExploration
 	public void setTilesAccessed(boolean[][] tilesAccessed)
 	{ this.tilesAccessed = tilesAccessed; }
 	
-	public List<Warp> getWarpsAccessed()
+	public Set<Warp> getWarpsAccessed()
 	{ return this.warpsAccessed; }
 	
-	public void setWarpsAccessed(List<Warp> warpsAccessed)
+	public void setWarpsAccessed(Set<Warp> warpsAccessed)
 	{ this.warpsAccessed = warpsAccessed; }
 	
-	public java.util.Map<MapConnection, List<OverworldPosition>> getConnectionsAccessed()
+	public java.util.Map<MapConnection, Set<OverworldPosition>> getConnectionsAccessed()
 	{ return this.connectionsAccessed; }
 	
-	public void setConnectionsAccessed(java.util.Map<MapConnection, List<OverworldPosition>> connectionsAccessed)
+	public void setConnectionsAccessed(java.util.Map<MapConnection, Set<OverworldPosition>> connectionsAccessed)
 	{ this.connectionsAccessed = connectionsAccessed; }
 	
 }
