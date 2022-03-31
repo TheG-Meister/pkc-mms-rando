@@ -399,7 +399,7 @@ public class Notes
 		for (ConditionalWarpNetwork.Node node : nodes)
 		{
 			//Get the warp group from the node and select a representative warp
-			List<Warp> warpGroup = node.warps;
+			List<Warp> warpGroup = node.getWarps();
 			Warp warp = warpGroup.get(0);
 			
 			//Create a map of maps to map explorers, and add an explorer for the starting map
@@ -446,10 +446,10 @@ public class Notes
 							//This section might be unnecessary if we can scan everything altogether at the end
 							
 							//Find the node this warp is a part of
-							Node otherNode = nodes.stream().filter(n -> n.warps == otherGroup).findAny().orElseThrow();
+							Node otherNode = nodes.stream().filter(n -> n.getWarps().equals(otherGroup)).findAny().orElseThrow();
 							
 							//Find all existing branches with the same source and target node
-							List<Branch> currentBranches = branches.stream().filter(b -> b.source == node && b.target == otherNode).collect(Collectors.toList());
+							List<Branch> currentBranches = branches.stream().filter(b -> b.getSource() == node && b.getTarget() == otherNode).collect(Collectors.toList());
 							
 							//Create the new branch and track whether it should be added
 							Branch newBranch = new Branch(node, otherNode, new HashSet<>(otherFlags));
@@ -459,9 +459,10 @@ public class Notes
 							for (Branch branch : currentBranches)
 							{
 								//If this branch contains the same or less flags, don't add the new branch 
-								if (newBranch.requiredFlags.containsAll(branch.requiredFlags)) addBranch = false;
+								if (newBranch.getRequiredFlags().containsAll(branch.getRequiredFlags())) addBranch = false;
 								//Otherwise, if this branch contains more flags, remove it
-								else if (branch.requiredFlags.containsAll(newBranch.requiredFlags)) branches.remove(branch);
+								//I don't think this ever runs
+								else if (branch.getRequiredFlags().containsAll(newBranch.getRequiredFlags())) branches.remove(branch);
 							}
 							
 							if (addBranch) branches.add(newBranch);
@@ -491,14 +492,14 @@ public class Notes
 			}
 			
 			for (Node otherNode : nodes) if (otherNode != node)
-				for (Warp otherWarp : otherNode.warps) if (!warp.hasAccessibleDestination() && explorerMap.containsKey(otherWarp.getMap()))
+				for (Warp otherWarp : otherNode.getWarps()) if (!warp.hasAccessibleDestination() && explorerMap.containsKey(otherWarp.getMap()))
 			{
 				//Get all flags that can access this warp
 				//If the branch does not exist, add it
 				List<Set<Flag>> flagSets = explorerMap.get(otherWarp.getMap()).getFlagsToAccess(otherWarp.getPosition());
-				List<Branch> existingBranches = branches.stream().filter(b -> b.source == node && b.target == otherNode).collect(Collectors.toList());
+				List<Branch> existingBranches = branches.stream().filter(b -> b.getSource() == node && b.getTarget() == otherNode).collect(Collectors.toList());
 				
-				flagSets.stream().filter(s -> existingBranches.stream().noneMatch(b -> b.requiredFlags.equals(s))).forEach(s -> branches.add(new Branch(node, otherNode, s)));
+				flagSets.stream().filter(s -> existingBranches.stream().noneMatch(b -> b.getRequiredFlags().equals(s))).forEach(s -> branches.add(new Branch(node, otherNode, s)));
 			}
 		}
 		
@@ -510,9 +511,9 @@ public class Notes
 		for (Node source : nodes)
 		{
 			//Errors for null destinations
-			Node target = nodes.stream().filter(n -> n.warps.contains(source.warps.get(0))).findAny().orElseThrow();
-			sourceNodes.add(source.warps);
-			targetNodes.add(target.warps);
+			Node target = nodes.stream().filter(n -> n.getWarps().contains(source.getWarps().get(0))).findAny().orElseThrow();
+			sourceNodes.add(source.getWarps());
+			targetNodes.add(target.getWarps());
 		}
 		
 		java.util.Map<Flag, List<Warp>> flagRequirements = empReader.readFlagRequirements(flags, maps);
