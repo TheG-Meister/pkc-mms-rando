@@ -188,13 +188,13 @@ public class Network<N, B extends Branch<N>>
 		return this.components.stream().filter(c -> c.contains(node)).findAny().orElseThrow();
 	}
 	
-	public boolean isPathFrom(N source, N target)
+	public boolean hasPath(N source, N target)
 	{
 		this.validateNode(source);
 		this.validateNode(target);
 		
 		List<N> targets = new ArrayList<>();
-		for (B branch : this.getBranchEntry(source)) targets.add(branch.getTarget());
+		targets.add(source);
 		
 		for (int i = 0; i < targets.size(); i++)
 		{
