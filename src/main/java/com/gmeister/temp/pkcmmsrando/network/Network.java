@@ -1,8 +1,10 @@
 package com.gmeister.temp.pkcmmsrando.network;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -70,6 +72,12 @@ public class Network<N, B extends Branch<N>>
 		if (nodes.contains(null)) throw new IllegalArgumentException("nodes must not contain null elements");
 		
 		for (N node : nodes) this.addNode(node);
+	}
+	
+	protected void validateNode(N node)
+	{
+		if (node == null) throw new IllegalArgumentException("node must not be null");
+		if (!this.nodes.contains(node)) throw new IllegalArgumentException("node must be part of the network");
 	}
 	
 	public void addNode(N node)
@@ -178,6 +186,27 @@ public class Network<N, B extends Branch<N>>
 		if (!this.nodes.contains(node)) throw new IllegalArgumentException("node must be part of the network");
 		
 		return this.components.stream().filter(c -> c.contains(node)).findAny().orElseThrow();
+	}
+	
+	public boolean isPathFrom(N source, N target)
+	{
+		this.validateNode(source);
+		this.validateNode(target);
+		
+		List<N> targets = new ArrayList<>();
+		for (B branch : this.getBranchEntry(source)) targets.add(branch.getTarget());
+		
+		for (int i = 0; i < targets.size(); i++)
+		{
+			N node = targets.get(i);
+			for (B branch : this.getBranchEntry(node))
+			{
+				if (branch.getTarget().equals(target)) return true;
+				else if (!targets.contains(branch.getTarget())) targets.add(branch.getTarget());
+			}
+		}
+		
+		return false;
 	}
 	
 }
