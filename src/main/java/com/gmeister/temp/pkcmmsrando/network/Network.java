@@ -8,34 +8,34 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class Network<N, B extends Branch<N>>
+public class Network<N, E extends Edge<N>>
 {
 	
 	private Set<N> nodes;
-	private Map<N, Set<B>> branchMap;
+	private Map<N, Set<E>> edgeMap;
 	private Set<Set<N>> components;
 	
-	public Network(Collection<? extends N> nodes, Collection<? extends B> branches)
+	public Network(Collection<? extends N> nodes, Collection<? extends E> edges)
 	{
 		this.nodes = new HashSet<>();
-		this.branchMap = new HashMap<>();
+		this.edgeMap = new HashMap<>();
 		this.components = new HashSet<>();
 		
 		this.addNodes(nodes);
-		this.addBranches(branches);
+		this.addEdges(edges);
 	}
 	
-	public Network(Network<? extends N, ? extends B> other)
+	public Network(Network<? extends N, ? extends E> other)
 	{
 		this.nodes = new HashSet<>();
-		this.branchMap = new HashMap<>();
+		this.edgeMap = new HashMap<>();
 		this.components = new HashSet<>();
 		
 		this.addNodes(other.getNodes());
 		
-		Set<B> branches = new HashSet<>();
-		for (Set<? extends B> nodeBranches : other.branchMap.values()) branches.addAll(nodeBranches);
-		this.addBranches(branches);
+		Set<E> edges = new HashSet<>();
+		for (Set<? extends E> nodeEdges : other.edgeMap.values()) edges.addAll(nodeEdges);
+		this.addEdges(edges);
 	}
 	
 	public Set<N> getNodes()
@@ -48,23 +48,23 @@ public class Network<N, B extends Branch<N>>
 		return components;
 	}
 	
-	private Set<B> getBranchEntry(N source)
+	private Set<E> getEdgeEntry(N source)
 	{
 		if (source == null) throw new IllegalArgumentException("source node must not be null");
 		if (!this.nodes.contains(source)) throw new IllegalArgumentException("source node must be part of the network");
 		
-		Set<B> branches = this.branchMap.get(source);
-		//This should never be the case as addNode also adds entries to branchMap
-		if (branches == null)
+		Set<E> edges = this.edgeMap.get(source);
+		//This should never be the case as addNode also adds entries to edgeMap
+		if (edges == null)
 		{
-			branches = new HashSet<>();
-			this.branchMap.put(source, branches);
+			edges = new HashSet<>();
+			this.edgeMap.put(source, edges);
 		}
-		return branches;
+		return edges;
 	}
 	
-	public Set<B> getBranches(N source)
-	{ return new HashSet<>(this.getBranchEntry(source)); }
+	public Set<E> getEdges(N source)
+	{ return new HashSet<>(this.getEdgeEntry(source)); }
 	
 	public void addNodes(Collection<? extends N> nodes)
 	{
@@ -85,58 +85,58 @@ public class Network<N, B extends Branch<N>>
 		if (node == null) throw new IllegalArgumentException("node must not be null");
 		
 		this.nodes.add(node);
-		this.branchMap.put(node, new HashSet<>());
+		this.edgeMap.put(node, new HashSet<>());
 		
 		Set<N> component = new HashSet<>();
 		component.add(node);
 		this.components.add(component);
 	}
 	
-	protected void validateBranch(B branch)
+	protected void validateEdge(E edge)
 	{
-		if (branch == null) throw new IllegalArgumentException("branch must not be null");
+		if (edge == null) throw new IllegalArgumentException("edge must not be null");
 		
-		if (branch.getSource() == null) throw new IllegalArgumentException("branch source must not be null");
-		if (branch.getTarget() == null) throw new IllegalArgumentException("branch target must not be null");
+		if (edge.getSource() == null) throw new IllegalArgumentException("edge source must not be null");
+		if (edge.getTarget() == null) throw new IllegalArgumentException("edge target must not be null");
 		
-		if (!this.nodes.contains(branch.getSource())) throw new IllegalArgumentException("branch source must be part of the network");
-		if (!this.nodes.contains(branch.getTarget())) throw new IllegalArgumentException("branch target must be part of the network");
+		if (!this.nodes.contains(edge.getSource())) throw new IllegalArgumentException("edge source must be part of the network");
+		if (!this.nodes.contains(edge.getTarget())) throw new IllegalArgumentException("edge target must be part of the network");
 	}
 	
-	public void addBranches(Collection<? extends B> branches)
+	public void addEdges(Collection<? extends E> edges)
 	{
-		if (branches == null) throw new IllegalArgumentException("branches must not be null");
+		if (edges == null) throw new IllegalArgumentException("edges must not be null");
 		
-		//Validate all branches
-		for (B branch : branches) this.validateBranch(branch);
+		//Validate all edges
+		for (E edge : edges) this.validateEdge(edge);
 		
-		//Add all branches
-		for (B branch : branches) this.addBranch(branch);
+		//Add all edges
+		for (E edge : edges) this.addEdge(edge);
 	}
 	
-	public void addBranch(B branch)
+	public void addEdge(E edge)
 	{
-		this.validateBranch(branch);
+		this.validateEdge(edge);
 		
-		this.getBranchEntry(branch.getSource())
-			.add(branch);
+		this.getEdgeEntry(edge.getSource())
+			.add(edge);
 		
-		Set<N> sourceComponent = this.getComponentOf(branch.getSource());
-		Set<N> targetComponent = this.getComponentOf(branch.getTarget());
+		Set<N> sourceComponent = this.getComponentOf(edge.getSource());
+		Set<N> targetComponent = this.getComponentOf(edge.getTarget());
 		if (sourceComponent != targetComponent) this.mergeComponents(sourceComponent, targetComponent);
 	}
 	
 	public void printEdgeTable()
 	{
 		System.out.println("Source\tTarget");
-		for (N key : this.branchMap.keySet()) for (B branch : this.branchMap.get(key))
+		for (N key : this.edgeMap.keySet()) for (E edge : this.edgeMap.get(key))
 			System.out.println(
-					branch.getSource() + "\t" +
-					branch.getTarget());
+					edge.getSource() + "\t" +
+					edge.getTarget());
 	}
 	
 	/**
-	 * Initialises the set of components. This can be used to recalculate the components of this network if any of the nodes or branches have been modified.
+	 * Initialises the set of components. This can be used to recalculate the components of this network if any of the nodes or edges have been modified.
 	 */
 	public void initComponents()
 	{
@@ -151,10 +151,10 @@ public class Network<N, B extends Branch<N>>
 			componentMap.put(node, component);
 		}
 		
-		for (N source : this.branchMap.keySet())
+		for (N source : this.edgeMap.keySet())
 		{
 			Set<N> sourceComponent = componentMap.get(source);
-			for (B edge : this.getBranchEntry(source)) if (!sourceComponent.contains(edge.getTarget()))
+			for (E edge : this.getEdgeEntry(source)) if (!sourceComponent.contains(edge.getTarget()))
 			{
 				Set<N> targetComponent = componentMap.get(edge.getTarget());
 				this.mergeComponents(sourceComponent, targetComponent);
@@ -199,10 +199,10 @@ public class Network<N, B extends Branch<N>>
 		for (int i = 0; i < targets.size(); i++)
 		{
 			N node = targets.get(i);
-			for (B branch : this.getBranchEntry(node))
+			for (E edge : this.getEdgeEntry(node))
 			{
-				if (branch.getTarget().equals(target)) return true;
-				else if (!targets.contains(branch.getTarget())) targets.add(branch.getTarget());
+				if (edge.getTarget().equals(target)) return true;
+				else if (!targets.contains(edge.getTarget())) targets.add(edge.getTarget());
 			}
 		}
 		

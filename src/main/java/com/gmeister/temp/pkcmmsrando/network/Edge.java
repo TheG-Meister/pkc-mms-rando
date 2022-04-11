@@ -1,12 +1,12 @@
 package com.gmeister.temp.pkcmmsrando.network;
 
-public class Branch<N>
+public class Edge<N>
 {
 	
 	private final N source;
 	private final N target;
 	
-	public Branch(N source, N target)
+	public Edge(N source, N target)
 	{
 		super();
 		this.source = source;
@@ -21,7 +21,7 @@ public class Branch<N>
 
 	@Override
 	public String toString()
-	{ return "Branch [source=" + this.source + ", target=" + this.target + "]"; }
+	{ return "Edge [source=" + this.source + ", target=" + this.target + "]"; }
 
 	@Override
 	public int hashCode()
@@ -39,7 +39,7 @@ public class Branch<N>
 		if (this == obj) return true;
 		if (obj == null) return false;
 		if (getClass() != obj.getClass()) return false;
-		Branch<?> other = (Branch<?>) obj;
+		Edge<?> other = (Edge<?>) obj;
 		if (this.source == null)
 		{
 			if (other.source != null) return false;
