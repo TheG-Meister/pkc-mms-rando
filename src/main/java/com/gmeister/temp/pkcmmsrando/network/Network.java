@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class Network<N, E extends Edge<N>>
+public class Network<N extends Node, E extends Edge<N>>
 {
 	
 	private Set<N> nodes;
