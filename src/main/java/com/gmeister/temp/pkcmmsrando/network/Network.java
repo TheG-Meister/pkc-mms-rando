@@ -15,11 +15,16 @@ public class Network<N extends Node, E extends Edge<N>>
 	private Map<N, Set<E>> edgeMap;
 	private Set<Set<N>> components;
 	
-	public Network(Collection<? extends N> nodes, Collection<? extends E> edges)
+	public Network()
 	{
 		this.nodes = new HashSet<>();
 		this.edgeMap = new HashMap<>();
 		this.components = new HashSet<>();
+	}
+	
+	public Network(Collection<? extends N> nodes, Collection<? extends E> edges)
+	{
+		this();
 		
 		this.addNodes(nodes);
 		this.addEdges(edges);
@@ -27,9 +32,7 @@ public class Network<N extends Node, E extends Edge<N>>
 	
 	public Network(Network<? extends N, ? extends E> other)
 	{
-		this.nodes = new HashSet<>();
-		this.edgeMap = new HashMap<>();
-		this.components = new HashSet<>();
+		this();
 		
 		this.addNodes(other.getNodes());
 		
