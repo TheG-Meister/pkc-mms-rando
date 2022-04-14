@@ -13,10 +13,10 @@ public class Edge<N>
 		this.target = target;
 	}
 	
-	public N getSource()
+	public final N getSource()
 	{ return this.source; }
 	
-	public N getTarget()
+	public final N getTarget()
 	{ return this.target; }
 
 	@Override
