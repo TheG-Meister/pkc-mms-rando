@@ -149,6 +149,7 @@ public class Network<N extends Node, E extends Edge<N>>
 		
 		this.getEdgeEntry(edge.getSource()).remove(edge);
 		
+		//UpdateComponent isn't the most efficient way of splitting it up
 		if (!this.hasConnection(edge.getSource(), edge.getTarget())) this.updateComponent(this.getComponentOf(edge.getSource()));
 	}
 	
