@@ -95,6 +95,20 @@ public class Network<N extends Node, E extends Edge<N>>
 		this.components.add(component);
 	}
 	
+	public void removeNode(N node)
+	{
+		this.validateNode(node);
+		
+		for (N source : this.edgeMap.keySet())
+		{
+			Set<E> edges = this.getEdges(source);
+			for (E edge : edges) if (edge.getSource().equals(node) || edge.getTarget().equals(node)) this.removeEdge(edge);
+		}
+
+		this.edgeMap.remove(node);
+		this.nodes.remove(node);
+	}
+	
 	protected void validateEdge(E edge)
 	{
 		if (edge == null) throw new IllegalArgumentException("edge must not be null");
@@ -129,6 +143,15 @@ public class Network<N extends Node, E extends Edge<N>>
 		if (sourceComponent != targetComponent) this.mergeComponents(sourceComponent, targetComponent);
 	}
 	
+	public void removeEdge(E edge)
+	{
+		this.validateEdge(edge);
+		
+		this.getEdgeEntry(edge.getSource()).remove(edge);
+		
+		if (!this.hasConnection(edge.getSource(), edge.getTarget())) this.updateComponent(this.getComponentOf(edge.getSource()));
+	}
+	
 	public void printEdgeTable()
 	{
 		System.out.println("Source\tTarget");
@@ -155,6 +178,35 @@ public class Network<N extends Node, E extends Edge<N>>
 		}
 		
 		for (N source : this.edgeMap.keySet())
+		{
+			Set<N> sourceComponent = componentMap.get(source);
+			for (E edge : this.getEdgeEntry(source)) if (!sourceComponent.contains(edge.getTarget()))
+			{
+				Set<N> targetComponent = componentMap.get(edge.getTarget());
+				this.mergeComponents(sourceComponent, targetComponent);
+				for (N node : targetComponent) componentMap.put(node, sourceComponent);
+			}
+		}
+	}
+	
+	//This method is similar to initComponents
+	private void updateComponent(Set<N> component)
+	{
+		if (component == null) throw new IllegalArgumentException("component must not be null");
+		if (!this.components.contains(component)) throw new IllegalArgumentException("component must be part of the network");
+		
+		this.components.remove(component);
+		Map<N, Set<N>> componentMap = new HashMap<>();
+		
+		for (N node : component)
+		{
+			Set<N> newComponent = new HashSet<>();
+			newComponent.add(node);
+			this.components.add(newComponent);
+			componentMap.put(node, newComponent);
+		}
+		
+		for (N source : component)
 		{
 			Set<N> sourceComponent = componentMap.get(source);
 			for (E edge : this.getEdgeEntry(source)) if (!sourceComponent.contains(edge.getTarget()))
@@ -209,6 +261,45 @@ public class Network<N extends Node, E extends Edge<N>>
 			}
 		}
 		
+		return false;
+	}
+	
+	//This method is similar to hasPath
+	public boolean hasConnection(N source, N target)
+	{
+		this.validateNode(source);
+		this.validateNode(target);
+		
+		List<N> nodes = new ArrayList<>();
+		nodes.add(source);
+		
+		for (int i = 0; i < nodes.size(); i++)
+		{
+			//Get the node
+			N node = nodes.get(i);
+			//Create a list of connections to analyse
+			List<N> connections = new ArrayList<>();
+			
+			//Add all nodes that have an edge arriving at node
+			for (N otherNode : this.edgeMap.keySet())
+				for (E edge : this.getEdgeEntry(otherNode))
+					if (edge.getTarget().equals(node))
+						connections.add(edge.getSource());
+			
+			//Add all nodes that have an edge arriving from node 
+			for (E edge : this.getEdgeEntry(node)) connections.add(edge.getTarget());
+			
+			//For all new nodes
+			for (N otherNode : connections) if (!nodes.contains(otherNode))
+			{
+				//Return true if this node equals the target node
+				if (otherNode.equals(target)) return true;
+				//Otherwise add this node to nodes
+				else nodes.add(otherNode);
+			}
+		}
+		
+		//Otherwise return false
 		return false;
 	}
 	
