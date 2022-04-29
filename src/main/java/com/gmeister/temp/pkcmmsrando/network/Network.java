@@ -13,13 +13,11 @@ public class Network<N extends Node, E extends Edge<? extends N>>
 	
 	private Set<N> nodes;
 	private Map<N, Set<E>> edgeMap;
-	private Set<Set<N>> components;
 	
 	public Network()
 	{
 		this.nodes = new HashSet<>();
 		this.edgeMap = new HashMap<>();
-		this.components = new HashSet<>();
 	}
 	
 	public Network(Collection<? extends N> nodes, Collection<? extends E> edges)
@@ -43,13 +41,6 @@ public class Network<N extends Node, E extends Edge<? extends N>>
 	
 	public Set<N> getNodes()
 	{ return new HashSet<>(this.nodes); }
-	
-	public Set<Set<N>> getComponents()
-	{
-		Set<Set<N>> components = new HashSet<>();
-		for (Set<N> component : this.components) components.add(new HashSet<>(component));
-		return components;
-	}
 	
 	private Set<E> getEdgeEntry(N source)
 	{
@@ -97,10 +88,6 @@ public class Network<N extends Node, E extends Edge<? extends N>>
 		
 		this.nodes.add(node);
 		this.edgeMap.put(node, new HashSet<>());
-		
-		Set<N> component = new HashSet<>();
-		component.add(node);
-		this.components.add(component);
 	}
 	
 	public void removeNode(N node)
@@ -145,10 +132,6 @@ public class Network<N extends Node, E extends Edge<? extends N>>
 		
 		this.getEdgeEntry(edge.getSource())
 			.add(edge);
-		
-		Set<N> sourceComponent = this.getComponentOf(edge.getSource());
-		Set<N> targetComponent = this.getComponentOf(edge.getTarget());
-		if (sourceComponent != targetComponent) this.mergeComponents(sourceComponent, targetComponent);
 	}
 	
 	public void removeEdge(E edge)
@@ -156,9 +139,6 @@ public class Network<N extends Node, E extends Edge<? extends N>>
 		this.validateEdge(edge);
 		
 		this.getEdgeEntry(edge.getSource()).remove(edge);
-		
-		//UpdateComponent isn't the most efficient way of splitting it up
-		if (!this.hasConnection(edge.getSource(), edge.getTarget())) this.updateComponent(this.getComponentOf(edge.getSource()));
 	}
 	
 	public void printEdgeTable()
@@ -168,88 +148,6 @@ public class Network<N extends Node, E extends Edge<? extends N>>
 			System.out.println(
 					edge.getSource() + "\t" +
 					edge.getTarget());
-	}
-	
-	/**
-	 * Initialises the set of components. This can be used to recalculate the components of this network if any of the nodes or edges have been modified.
-	 */
-	public void initComponents()
-	{
-		this.components = new HashSet<>();
-		Map<N, Set<N>> componentMap = new HashMap<>();
-		
-		for (N node : this.nodes)
-		{
-			Set<N> component = new HashSet<>();
-			component.add(node);
-			this.components.add(component);
-			componentMap.put(node, component);
-		}
-		
-		for (N source : this.edgeMap.keySet())
-		{
-			Set<N> sourceComponent = componentMap.get(source);
-			for (E edge : this.getEdgeEntry(source)) if (!sourceComponent.contains(edge.getTarget()))
-			{
-				Set<N> targetComponent = componentMap.get(edge.getTarget());
-				this.mergeComponents(sourceComponent, targetComponent);
-				for (N node : targetComponent) componentMap.put(node, sourceComponent);
-			}
-		}
-	}
-	
-	//This method is similar to initComponents
-	private void updateComponent(Set<N> component)
-	{
-		if (component == null) throw new IllegalArgumentException("component must not be null");
-		if (!this.components.contains(component)) throw new IllegalArgumentException("component must be part of the network");
-		
-		this.components.remove(component);
-		Map<N, Set<N>> componentMap = new HashMap<>();
-		
-		for (N node : component)
-		{
-			Set<N> newComponent = new HashSet<>();
-			newComponent.add(node);
-			this.components.add(newComponent);
-			componentMap.put(node, newComponent);
-		}
-		
-		for (N source : component)
-		{
-			Set<N> sourceComponent = componentMap.get(source);
-			for (E edge : this.getEdgeEntry(source)) if (!sourceComponent.contains(edge.getTarget()))
-			{
-				Set<N> targetComponent = componentMap.get(edge.getTarget());
-				this.mergeComponents(sourceComponent, targetComponent);
-				for (N node : targetComponent) componentMap.put(node, sourceComponent);
-			}
-		}
-	}
-	
-	/**
-	 * Merges two components into a single component. More specifically, puts all elements of <code>otherComponent</code> into <code>component</code>.
-	 * @param component
-	 * @param otherComponent
-	 */
-	private void mergeComponents(Set<N> component, Set<N> otherComponent)
-	{
-		if (!this.components.contains(component)) throw new IllegalArgumentException("component must be part of the network");
-		if (!this.components.contains(otherComponent)) throw new IllegalArgumentException("otherComponent must be part of the network");
-		
-		if (component == otherComponent) throw new IllegalArgumentException("component and otherComponent must not be the same object");
-		
-		component.addAll(otherComponent);
-		this.components.remove(otherComponent);
-	}
-	
-	//This should probably return a copy, as a getting class could modify the component
-	public Set<N> getComponentOf(N node)
-	{
-		if (node == null) throw new IllegalArgumentException("node must not be null");
-		if (!this.nodes.contains(node)) throw new IllegalArgumentException("node must be part of the network");
-		
-		return this.components.stream().filter(c -> c.contains(node)).findAny().orElseThrow();
 	}
 	
 	public boolean hasPath(N source, N target)
