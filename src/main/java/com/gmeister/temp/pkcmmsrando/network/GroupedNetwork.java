@@ -179,6 +179,11 @@ public class GroupedNetwork<N extends Node, E extends Edge<? extends N>> extends
 		return this.edgeMap.get(edge);
 	}
 	
+	public Set<E> getOriginalEdges()
+	{
+		return new HashSet<>(this.edgeMap.keySet());
+	}
+	
 	public void splitNodeGroups(Collection<NodeGroup<N>> nodeGroups, Collection<? extends E> edges)
 	{
 		for (NodeGroup<N> nodeGroup : nodeGroups)
