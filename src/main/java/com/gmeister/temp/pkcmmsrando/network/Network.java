@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class Network<N extends Node, E extends Edge<N>>
+public class Network<N extends Node, E extends Edge<? extends N>>
 {
 	
 	private Set<N> nodes;
@@ -68,6 +68,14 @@ public class Network<N extends Node, E extends Edge<N>>
 	
 	public Set<E> getEdges(N source)
 	{ return new HashSet<>(this.getEdgeEntry(source)); }
+	
+	public Set<E> getEdges()
+	{
+		Set<E> edges = new HashSet<>();
+		for (N node : this.edgeMap.keySet()) edges.addAll(this.getEdgeEntry(node));
+		
+		return edges;
+	}
 	
 	public void addNodes(Collection<? extends N> nodes)
 	{
