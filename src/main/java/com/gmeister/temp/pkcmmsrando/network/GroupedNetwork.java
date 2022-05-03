@@ -155,6 +155,18 @@ public class GroupedNetwork<N extends Node, E extends Edge<? extends N>> extends
 		for (NodeGroup<N> node : nodeGroupSet) this.removeNode(node);
 	}
 	
+	public void removeOriginalNode(N node)
+	{
+		//null check
+		this.removeNode(this.nodeMap.get(node));
+	}
+	
+	public void removeOriginalEdge(E edge)
+	{
+		//null check
+		this.removeEdge(this.edgeMap.get(edge));
+	}
+	
 	@Override
 	public void removeNode(NodeGroup<N> node)
 	{
