@@ -210,4 +210,31 @@ public class Network<N extends Node, E extends Edge<? extends N>>
 		return false;
 	}
 	
+	public boolean isSourceNode(N node)
+	{
+		return !this.getEdgeEntry(node).isEmpty();
+	}
+	
+	public boolean isTargetNode(N node)
+	{
+		for (N key : this.edgeMap.keySet()) for (E edge : this.getEdgeEntry(key)) if (edge.getTarget().equals(node)) return true;
+		return false;
+	}
+
+	public Set<N> getTargetNodes()
+	{
+		Set<N> nodes = new HashSet<>();
+		for (N node : this.edgeMap.keySet()) for (E edge : this.getEdgeEntry(node)) nodes.add(edge.getTarget());
+		
+		return nodes;
+	}
+	
+	public Set<N> getSourceNodes()
+	{
+		Set<N> nodes = new HashSet<>();
+		for (N node : this.edgeMap.keySet()) if (!this.getEdges(node).isEmpty()) nodes.add(node);
+		
+		return nodes;
+	}
+	
 }
