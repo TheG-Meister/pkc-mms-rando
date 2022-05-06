@@ -237,4 +237,31 @@ public class Network<N extends Node, E extends Edge<? extends N>>
 		return nodes;
 	}
 	
+	public Set<N> getTargetsOf(N node)
+	{
+		this.validateNode(node);
+		
+		List<N> nodes = new ArrayList<>();
+		nodes.add(node);
+		
+		for (int i = 0; i < nodes.size(); i++) for (E edge : this.getEdgeEntry(nodes.get(i))) if (!nodes.contains(edge.getTarget())) nodes.add(edge.getTarget());
+		
+		return new HashSet<>(nodes);
+	}
+	
+	public Set<N> getSourcesOf(N node)
+	{
+		this.validateNode(node);
+		
+		List<N> nodes = new ArrayList<>();
+		nodes.add(node);
+		
+		for (int i = 0; i < nodes.size(); i++)
+		{
+			for (N key : this.getNodes()) for (E edge : this.getEdgeEntry(key)) if (edge.getTarget().equals(nodes.get(i)) && !nodes.contains(edge.getSource())) nodes.add(edge.getSource());
+		}
+		
+		return new HashSet<>(nodes);
+	}
+	
 }
