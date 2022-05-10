@@ -43,7 +43,10 @@ public class GroupedNetwork<N extends Node, E extends Edge<? extends N>> extends
 	{
 		//create copies of everything?
 		//Everything is basically final so it should be fine
-		this(other.getNodes(), other.getEdges(), edgeFilter);
+		super(other);
+		this.nodeMap = new HashMap<>(other.nodeMap);
+		this.edgeMap = new HashMap<>(other.edgeMap);
+		this.edgeFilter = edgeFilter;
 	}
 
 	public Predicate<E> getEdgeFilter()
