@@ -51,6 +51,7 @@ public class GroupedNetwork<N extends Node, E extends Edge<? extends N>> extends
 	
 	public void addOriginalNodes(Collection<? extends N> nodes)
 	{
+		//null check on nodes itself
 		if (nodes.contains(null)) throw new IllegalArgumentException("nodes must not contain null elements");
 		
 		for (N node : nodes) this.addOriginalNode(node);
@@ -142,17 +143,23 @@ public class GroupedNetwork<N extends Node, E extends Edge<? extends N>> extends
 			boolean containsTarget = nodeGroupSet.contains(edge.getTarget());
 			
 			//Should this first condition instead remove the edge?
-			if (containsSource && containsTarget) edges.add(new MimickedEdge<NodeGroup<N>, E>(mergedNode, mergedNode, edge.getOriginalEdge()));
-			else if (containsSource) edges.add(new MimickedEdge<NodeGroup<N>, E>(mergedNode, edge.getTarget(), edge.getOriginalEdge()));
-			else if (containsTarget) edges.add(new MimickedEdge<NodeGroup<N>, E>(edge.getSource(), mergedNode, edge.getOriginalEdge()));
+			if (containsSource && containsTarget) edges.add(new MimickedEdge<>(mergedNode, mergedNode, edge.getOriginalEdge()));
+			else if (containsSource) edges.add(new MimickedEdge<>(mergedNode, edge.getTarget(), edge.getOriginalEdge()));
+			else if (containsTarget) edges.add(new MimickedEdge<>(edge.getSource(), mergedNode, edge.getOriginalEdge()));
 		}
-		
-		//Should update nodeMap automatically
-		this.addNode(mergedNode);
-		this.addEdges(edges);
 		
 		//Edges should get removed automatically
 		for (NodeGroup<N> node : nodeGroupSet) this.removeNode(node);
+		
+		//Should update nodeMap automatically
+		this.addNode(mergedNode);
+		
+		for (MimickedEdge<NodeGroup<N>, E> edge : edges)
+		{
+			super.addEdge(edge);
+			//Do we also need to remove from the edge map? probably
+			this.edgeMap.put(edge.getOriginalEdge(), edge);
+		}
 	}
 	
 	public void removeOriginalNode(N node)
