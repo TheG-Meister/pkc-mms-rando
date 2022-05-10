@@ -32,11 +32,9 @@ public class Network<N extends Node, E extends Edge<? extends N>>
 	{
 		this();
 		
-		this.addNodes(other.getNodes());
-		
-		Set<E> edges = new HashSet<>();
-		for (Set<? extends E> nodeEdges : other.edgeMap.values()) edges.addAll(nodeEdges);
-		this.addEdges(edges);
+		this.nodes = new HashSet<>(other.nodes);
+		this.edgeMap = new HashMap<>();
+		for (N node : other.edgeMap.keySet()) this.edgeMap.put(node, new HashSet<>(other.edgeMap.get(node)));
 	}
 	
 	public Set<N> getNodes()
