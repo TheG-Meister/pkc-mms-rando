@@ -111,10 +111,10 @@ public class GroupedNetwork<N extends Node, E extends Edge<? extends N>> extends
 			super.addEdge(edge);
 			this.edgeMap.put(edge.getOriginalEdge(), edge);
 		}
-		else if (!edge.getSource().equals(edge.getTarget())) this.mergeNodeGroups(edge.getSource(), edge.getTarget());
+		else if (!edge.getSource().equals(edge.getTarget())) this.merge(edge.getSource(), edge.getTarget());
 	}
 	
-	public void mergeNodeGroups(NodeGroup<N> node, NodeGroup<N> otherNode)
+	public void merge(NodeGroup<N> node, NodeGroup<N> otherNode)
 	{
 		if (node == null) throw new IllegalArgumentException("node must not be null");
 		if (otherNode == null) throw new IllegalArgumentException("otherNode must not be null");
@@ -125,44 +125,53 @@ public class GroupedNetwork<N extends Node, E extends Edge<? extends N>> extends
 		Set<NodeGroup<N>> nodeGroups = new HashSet<>();
 		nodeGroups.add(node);
 		nodeGroups.add(otherNode);
-		this.mergeNodeGroups(nodeGroups);
+		this.merge(nodeGroups);
 	}
 	
-	public void mergeNodeGroups(Collection<NodeGroup<N>> nodeGroups)
+	public void merge(Collection<NodeGroup<N>> nodeGroups)
 	{
-		for (NodeGroup<N> node : nodeGroups) this.validateNode(node);
+		Set<Collection<NodeGroup<N>>> collections = new HashSet<>();
+		collections.add(nodeGroups);
+		this.mergeAll(collections);
+	}
+	
+	public void mergeAll(Collection<? extends Collection<NodeGroup<N>>> collections)
+	{
+		//No node group should be present multiple times
+		if (collections == null) throw new IllegalArgumentException("collections must not be null");
 		
-		Set<NodeGroup<N>> nodeGroupSet = new HashSet<>(nodeGroups);
-		if (nodeGroupSet.size() < 2) throw new IllegalArgumentException("nodeGroups must contain more than one unique element");
-		
-		Set<N> nodes = new HashSet<>();
-		for (NodeGroup<N> node : nodeGroupSet) nodes.addAll(node.getNodes());
-		NodeGroup<N> mergedNode = new NodeGroup<>(nodes);
-		
-		Set<MimickedEdge<NodeGroup<N>, E>> edges = new HashSet<>();
-		for (NodeGroup<N> nodeGroup : this.getNodes()) for (MimickedEdge<NodeGroup<N>, E> edge : this.getEdges(nodeGroup))
+		for (Collection<NodeGroup<N>> collection : collections)
 		{
-			boolean containsSource = nodeGroupSet.contains(edge.getSource());
-			boolean containsTarget = nodeGroupSet.contains(edge.getTarget());
+			if (collection == null) throw new IllegalArgumentException("collections must not contain null elements");
+			if (new HashSet<>(collection).size() < 2) throw new IllegalArgumentException("collection must only contain elements that contain 2 or more unique elements");
+			for (NodeGroup<N> node : collection) this.validateNode(node);
+		}
+		
+		Set<MimickedEdge<NodeGroup<N>, E>> modifiedEdges = new HashSet<>();
+		for (Collection<NodeGroup<N>> collection : collections)
+		{
+			Set<N> nodes = new HashSet<>();
+			for (NodeGroup<N> node : collection) nodes.addAll(node.getNodes());
+			NodeGroup<N> nodeGroup = new NodeGroup<>(nodes);
 			
-			//Should this first condition instead remove the edge?
-			if (containsSource && containsTarget) edges.add(new MimickedEdge<>(mergedNode, mergedNode, edge.getOriginalEdge()));
-			else if (containsSource) edges.add(new MimickedEdge<>(mergedNode, edge.getTarget(), edge.getOriginalEdge()));
-			else if (containsTarget) edges.add(new MimickedEdge<>(edge.getSource(), mergedNode, edge.getOriginalEdge()));
+			for (NodeGroup<N> node : this.getNodes()) for (MimickedEdge<NodeGroup<N>, E> edge : this.getEdges(node))
+			{
+				if (collection.contains(edge.getSource()) || collection.contains(edge.getTarget())) modifiedEdges.add(edge);
+			}
+			
+			for (NodeGroup<N> node : collection) this.removeNode(node);
+			
+			super.addNode(nodeGroup);
+			for (N node : nodes) this.nodeMap.put(node, nodeGroup);
 		}
 		
-		//Edges should get removed automatically
-		for (NodeGroup<N> node : nodeGroupSet) this.removeNode(node);
-		
-		//Should update nodeMap automatically
-		this.addNode(mergedNode);
-		
-		for (MimickedEdge<NodeGroup<N>, E> edge : edges)
+		for (MimickedEdge<NodeGroup<N>, E> edge : modifiedEdges)
 		{
-			super.addEdge(edge);
-			//Do we also need to remove from the edge map? probably
-			this.edgeMap.put(edge.getOriginalEdge(), edge);
+			MimickedEdge<NodeGroup<N>, E> newEdge = new MimickedEdge<>(this.nodeMap.get(edge.getOriginalEdge().getSource()), this.nodeMap.get(edge.getOriginalEdge().getTarget()), edge.getOriginalEdge());
+			super.addEdge(newEdge);
+			this.edgeMap.put(edge.getOriginalEdge(), newEdge);
 		}
+		
 	}
 	
 	public void removeOriginalNode(N node)
@@ -228,6 +237,38 @@ public class GroupedNetwork<N extends Node, E extends Edge<? extends N>> extends
 		{
 			if (this.nodeMap.containsKey(edge.getSource()) && this.nodeMap.containsKey(edge.getTarget())) this.addOriginalEdge(edge);
 		}
+	}
+	
+	public void reevaluate()
+	{
+		Set<Set<NodeGroup<N>>> sets = new HashSet<>();
+		
+		for (NodeGroup<N> node : this.getNodes()) for (MimickedEdge<NodeGroup<N>, E> edge : this.getEdges(node)) if (!this.edgeFilter.test(edge.getOriginalEdge()))
+		{
+			if (edge.getSource().equals(edge.getTarget())) this.removeEdge(edge);
+			else
+			{
+				Set<NodeGroup<N>> sourceSet = sets.stream().filter(s -> s.contains(edge.getSource())).findAny().orElse(null);
+				Set<NodeGroup<N>> targetSet = sets.stream().filter(s -> s.contains(edge.getTarget())).findAny().orElse(null);
+				
+				if (sourceSet != null && targetSet != null)
+				{
+					sourceSet.addAll(targetSet);
+					sets.remove(targetSet);
+				}
+				else if (sourceSet != null) sourceSet.add(edge.getTarget());
+				else if (targetSet != null) targetSet.add(edge.getSource());
+				else
+				{
+					Set<NodeGroup<N>> set = new HashSet<>();
+					set.add(edge.getSource());
+					set.add(edge.getTarget());
+					sets.add(set);
+				}
+			}
+		}
+		
+		if (!sets.isEmpty()) this.mergeAll(sets);
 	}
 	
 }
