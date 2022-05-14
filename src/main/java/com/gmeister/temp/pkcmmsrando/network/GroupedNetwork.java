@@ -1,8 +1,10 @@
 package com.gmeister.temp.pkcmmsrando.network;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -10,14 +12,13 @@ import java.util.function.Predicate;
 public class GroupedNetwork<N extends Node, E extends Edge<? extends N>> extends Network<NodeGroup<N>, MimickedEdge<NodeGroup<N>, E>>
 {
 	
-	private final Predicate<E> edgeFilter;
+	private Predicate<E> edgeFilter;
 	private final Map<N, NodeGroup<N>> nodeMap;
 	private final Map<E, MimickedEdge<NodeGroup<N>, E>> edgeMap;
 
-	public GroupedNetwork(Predicate<E> edgeFilter)
+	public GroupedNetwork()
 	{
 		super();
-		this.edgeFilter = edgeFilter;
 		this.nodeMap = new HashMap<>();
 		this.edgeMap = new HashMap<>();
 	}
@@ -25,16 +26,18 @@ public class GroupedNetwork<N extends Node, E extends Edge<? extends N>> extends
 	public GroupedNetwork(Collection<? extends NodeGroup<N>> nodes, Collection<? extends MimickedEdge<NodeGroup<N>, E>> edges,
 			Predicate<E> edgeFilter)
 	{
-		this(edgeFilter);
+		this();
 		
+		this.edgeFilter = edgeFilter;
 		this.addNodes(nodes);
 		this.addEdges(edges);
 	}
 
 	public GroupedNetwork(Network<? extends N, ? extends E> other, Predicate<E> edgeFilter)
 	{
-		this(edgeFilter);
+		this();
 		
+		this.edgeFilter = edgeFilter;
 		this.addOriginalNodes(other.getNodes());
 		this.addOriginalEdges(other.getEdges());
 	}
@@ -51,6 +54,12 @@ public class GroupedNetwork<N extends Node, E extends Edge<? extends N>> extends
 
 	public Predicate<E> getEdgeFilter()
 	{ return this.edgeFilter; }
+	
+	public void setEdgeFilter(Predicate<E> edgeFilter)
+	{
+		this.edgeFilter = edgeFilter;
+		this.reevaluate();
+	}
 	
 	public void addOriginalNodes(Collection<? extends N> nodes)
 	{
@@ -106,7 +115,7 @@ public class GroupedNetwork<N extends Node, E extends Edge<? extends N>> extends
 		
 		//Checks for whether the original edge matches the new edge? Could be done in MimickedEdge
 		
-		if (this.edgeFilter.test(edge.getOriginalEdge()))
+		if (this.edgeFilter == null || this.edgeFilter.test(edge.getOriginalEdge()))
 		{
 			super.addEdge(edge);
 			this.edgeMap.put(edge.getOriginalEdge(), edge);
@@ -241,9 +250,9 @@ public class GroupedNetwork<N extends Node, E extends Edge<? extends N>> extends
 	
 	public void reevaluate()
 	{
-		Set<Set<NodeGroup<N>>> sets = new HashSet<>();
+		List<Set<NodeGroup<N>>> sets = new ArrayList<>();
 		
-		for (NodeGroup<N> node : this.getNodes()) for (MimickedEdge<NodeGroup<N>, E> edge : this.getEdges(node)) if (!this.edgeFilter.test(edge.getOriginalEdge()))
+		if (this.edgeFilter != null) for (NodeGroup<N> node : this.getNodes()) for (MimickedEdge<NodeGroup<N>, E> edge : this.getEdges(node)) if (!this.edgeFilter.test(edge.getOriginalEdge()))
 		{
 			if (edge.getSource().equals(edge.getTarget())) this.removeEdge(edge);
 			else
@@ -253,8 +262,11 @@ public class GroupedNetwork<N extends Node, E extends Edge<? extends N>> extends
 				
 				if (sourceSet != null && targetSet != null)
 				{
-					sourceSet.addAll(targetSet);
-					sets.remove(targetSet);
+					if (sourceSet != targetSet)
+					{
+						if (!sets.remove(targetSet)) throw new IllegalStateException();
+						sourceSet.addAll(targetSet);
+					}
 				}
 				else if (sourceSet != null) sourceSet.add(edge.getTarget());
 				else if (targetSet != null) targetSet.add(edge.getSource());
