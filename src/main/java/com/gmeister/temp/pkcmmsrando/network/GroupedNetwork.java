@@ -250,37 +250,44 @@ public class GroupedNetwork<N extends Node, E extends Edge<? extends N>> extends
 	
 	public void reevaluate()
 	{
-		List<Set<NodeGroup<N>>> sets = new ArrayList<>();
+		List<Set<NodeGroup<N>>> sets;
 		
-		if (this.edgeFilter != null) for (NodeGroup<N> node : this.getNodes()) for (MimickedEdge<NodeGroup<N>, E> edge : this.getEdges(node)) if (!this.edgeFilter.test(edge.getOriginalEdge()))
+		do
 		{
-			if (edge.getSource().equals(edge.getTarget())) this.removeEdge(edge);
-			else
+			sets = new ArrayList<>();
+			
+			if (this.edgeFilter != null) for (NodeGroup<N> node : this.getNodes()) for (MimickedEdge<NodeGroup<N>, E> edge : this.getEdges(node)) if (!this.edgeFilter.test(edge.getOriginalEdge()))
 			{
-				Set<NodeGroup<N>> sourceSet = sets.stream().filter(s -> s.contains(edge.getSource())).findAny().orElse(null);
-				Set<NodeGroup<N>> targetSet = sets.stream().filter(s -> s.contains(edge.getTarget())).findAny().orElse(null);
-				
-				if (sourceSet != null && targetSet != null)
-				{
-					if (sourceSet != targetSet)
-					{
-						if (!sets.remove(targetSet)) throw new IllegalStateException();
-						sourceSet.addAll(targetSet);
-					}
-				}
-				else if (sourceSet != null) sourceSet.add(edge.getTarget());
-				else if (targetSet != null) targetSet.add(edge.getSource());
+				if (edge.getSource().equals(edge.getTarget())) this.removeEdge(edge);
 				else
 				{
-					Set<NodeGroup<N>> set = new HashSet<>();
-					set.add(edge.getSource());
-					set.add(edge.getTarget());
-					sets.add(set);
+					Set<NodeGroup<N>> sourceSet = sets.stream().filter(s -> s.contains(edge.getSource())).findAny().orElse(null);
+					Set<NodeGroup<N>> targetSet = sets.stream().filter(s -> s.contains(edge.getTarget())).findAny().orElse(null);
+					
+					if (sourceSet != null && targetSet != null)
+					{
+						if (sourceSet != targetSet)
+						{
+							if (!sets.remove(targetSet)) throw new IllegalStateException();
+							sourceSet.addAll(targetSet);
+						}
+					}
+					else if (sourceSet != null) sourceSet.add(edge.getTarget());
+					else if (targetSet != null) targetSet.add(edge.getSource());
+					else
+					{
+						Set<NodeGroup<N>> set = new HashSet<>();
+						set.add(edge.getSource());
+						set.add(edge.getTarget());
+						sets.add(set);
+					}
 				}
 			}
+			
+			if (!sets.isEmpty()) this.mergeAll(sets);
 		}
+		while (!sets.isEmpty());
 		
-		if (!sets.isEmpty()) this.mergeAll(sets);
 	}
 	
 }
