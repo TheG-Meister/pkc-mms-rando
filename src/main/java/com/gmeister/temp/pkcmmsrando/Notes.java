@@ -22,9 +22,6 @@ import com.gmeister.temp.pkcmmsrando.io.DisassemblyWriter;
 import com.gmeister.temp.pkcmmsrando.io.EmpiricalDataReader;
 import com.gmeister.temp.pkcmmsrando.map.data.CollisionConstant;
 import com.gmeister.temp.pkcmmsrando.map.data.CollisionPermission;
-import com.gmeister.temp.pkcmmsrando.map.data.ConditionalWarpNetwork;
-import com.gmeister.temp.pkcmmsrando.map.data.ConditionalWarpNetwork.Branch;
-import com.gmeister.temp.pkcmmsrando.map.data.ConditionalWarpNetwork.Node;
 import com.gmeister.temp.pkcmmsrando.map.data.CoordEvent;
 import com.gmeister.temp.pkcmmsrando.map.data.Disassembly;
 import com.gmeister.temp.pkcmmsrando.map.data.Flag;
@@ -38,6 +35,10 @@ import com.gmeister.temp.pkcmmsrando.map.data.SpriteMovementDataConstant;
 import com.gmeister.temp.pkcmmsrando.map.data.TileSet;
 import com.gmeister.temp.pkcmmsrando.map.data.Warp;
 import com.gmeister.temp.pkcmmsrando.map.data.WarpNetwork;
+import com.gmeister.temp.pkcmmsrando.network.Edge;
+import com.gmeister.temp.pkcmmsrando.network.FlaggedEdge;
+import com.gmeister.temp.pkcmmsrando.network.FlaggedWarpNetwork;
+import com.gmeister.temp.pkcmmsrando.network.WarpNode;
 import com.gmeister.temp.pkcmmsrando.rando.Randomiser;
 
 public class Notes
@@ -291,6 +292,8 @@ public class Notes
 		return selectedMaps;
 	}
 	
+	//This return type does not work for multiple edges from a single warp
+	//List<Edge<Warp>> could be better, but does not work for equal edges?
 	public static java.util.Map<Warp, Warp> randomiseWarps(ArrayList<Map> maps, Randomiser rando, EmpiricalDataReader empReader, List<Flag> flags) throws IOException
 	{
 		//Collect a bunch of maps to manually edit warps
@@ -389,18 +392,25 @@ public class Notes
 		}
 		
 		//Create lists of Nodes and Branches to form a ConditionalWarpNetwork
-		List<Node> nodes = new ArrayList<>();
-		List<Branch> branches = new ArrayList<>();
+		
+		Set<WarpNode> nodes = new HashSet<>();
+		Set<FlaggedEdge<WarpNode>> edges = new HashSet<>();
+		java.util.Map<WarpNode, List<Warp>> nodeMap = new HashMap<>();
 		
 		//Add a node for every warp group
-		for (List<Warp> warp : warpGroups) nodes.add(new ConditionalWarpNetwork.Node(warp, new HashSet<>()));
+		for (List<Warp> warp : warpGroups)
+		{
+			WarpNode node = new WarpNode(warp);
+			nodes.add(node);
+			nodeMap.put(node, warp);
+		}
 		
 		//Find all the nodes that each node can access, and create a branch for it 
-		for (ConditionalWarpNetwork.Node node : nodes)
+		for (WarpNode node : nodes)
 		{
 			//Get the warp group from the node and select a representative warp
-			List<Warp> warpGroup = node.getWarps();
-			Warp warp = warpGroup.get(0);
+			Set<Warp> warpGroup = node.getWarps();
+			Warp warp = nodeMap.get(node).get(0);
 			
 			//Create a map of maps to map explorers, and add an explorer for the starting map
 			java.util.Map<Map, MapExplorer> explorerMap = new HashMap<>();
@@ -446,26 +456,26 @@ public class Notes
 							//This section might be unnecessary if we can scan everything altogether at the end
 							
 							//Find the node this warp is a part of
-							Node otherNode = nodes.stream().filter(n -> n.getWarps().equals(otherGroup)).findAny().orElseThrow();
+							WarpNode otherNode = nodes.stream().filter(n -> n.getWarps().contains(otherGroup.get(0))).findAny().orElseThrow();
 							
 							//Find all existing branches with the same source and target node
-							List<Branch> currentBranches = branches.stream().filter(b -> b.getSource() == node && b.getTarget() == otherNode).collect(Collectors.toList());
+							List<FlaggedEdge<WarpNode>> currentBranches = edges.stream().filter(b -> b.getSource() == node && b.getTarget() == otherNode).collect(Collectors.toList());
 							
 							//Create the new branch and track whether it should be added
-							Branch newBranch = new Branch(node, otherNode, new HashSet<>(otherFlags));
+							FlaggedEdge<WarpNode> newBranch = new FlaggedEdge<>(node, otherNode, new HashSet<>(otherFlags));
 							boolean addBranch = true;
 							
 							//For all existing branches
-							for (Branch branch : currentBranches)
+							for (FlaggedEdge<WarpNode> branch : currentBranches)
 							{
 								//If this branch contains the same or less flags, don't add the new branch 
-								if (newBranch.getRequiredFlags().containsAll(branch.getRequiredFlags())) addBranch = false;
+								if (newBranch.getFlags().containsAll(branch.getFlags())) addBranch = false;
 								//Otherwise, if this branch contains more flags, remove it
 								//I don't think this ever runs
-								else if (branch.getRequiredFlags().containsAll(newBranch.getRequiredFlags())) branches.remove(branch);
+								else if (branch.getFlags().containsAll(newBranch.getFlags())) edges.remove(branch);
 							}
 							
-							if (addBranch) branches.add(newBranch);
+							if (addBranch) edges.add(newBranch);
 						}
 					}
 					
@@ -491,34 +501,42 @@ public class Notes
 				}
 			}
 			
-			for (Node otherNode : nodes) if (otherNode != node)
+			for (WarpNode otherNode : nodes) if (otherNode != node)
 				for (Warp otherWarp : otherNode.getWarps()) if (!warp.hasAccessibleDestination() && explorerMap.containsKey(otherWarp.getMap()))
 			{
 				//Get all flags that can access this warp
 				//If the branch does not exist, add it
 				List<Set<Flag>> flagSets = explorerMap.get(otherWarp.getMap()).getFlagsToAccess(otherWarp.getPosition());
-				List<Branch> existingBranches = branches.stream().filter(b -> b.getSource() == node && b.getTarget() == otherNode).collect(Collectors.toList());
+				List<FlaggedEdge<WarpNode>> existingBranches = edges.stream().filter(b -> b.getSource() == node && b.getTarget() == otherNode).collect(Collectors.toList());
 				
-				flagSets.stream().filter(s -> existingBranches.stream().noneMatch(b -> b.getRequiredFlags().equals(s))).forEach(s -> branches.add(new Branch(node, otherNode, s)));
+				flagSets.stream().filter(s -> existingBranches.stream().noneMatch(b -> b.getFlags().equals(s))).forEach(s -> edges.add(new FlaggedEdge<>(node, otherNode, s)));
 			}
 		}
 		
-		ConditionalWarpNetwork network = new ConditionalWarpNetwork(nodes, branches);
+		FlaggedWarpNetwork<WarpNode, FlaggedEdge<WarpNode>> network = new FlaggedWarpNetwork<>(nodes, edges);
 		//network.printEdgeTable();
 		
-		List<List<Warp>> sourceNodes = new ArrayList<>();
-		List<List<Warp>> targetNodes = new ArrayList<>();
-		for (Node source : nodes)
+		Set<FlaggedEdge<WarpNode>> originalEdges = new HashSet<>();
+		for (WarpNode source : nodes)
 		{
 			//Errors for null destinations
-			Node target = nodes.stream().filter(n -> n.getWarps().contains(source.getWarps().get(0))).findAny().orElseThrow();
-			sourceNodes.add(source.getWarps());
-			targetNodes.add(target.getWarps());
+			WarpNode target = nodes.stream().filter(n -> n.getWarps().contains(nodeMap.get(source).get(0))).findAny().orElseThrow();
+			originalEdges.add(new FlaggedEdge<>(source, target, new HashSet<>()));
 		}
 		
 		java.util.Map<Flag, List<Warp>> flagRequirements = empReader.readFlagRequirements(flags, maps);
 		
-		return rando.buildWarpGroups(sourceNodes, targetNodes, network.collapse(new ArrayList<>()), false, false, false, false);
+		List<Edge<WarpNode>> randomisedWarps = rando.buildWarpGroups(originalEdges, network, false, false, false, false);
+		
+		java.util.Map<Warp, Warp> output = new HashMap<>();
+		for (Edge<WarpNode> edge : randomisedWarps)
+		{
+			List<Warp> sourceList = nodeMap.get(edge.getSource());
+			List<Warp> targetList = nodeMap.get(edge.getTarget());
+			for (int i = 0; i < sourceList.size(); i++) output.put(sourceList.get(i), targetList.get(i % targetList.size()));
+		}
+		
+		return output;
 	}
 	
 	public static ArrayList<String> randomiseMusicPointers(DisassemblyReader reader, Randomiser rando) throws FileNotFoundException, IOException
