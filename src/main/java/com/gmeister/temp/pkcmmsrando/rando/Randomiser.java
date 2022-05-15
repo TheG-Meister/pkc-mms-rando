@@ -366,17 +366,17 @@ public class Randomiser
 	
 	private boolean canSolveAllUnreturnableBranches(FlaggedWarpNetwork<WarpNode, FlaggedEdge<WarpNode>> network, List<WarpNode> sources, List<WarpNode> targets)
 	{
-		if (network.getUnreturnableNetwork().getNodes().size() < 2) return true;
+		if (network.getUnreturnableNetwork().getEdges().size() < 1) return true;
 		
 		Set<NodeGroup<WarpNode>> sourceNodes = network.getUnreturnableNetwork().getSourceNodes();
 		Set<NodeGroup<WarpNode>> targetNodes = network.getUnreturnableNetwork().getTargetNodes();
 		
 		for (NodeGroup<WarpNode> node : network.getUnreturnableNetwork().getNodes())
 		{
-			//If any top tier or tier-less component has no targets left, return false
-			if (!sourceNodes.contains(node) && node.getNodes().stream().filter(n -> targets.contains(n)).count() < 1) return false;
 			//If any bottom tier or tier-less component has no sources left, return false
-			if (!targetNodes.contains(node) && node.getNodes().stream().filter(n -> sources.contains(n)).count() < 1) return false;
+			if (!targetNodes.contains(node) && sourceNodes.contains(node) && node.getNodes().stream().filter(n -> sources.contains(n)).count() < 1) return false;
+			//If any top tier or tier-less component has no targets left, return false
+			if (targetNodes.contains(node) && !sourceNodes.contains(node) && node.getNodes().stream().filter(n -> targets.contains(n)).count() < 1) return false;
 		}
 		
 		return true;
