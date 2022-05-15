@@ -314,9 +314,9 @@ public class Randomiser
 					if (newBranches.contains(edge))
 					{
 						sources.remove(edge.getSource());
-						network.addEdge(edge);
 					}
 				}
+				network = nextNetwork;
 				
 				targetAcquired = true;
 				break targetLoop;
