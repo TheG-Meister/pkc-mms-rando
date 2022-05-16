@@ -21,6 +21,7 @@ import com.gmeister.temp.pkcmmsrando.network.Edge;
 import com.gmeister.temp.pkcmmsrando.network.FlaggedEdge;
 import com.gmeister.temp.pkcmmsrando.network.FlaggedWarpNetwork;
 import com.gmeister.temp.pkcmmsrando.network.NodeGroup;
+import com.gmeister.temp.pkcmmsrando.network.UnreturnableNetwork;
 import com.gmeister.temp.pkcmmsrando.network.WarpNetwork;
 import com.gmeister.temp.pkcmmsrando.network.WarpNode;
 
@@ -253,17 +254,22 @@ public class Randomiser
 		List<WarpNode> newTargets = new ArrayList<>();
 		List<Edge<WarpNode>> output = new ArrayList<>();
 		
-		if (!this.canSolveAllUnreturnableBranches(network, sources, targets))
-			throw new IllegalArgumentException("An unreturnable branch in the network cannot be made returnable.");
-		
-		if (!this.canConnectAllComponents(network, sources, targets))
-			throw new IllegalArgumentException("A network component could not be connected to another component.");
-		
-		long controllableBranches = this.countControllableBranches(network, sources, targets, oneWayBranches);
-		long neededBranches = this.countNeededBranches(network, null, oneWayBranches);
-		
-		if (controllableBranches < neededBranches)
-			throw new IllegalArgumentException("More branches are necessary for each warp to access every other warp.");
+		{
+			Set<NodeGroup<WarpNode>> sourceTiers = network.getUnreturnableNetwork().getSourceNodes();
+			Set<NodeGroup<WarpNode>> targetTiers = network.getUnreturnableNetwork().getTargetNodes();
+			
+			if (!this.canSolveAllUnreturnableBranches(network.getUnreturnableNetwork(), sourceTiers, targetTiers, sources, targets))
+				throw new IllegalArgumentException("An unreturnable branch in the network cannot be made returnable.");
+			
+			if (!this.canConnectAllComponents(network, sources, targets))
+				throw new IllegalArgumentException("A network component could not be connected to another component.");
+			
+			long controllableBranches = this.countControllableBranches(network, sources, targets, oneWayBranches);
+			long neededBranches = this.countNeededBranches(network, null, oneWayBranches);
+			
+			if (controllableBranches < neededBranches)
+				throw new IllegalArgumentException("More branches are necessary for each warp to access every other warp.");
+		}
 		
 		for (int sourceIndex = 0; sourceIndex < sourceList.size();)
 		{
@@ -345,7 +351,10 @@ public class Randomiser
 	
 	private boolean validateNetwork(FlaggedWarpNetwork<WarpNode, FlaggedEdge<WarpNode>> network, List<WarpNode> sources, List<WarpNode> targets, boolean oneWayBranches)
 	{
-		boolean unreturnableBranches = this.canSolveAllUnreturnableBranches(network, sources, targets);
+		Set<NodeGroup<WarpNode>> sourceTiers = network.getUnreturnableNetwork().getSourceNodes();
+		Set<NodeGroup<WarpNode>> targetTiers = network.getUnreturnableNetwork().getTargetNodes();
+		
+		boolean unreturnableBranches = this.canSolveAllUnreturnableBranches(network.getUnreturnableNetwork(), sourceTiers, targetTiers, sources, targets);
 		
 		if (!unreturnableBranches) return false;
 		else
@@ -364,18 +373,16 @@ public class Randomiser
 		}
 	}
 	
-	private boolean canSolveAllUnreturnableBranches(FlaggedWarpNetwork<WarpNode, FlaggedEdge<WarpNode>> network, List<WarpNode> sources, List<WarpNode> targets)
+	private boolean canSolveAllUnreturnableBranches(UnreturnableNetwork<WarpNode, FlaggedEdge<WarpNode>> network, Set<NodeGroup<WarpNode>> sourceNodes, Set<NodeGroup<WarpNode>> targetNodes, List<WarpNode> sources, List<WarpNode> targets)
 	{
-		if (network.getUnreturnableNetwork().getEdges().size() < 1) return true;
+		if (network.getEdges().size() < 1) return true;
 		
-		Set<NodeGroup<WarpNode>> sourceNodes = network.getUnreturnableNetwork().getSourceNodes();
-		Set<NodeGroup<WarpNode>> targetNodes = network.getUnreturnableNetwork().getTargetNodes();
-		
-		for (NodeGroup<WarpNode> node : network.getUnreturnableNetwork().getNodes())
+		//For every tier
+		for (NodeGroup<WarpNode> node : network.getNodes())
 		{
-			//If any bottom tier or tier-less component has no sources left, return false
+			//If any bottom tier has no sources left, return false
 			if (!targetNodes.contains(node) && sourceNodes.contains(node) && node.getNodes().stream().filter(n -> sources.contains(n)).count() < 1) return false;
-			//If any top tier or tier-less component has no targets left, return false
+			//If any top tier has no targets left, return false
 			if (targetNodes.contains(node) && !sourceNodes.contains(node) && node.getNodes().stream().filter(n -> targets.contains(n)).count() < 1) return false;
 		}
 		
