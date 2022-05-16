@@ -264,7 +264,7 @@ public class Randomiser
 			if (!this.canConnectAllComponents(network.getComponentNetwork().getNodes(), sources, targets))
 				throw new IllegalArgumentException("A network component could not be connected to another component.");
 			
-			long controllableBranches = this.countControllableBranches(network, sources, targets, oneWayBranches);
+			long controllableBranches = this.countControllableBranches(sources, oneWayBranches);
 			long neededBranches = this.countNeededBranches(network, null, oneWayBranches);
 			
 			if (controllableBranches < neededBranches)
@@ -364,7 +364,7 @@ public class Randomiser
 			if (!components) return false;
 			else
 			{
-				long controllableBranches = this.countControllableBranches(network, sources, targets, oneWayBranches);
+				long controllableBranches = this.countControllableBranches(sources, oneWayBranches);
 				long neededBranches = this.countNeededBranches(network, null, oneWayBranches);
 				
 				if (controllableBranches < neededBranches) return false;
@@ -450,14 +450,17 @@ public class Randomiser
 		return -1;
 	}
 	
-	private long countControllableBranches(FlaggedWarpNetwork<WarpNode, FlaggedEdge<WarpNode>> network, List<WarpNode> sources, List<WarpNode> targets, boolean oneWayBranches)
+	private long countControllableBranches(List<WarpNode> sources, boolean oneWayBranches)
 	{
 		//allWarps.stream().distinct().mapToInt(w -> Math.max(0, Collections.frequency(tempTargetList, w) - Collections.frequency(sources, w))).sum();
 		
 		//if (!oneWayBranches) return Math.floorDiv(sources.size() + targets.stream().filter(t -> !sources.contains(t)).count(), 2);
 		//else return sources.size();
 		
+		//If one way edges are disallowed, return half the size of the source list, rounded down
 		if (!oneWayBranches) return Math.floorDiv(sources.size(), 2);
+		
+		//Otherwise return the size of the source list
 		else return sources.size();
 	}
 	
