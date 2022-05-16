@@ -261,7 +261,7 @@ public class Randomiser
 			if (!this.canSolveAllUnreturnableBranches(network.getUnreturnableNetwork(), sourceTiers, targetTiers, sources, targets))
 				throw new IllegalArgumentException("An unreturnable branch in the network cannot be made returnable.");
 			
-			if (!this.canConnectAllComponents(network, sources, targets))
+			if (!this.canConnectAllComponents(network.getComponentNetwork().getNodes(), sources, targets))
 				throw new IllegalArgumentException("A network component could not be connected to another component.");
 			
 			long controllableBranches = this.countControllableBranches(network, sources, targets, oneWayBranches);
@@ -359,7 +359,7 @@ public class Randomiser
 		if (!unreturnableBranches) return false;
 		else
 		{
-			boolean components = this.canConnectAllComponents(network, sources, targets);
+			boolean components = this.canConnectAllComponents(network.getComponentNetwork().getNodes(), sources, targets);
 			
 			if (!components) return false;
 			else
@@ -422,18 +422,22 @@ public class Randomiser
 		return true;
 	}
 	
-	private boolean canConnectAllComponents(FlaggedWarpNetwork<WarpNode, FlaggedEdge<WarpNode>> network, List<WarpNode> sources, List<WarpNode> targets)
+	private boolean canConnectAllComponents(Set<NodeGroup<WarpNode>> components, List<WarpNode> sources, List<WarpNode> targets)
 	{
-		if (network.getComponentNetwork().getNodes().size() > 1)
-			for (NodeGroup<WarpNode> component : network.getComponentNetwork().getNodes())
+		//If there are one or less components, return true
+		if (components.size() < 2) return true;
+		
+		//Otherwise for all components
+		for (NodeGroup<WarpNode> component : components)
 		{
-			//If any component has no sources or targets left, return false
-			if (component.getNodes().stream().filter(w -> sources.contains(w)).count() < 1)
-				return false;
-			if (component.getNodes().stream().filter(w -> targets.contains(w)).count() < 1)
-				return false;
+			//If the component contains no sources, return false
+			if (component.getNodes().stream().filter(w -> sources.contains(w)).count() < 1) return false;
+			
+			//If the component contains no targets, return false
+			if (component.getNodes().stream().filter(w -> targets.contains(w)).count() < 1) return false;
 		}
 		
+		//Otherwise return true;
 		return true;
 	}
 	
