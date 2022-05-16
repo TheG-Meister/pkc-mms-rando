@@ -265,7 +265,7 @@ public class Randomiser
 				throw new IllegalArgumentException("A network component could not be connected to another component.");
 			
 			long controllableBranches = this.countControllableBranches(sources, oneWayBranches);
-			long neededBranches = this.countNeededBranches(network, null, oneWayBranches);
+			long neededBranches = this.countNeededBranches(network, sourceTiers, targetTiers, oneWayBranches);
 			
 			if (controllableBranches < neededBranches)
 				throw new IllegalArgumentException("More branches are necessary for each warp to access every other warp.");
@@ -365,7 +365,7 @@ public class Randomiser
 			else
 			{
 				long controllableBranches = this.countControllableBranches(sources, oneWayBranches);
-				long neededBranches = this.countNeededBranches(network, null, oneWayBranches);
+				long neededBranches = this.countNeededBranches(network, sourceTiers, targetTiers, oneWayBranches);
 				
 				if (controllableBranches < neededBranches) return false;
 				else return true;
@@ -464,7 +464,7 @@ public class Randomiser
 		else return sources.size();
 	}
 	
-	private long countNeededBranches(FlaggedWarpNetwork<WarpNode, FlaggedEdge<WarpNode>> network, List<WarpNode> targetOnlyWarps, boolean oneWayBranches)
+	private long countNeededBranches(FlaggedWarpNetwork<WarpNode, FlaggedEdge<WarpNode>> network, Set<NodeGroup<WarpNode>> sourceTiers, Set<NodeGroup<WarpNode>> targetTiers, boolean oneWayBranches)
 	{
 		/*long forkSum = 0;
 		long mergeSum = 0;
@@ -483,25 +483,31 @@ public class Randomiser
 			}
 		}*/
 		
-		Set<NodeGroup<WarpNode>> sourceNodes = network.getUnreturnableNetwork().getSourceNodes();
-		Set<NodeGroup<WarpNode>> targetNodes = network.getUnreturnableNetwork().getTargetNodes();
-		
+		//The fork sum is the minimum number of forking one-way systems
 		long forkSum = 0;
+		//The merge sum is the minimum number of merging one-way systems
 		long mergeSum = 0;
 		
+		//For each component
 		for (NodeGroup<WarpNode> component : network.getComponentNetwork().getNodes())
 		{
+			//Find every tier that is part of the component
 			Set<NodeGroup<WarpNode>> tiers = new HashSet<>();
 			for (WarpNode node : component.getNodes()) tiers.add(network.getUnreturnableNetwork().getNode(node));
 			
+			//If there is more than one tier
 			if (tiers.size() > 1)
 			{
-				forkSum += tiers.stream().filter(t -> sourceNodes.contains(t) && !targetNodes.contains(t)).count() - 1;
-				mergeSum += tiers.stream().filter(t -> !sourceNodes.contains(t) && targetNodes.contains(t)).count() - 1;
+				//Count the number of bottom tiers, subtract one, and add to the fork sum
+				forkSum += tiers.stream().filter(t -> !sourceTiers.contains(t) && targetTiers.contains(t)).count() - 1;
+				//Count the number of top tiers, subtract one, and add to the merge sum
+				mergeSum += tiers.stream().filter(t -> sourceTiers.contains(t) && !targetTiers.contains(t)).count() - 1;
 			}
 		}
 		
+		//Calculate the number of branches needed to connect all components and solve all one-way systems (except one)
 		long neededBranches = Math.max(forkSum, mergeSum) + network.getComponentNetwork().getNodes().size() - 1;
+		//Add an additional branch if there is any one-way system remaining, or one that may be created in future
 		if (network.getUnreturnableNetwork().getEdges().size() > 0 || (oneWayBranches && network.getComponentNetwork().getNodes().size() > 1)) neededBranches++;
 		
 		return neededBranches;
