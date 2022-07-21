@@ -11,6 +11,7 @@ public class Disassembly
 	private ArrayList<TileSet> tileSets;
 	private ArrayList<Map> maps;
 	private List<Constant> mapDataConstants;
+	private List<Constant> scriptConstants;
 	
 	public Disassembly()
 	{}
@@ -50,4 +51,10 @@ public class Disassembly
 
 	public void setMapDataConstants(List<Constant> mapDataConstants)
 	{ this.mapDataConstants = mapDataConstants; }
+
+	public List<Constant> getScriptConstants()
+	{ return this.scriptConstants; }
+
+	public void setScriptConstants(List<Constant> scriptConstants)
+	{ this.scriptConstants = scriptConstants; }
 }
