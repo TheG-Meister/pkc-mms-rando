@@ -513,8 +513,27 @@ public class Notes
 			}
 		}
 		
+		//Create edges between warps that can access each other via elevators
+		List<String> goldenrodDeptStoreElevMaps = new ArrayList<>(Arrays.asList("GOLDENROD_DEPT_STORE_B1F", "GOLDENROD_DEPT_STORE_1F", "GOLDENROD_DEPT_STORE_2F", "GOLDENROD_DEPT_STORE_3F", "GOLDENROD_DEPT_STORE_4F", "GOLDENROD_DEPT_STORE_5F", "GOLDENROD_DEPT_STORE_6F"));
+		List<String> celadonDeptStoreElevMaps = new ArrayList<>(Arrays.asList("CELADON_DEPT_STORE_1F", "CELADON_DEPT_STORE_2F", "CELADON_DEPT_STORE_3F", "CELADON_DEPT_STORE_4F", "CELADON_DEPT_STORE_5F", "CELADON_DEPT_STORE_6F"));
+		List<List<String>> elevMapLists = new ArrayList<>(Arrays.asList(goldenrodDeptStoreElevMaps, celadonDeptStoreElevMaps));
+		
+		for (List<String> elevMapList : elevMapLists)
+		{
+			List<WarpNode> elevMapNodes = nodes.stream().filter(n -> elevMapList.contains(nodeMap.get(n).get(0).getMap().getConstName())).collect(Collectors.toList());
+			List<FlaggedEdge<WarpNode>> elevMapNodeEdges = edges.stream().filter(e -> elevMapNodes.contains(e.getSource()) && elevMapNodes.contains(e.getTarget())).collect(Collectors.toList());
+			
+			for (WarpNode source : elevMapNodes)
+				for (WarpNode target : elevMapNodes)
+					if (source != target && elevMapNodeEdges.stream().noneMatch(e -> e.getSource().equals(source) && e.getTarget().equals(target)))
+						edges.add(new FlaggedEdge<WarpNode>(source, target, new HashSet<>()));
+		}
+		
+		//Remove flagged edges for testing
+		edges.removeAll(edges.stream().filter(e -> !e.getFlags().isEmpty()).collect(Collectors.toList()));
+		
 		FlaggedWarpNetwork<WarpNode, FlaggedEdge<WarpNode>> network = new FlaggedWarpNetwork<>(nodes, edges);
-		//network.printEdgeTable();
+		network.printEdgeTable();
 		
 		Set<FlaggedEdge<WarpNode>> originalEdges = new HashSet<>();
 		for (WarpNode source : nodes)
