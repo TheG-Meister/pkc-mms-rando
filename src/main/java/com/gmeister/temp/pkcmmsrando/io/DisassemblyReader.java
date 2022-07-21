@@ -52,6 +52,11 @@ public class DisassemblyReader
 		this.incbinPattern = Pattern.compile("^\\s*INCBIN\\s+");
 	}
 	
+	public List<Constant> readScriptConstants() throws FileNotFoundException, IOException
+	{
+		return this.importConstants(this.dir.toPath().resolve("constants/script_constants.asm").toFile(), true);
+	}
+	
 	public ArrayList<CollisionConstant> readCollisionConstants() throws FileNotFoundException, IOException
 	{
 		ArrayList<CollisionConstant> output = new ArrayList<>();
@@ -501,7 +506,7 @@ public class DisassemblyReader
 		Pattern constskipPattern = Pattern.compile("^\\tconst_skip\\s*");
 		Pattern constnextPattern = Pattern.compile("^\\tconst_next\\s+");
 		
-		int count = -1;
+		int count = Integer.MIN_VALUE;
 		int step = 1;
 		try (BufferedReader reader = new BufferedReader(new FileReader(f)))
 		{
@@ -546,7 +551,7 @@ public class DisassemblyReader
 				}
 				else if (constPattern.matcher(line).find())
 				{
-					if (count == -1) throw new IllegalStateException();
+					if (count == Integer.MIN_VALUE) throw new IllegalStateException("const was never initialised");
 					line = constPattern.matcher(line).replaceFirst("");
 					constants.add(new Constant(line, count));
 					count += step;
