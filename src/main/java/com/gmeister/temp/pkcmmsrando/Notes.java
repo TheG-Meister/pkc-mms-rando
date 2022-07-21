@@ -529,9 +529,6 @@ public class Notes
 						edges.add(new FlaggedEdge<WarpNode>(source, target, new HashSet<>()));
 		}
 		
-		//Remove flagged edges for testing
-		edges.removeAll(edges.stream().filter(e -> !e.getFlags().isEmpty()).collect(Collectors.toList()));
-		
 		FlaggedWarpNetwork<WarpNode, FlaggedEdge<WarpNode>> network = new FlaggedWarpNetwork<>(nodes, edges);
 		network.printEdgeTable();
 		
