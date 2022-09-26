@@ -244,7 +244,17 @@ public class EmpiricalDataReader
 	
 	public java.util.Map<Flag, List<Warp>> readFlagRequirements(List<Flag> flags, List<Map> maps) throws IOException
 	{
-		try (InputStream stream = this.getClass().getClassLoader().getResourceAsStream("flag-requirements.tsv"))
+		return this.readFlagRequirements("flag-requirements.tsv", flags, maps);
+	}
+	
+	public java.util.Map<Flag, List<Warp>> readFlagRequirementsAreas(List<Flag> flags, List<Map> maps) throws IOException
+	{
+		return this.readFlagRequirements("flag-requirements-areas.tsv", flags, maps);
+	}
+	
+	private java.util.Map<Flag, List<Warp>> readFlagRequirements(String path, List<Flag> flags, List<Map> maps) throws IOException
+	{
+		try (InputStream stream = this.getClass().getClassLoader().getResourceAsStream(path))
 		{
 			if (stream == null) throw new FileNotFoundException("Could not find flag-requirements.tsv");
 			
