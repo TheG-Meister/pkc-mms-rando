@@ -15,14 +15,15 @@ import java.util.stream.Collectors;
 import com.gmeister.temp.pkcmmsrando.map.data.Block;
 import com.gmeister.temp.pkcmmsrando.map.data.BlockSet;
 import com.gmeister.temp.pkcmmsrando.map.data.Flag;
+import com.gmeister.temp.pkcmmsrando.map.data.Flags;
 import com.gmeister.temp.pkcmmsrando.map.data.Map;
 import com.gmeister.temp.pkcmmsrando.map.data.Warp;
 import com.gmeister.temp.pkcmmsrando.network.Edge;
 import com.gmeister.temp.pkcmmsrando.network.FlaggedEdge;
+import com.gmeister.temp.pkcmmsrando.network.FlaggedNetworkExplorer;
 import com.gmeister.temp.pkcmmsrando.network.FlaggedWarpNetwork;
 import com.gmeister.temp.pkcmmsrando.network.NodeGroup;
 import com.gmeister.temp.pkcmmsrando.network.UnreturnableNetwork;
-import com.gmeister.temp.pkcmmsrando.network.WarpNetwork;
 import com.gmeister.temp.pkcmmsrando.network.WarpNode;
 
 public class Randomiser
@@ -214,7 +215,7 @@ public class Randomiser
 	}
 	
 	public List<Edge<WarpNode>> buildWarpGroups(Collection<FlaggedEdge<WarpNode>> originalEdges,
-			FlaggedWarpNetwork<WarpNode, FlaggedEdge<WarpNode>> inputNetwork, boolean oneWayBranches, boolean selfBranches, boolean unusedTargets, boolean reduceTargets)
+			FlaggedWarpNetwork<WarpNode, FlaggedEdge<WarpNode>> inputNetwork, java.util.Map<Flag, Set<WarpNode>> flagRequirements, WarpNode start, boolean oneWayBranches, boolean selfBranches, boolean unusedTargets, boolean reduceTargets)
 	{
 		if (originalEdges == null) throw new IllegalArgumentException("originalEdges must not be null");
 		if (inputNetwork == null) throw new IllegalArgumentException("inputNetwork must not be null");
@@ -269,6 +270,9 @@ public class Randomiser
 			
 			if (controllableBranches < neededBranches)
 				throw new IllegalArgumentException("More branches are necessary for each warp to access every other warp.");
+			
+			if (!this.canCollectAllFlags(network, sources, targets, flagRequirements, start))
+				throw new IllegalArgumentException("All flags must be collectible in this network.");
 		}
 		
 		for (int sourceIndex = 0; sourceIndex < sourceList.size();)
@@ -305,7 +309,7 @@ public class Randomiser
 					nextTargets.remove(edge.getTarget());
 				}
 				
-				if (!this.validateNetwork(nextNetwork, nextSources, nextTargets, oneWayBranches))
+				if (!this.validateNetwork(nextNetwork, nextSources, nextTargets, flagRequirements, start, oneWayBranches))
 					continue targetLoop;
 				
 				//Create the branch and update tracking data
@@ -349,26 +353,37 @@ public class Randomiser
 		return output;
 	}
 	
-	private boolean validateNetwork(FlaggedWarpNetwork<WarpNode, FlaggedEdge<WarpNode>> network, List<WarpNode> sources, List<WarpNode> targets, boolean oneWayBranches)
+	private boolean validateNetwork(FlaggedWarpNetwork<WarpNode, FlaggedEdge<WarpNode>> network, List<WarpNode> sources, List<WarpNode> targets, java.util.Map<Flag, Set<WarpNode>> flagRequirements, WarpNode start, boolean oneWayBranches)
 	{
+		//Timer t = new Timer().start().print("Timer start");
 		Set<NodeGroup<WarpNode>> sourceTiers = network.getUnreturnableNetwork().getSourceNodes();
 		Set<NodeGroup<WarpNode>> targetTiers = network.getUnreturnableNetwork().getTargetNodes();
 		
 		boolean unreturnableBranches = this.canSolveAllUnreturnableBranches(network.getUnreturnableNetwork(), sourceTiers, targetTiers, sources, targets);
+		//t.split().printSplit("Unreturnable branches");
 		
 		if (!unreturnableBranches) return false;
 		else
 		{
 			boolean components = this.canConnectAllComponents(network.getComponentNetwork().getNodes(), sources, targets);
+			//t.split().printSplit("Components");
 			
 			if (!components) return false;
 			else
 			{
 				long controllableBranches = this.countControllableBranches(sources, oneWayBranches);
 				long neededBranches = this.countNeededBranches(network, sourceTiers, targetTiers, oneWayBranches);
+				//t.split().printSplit("Controllable branches");
 				
 				if (controllableBranches < neededBranches) return false;
-				else return true;
+				else
+				{
+					boolean flags = this.canCollectAllFlags(network, sources, targets, flagRequirements, start);
+					//t.split().printSplit("Flags");
+					
+					if (!flags) return false;
+					else return true;
+				}
 			}
 		}
 	}
@@ -389,37 +404,71 @@ public class Randomiser
 		return true;
 	}
 	
-	private boolean canCollectAllPermissions(FlaggedWarpNetwork<WarpNode, FlaggedEdge<WarpNode>> network, List<WarpNode> sources, List<WarpNode> targets, java.util.Map<Flag, List<WarpNode>> flagRequirements, WarpNode start)
+	private boolean canCollectAllFlags(FlaggedWarpNetwork<WarpNode, FlaggedEdge<WarpNode>> network, List<WarpNode> sources, List<WarpNode> targets, java.util.Map<Flag, Set<WarpNode>> flagRequirements, WarpNode start)
 	{
-		//Find each component with a flag in it
-		//Find the minimum flags to get that flag
-		//start from the start warp if it's present
-		//otherwise test from every target warp in the component
-		//Make a map from flag to sets of sets of flags
-		//"Collect 'em all"
-		//If any are uncollected return false
-		//otherwise return true
+		//System.out.println();
+		//Timer t = new Timer().start().print("Timer start");
+		//Store the flags required to get to each node
+		java.util.Map<WarpNode, List<Set<Flag>>> nodeFlags = new HashMap<>();
 		
-		Set<Set<Flag>> flagCombinations = new HashSet<>();
-		for (FlaggedEdge<WarpNode> edge : network.getEdges()) flagCombinations.add(edge.getFlags());
+		//This will be the flagged unreturnable network eventually
+		FlaggedNetworkExplorer<WarpNode, FlaggedEdge<WarpNode>> explorer = new FlaggedNetworkExplorer<>(network, e -> e.getFlags());
+		//t.split().printSplit("Init");
+		//WarpNetwork<WarpNode, FlaggedEdge<WarpNode>> collapsedNetwork = network.collapse(new HashSet<>());
+		//t.split().printSplit("Collapse network");
 		
-		for (Set<Flag> flags : flagCombinations)
+		//For every node required for any flag
+		for (Flag flag : flagRequirements.keySet()) for (WarpNode node : flagRequirements.get(flag))
 		{
-			WarpNetwork<WarpNode, FlaggedEdge<WarpNode>> collapsedNetwork = network.collapse(flags);
-			Set<WarpNode> flagNodes = new HashSet<>();
-			for (Flag flag : flags) flagNodes.addAll(flagRequirements.get(flag));
+			//find the component of the node
+			NodeGroup<WarpNode> component = network.getComponentNetwork().getNode(node);
 			
-			for (NodeGroup<WarpNode> component : collapsedNetwork.getComponentNetwork().getNodes())
-				if (flagNodes.stream().anyMatch(n -> component.getNodes().contains(n)))
-			{
-				if (component.getNodes().stream().filter(w -> sources.contains(w)).count() < 1)
-					return false;
-				if (component.getNodes().stream().filter(w -> targets.contains(w)).count() < 1)
-					return false;
-			}
+			Set<Set<Flag>> flagSets = new HashSet<>();
+			
+			//if this component contains the starting node, find the flags to get from the start warp to the node
+			if (component.getNodes().contains(start)) flagSets.addAll(explorer.getFlagsForPath(start, node));
+			
+			//find the all possible flag combinations that allow movement from any available target node to the flag node
+			List<WarpNode> componentTargets = targets.stream().filter(n -> component.getNodes().contains(n)).collect(Collectors.toList());
+			
+			//If the flag node is a target, no flags are required
+			//This is technically a workaround, FlaggedNetworkExplorer could return this too
+			if (componentTargets.contains(node)) flagSets.add(new HashSet<>());
+			else targets.stream().filter(n -> component.getNodes().contains(n)).flatMap(n -> explorer.getFlagsForPath(n, node).stream()).forEach(s -> flagSets.add(s));
+			
+			nodeFlags.put(node, new ArrayList<>(flagSets));
+		}
+		//t.split().printSplit("Node collection");
+		
+		//If no combination of flags can get to a node, return false
+		for (WarpNode node : nodeFlags.keySet()) if (nodeFlags.get(node).isEmpty())
+			return false;
+		
+		//convert nodeFlags into a map of flags to the flags required to get them
+		java.util.Map<Flag, Set<Set<Flag>>> flagFlags = new HashMap<>();
+		for (Flag flag : flagRequirements.keySet()) for (WarpNode node : flagRequirements.get(flag))
+		{
+			if (!flagFlags.containsKey(flag)) flagFlags.put(flag, Flags.simplify(nodeFlags.get(node)));
+			else flagFlags.put(flag, Flags.multiply(flagFlags.get(flag), nodeFlags.get(node)));
 		}
 		
-		return true;
+		//t.split().printSplit("Flag conversion");
+		
+		//Attempt to collect all the flags starting from nothing
+		Set<Flag> flagsCollected = new HashSet<>();
+		int lastLength;
+		do
+		{
+			lastLength = flagsCollected.size();
+			for (Flag flag : flagFlags.keySet()) for (Set<Flag> requirements : flagFlags.get(flag)) if (flagsCollected.containsAll(requirements)) flagsCollected.add(flag);
+		}
+		while (lastLength < flagsCollected.size());
+		
+		//t.split().printSplit("Flag collection");
+		//t.print("Total");
+		
+		if (flagRequirements.keySet().equals(flagsCollected)) return true;
+		else return false;
 	}
 	
 	private boolean canConnectAllComponents(Set<NodeGroup<WarpNode>> components, List<WarpNode> sources, List<WarpNode> targets)
