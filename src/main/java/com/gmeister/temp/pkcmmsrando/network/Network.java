@@ -11,36 +11,52 @@ import java.util.Set;
 public class Network<N extends Node, E extends Edge<? extends N>>
 {
 	
-	private Set<N> nodes;
-	private Map<N, Set<E>> edgeMap;
+	protected Set<N> nodes;
+	protected Map<N, Set<E>> edgeMap;
 	
 	public Network()
+	{ this.initialise(); }
+	
+	public Network(int nodeCapacity, int edgeCapacity)
+	{ this.initialise(nodeCapacity, edgeCapacity); }
+	
+	public Network(Collection<? extends N> nodes, Collection<? extends E> edges)
+	{ this.initialise(nodes, edges); }
+	
+	public Network(Network<? extends N, ? extends E> other)
+	{ this.initialise(other); }
+	
+	private void initialise()
 	{
 		this.nodes = new HashSet<>();
 		this.edgeMap = new HashMap<>();
 	}
 	
-	public Network(Collection<? extends N> nodes, Collection<? extends E> edges)
+	private void initialise(int nodeCapacity, int edgeCapacity)
 	{
-		this();
+		this.nodes = new HashSet<>(nodeCapacity);
+		this.edgeMap = new HashMap<>(edgeCapacity);
+	}
+	
+	private void initialise(Collection<? extends N> nodes, Collection<? extends E> edges)
+	{
+		this.initialise(nodes.size(), edges.size());
 		
 		this.addNodes(nodes);
 		this.addEdges(edges);
 	}
 	
-	public Network(Network<? extends N, ? extends E> other)
+	private void initialise(Network<? extends N, ? extends E> other)
 	{
-		this();
-		
 		this.nodes = new HashSet<>(other.nodes);
-		this.edgeMap = new HashMap<>();
+		this.edgeMap = new HashMap<>(other.edgeMap.size());
 		for (N node : other.edgeMap.keySet()) this.edgeMap.put(node, new HashSet<>(other.edgeMap.get(node)));
 	}
 	
 	public Set<N> getNodes()
 	{ return new HashSet<>(this.nodes); }
 	
-	private Set<E> getEdgeEntry(N source)
+	protected Set<E> getEdgeEntry(N source)
 	{
 		if (source == null) throw new IllegalArgumentException("source node must not be null");
 		if (!this.nodes.contains(source)) throw new IllegalArgumentException("source node must be part of the network");
@@ -95,9 +111,13 @@ public class Network<N extends Node, E extends Edge<? extends N>>
 		for (N source : this.edgeMap.keySet())
 		{
 			Set<E> edges = this.getEdges(source);
-			for (E edge : edges) if (edge.getSource().equals(node) || edge.getTarget().equals(node)) this.removeEdge(edge);
+			for (E edge : edges) if (edge.getSource()
+					.equals(node)
+					|| edge.getTarget()
+							.equals(node))
+				this.removeEdge(edge);
 		}
-
+		
 		this.edgeMap.remove(node);
 		this.nodes.remove(node);
 	}
@@ -109,8 +129,10 @@ public class Network<N extends Node, E extends Edge<? extends N>>
 		if (edge.getSource() == null) throw new IllegalArgumentException("edge source must not be null");
 		if (edge.getTarget() == null) throw new IllegalArgumentException("edge target must not be null");
 		
-		if (!this.nodes.contains(edge.getSource())) throw new IllegalArgumentException("edge source must be part of the network");
-		if (!this.nodes.contains(edge.getTarget())) throw new IllegalArgumentException("edge target must be part of the network");
+		if (!this.nodes.contains(edge.getSource()))
+			throw new IllegalArgumentException("edge source must be part of the network");
+		if (!this.nodes.contains(edge.getTarget()))
+			throw new IllegalArgumentException("edge target must be part of the network");
 	}
 	
 	public void addEdges(Collection<? extends E> edges)
@@ -129,23 +151,22 @@ public class Network<N extends Node, E extends Edge<? extends N>>
 		this.validateEdge(edge);
 		
 		this.getEdgeEntry(edge.getSource())
-			.add(edge);
+				.add(edge);
 	}
 	
 	public void removeEdge(E edge)
 	{
 		this.validateEdge(edge);
 		
-		this.getEdgeEntry(edge.getSource()).remove(edge);
+		this.getEdgeEntry(edge.getSource())
+				.remove(edge);
 	}
 	
 	public void printEdgeTable()
 	{
 		System.out.println("Source\tTarget");
-		for (N key : this.edgeMap.keySet()) for (E edge : this.edgeMap.get(key))
-			System.out.println(
-					edge.getSource() + "\t" +
-					edge.getTarget());
+		for (N key : this.edgeMap.keySet())
+			for (E edge : this.edgeMap.get(key)) System.out.println(edge.getSource() + "\t" + edge.getTarget());
 	}
 	
 	public boolean hasPath(N source, N target)
@@ -161,7 +182,9 @@ public class Network<N extends Node, E extends Edge<? extends N>>
 			N node = targets.get(i);
 			for (E edge : this.getEdgeEntry(node))
 			{
-				if (edge.getTarget().equals(target)) return true;
+				if (edge.getTarget()
+						.equals(target))
+					return true;
 				else if (!targets.contains(edge.getTarget())) targets.add(edge.getTarget());
 			}
 		}
@@ -186,10 +209,9 @@ public class Network<N extends Node, E extends Edge<? extends N>>
 			List<N> connections = new ArrayList<>();
 			
 			//Add all nodes that have an edge arriving at node
-			for (N otherNode : this.edgeMap.keySet())
-				for (E edge : this.getEdgeEntry(otherNode))
-					if (edge.getTarget().equals(node))
-						connections.add(edge.getSource());
+			for (N otherNode : this.edgeMap.keySet()) for (E edge : this.getEdgeEntry(otherNode)) if (edge.getTarget()
+					.equals(node))
+				connections.add(edge.getSource());
 			
 			//Add all nodes that have an edge arriving from node 
 			for (E edge : this.getEdgeEntry(node)) connections.add(edge.getTarget());
@@ -209,16 +231,17 @@ public class Network<N extends Node, E extends Edge<? extends N>>
 	}
 	
 	public boolean isSourceNode(N node)
-	{
-		return !this.getEdgeEntry(node).isEmpty();
-	}
+	{ return !this.getEdgeEntry(node)
+			.isEmpty(); }
 	
 	public boolean isTargetNode(N node)
 	{
-		for (N key : this.edgeMap.keySet()) for (E edge : this.getEdgeEntry(key)) if (edge.getTarget().equals(node)) return true;
+		for (N key : this.edgeMap.keySet()) for (E edge : this.getEdgeEntry(key)) if (edge.getTarget()
+				.equals(node))
+			return true;
 		return false;
 	}
-
+	
 	public Set<N> getTargetNodes()
 	{
 		Set<N> nodes = new HashSet<>();
@@ -230,7 +253,9 @@ public class Network<N extends Node, E extends Edge<? extends N>>
 	public Set<N> getSourceNodes()
 	{
 		Set<N> nodes = new HashSet<>();
-		for (N node : this.edgeMap.keySet()) if (!this.getEdges(node).isEmpty()) nodes.add(node);
+		for (N node : this.edgeMap.keySet()) if (!this.getEdges(node)
+				.isEmpty())
+			nodes.add(node);
 		
 		return nodes;
 	}
@@ -242,7 +267,8 @@ public class Network<N extends Node, E extends Edge<? extends N>>
 		List<N> nodes = new ArrayList<>();
 		nodes.add(node);
 		
-		for (int i = 0; i < nodes.size(); i++) for (E edge : this.getEdgeEntry(nodes.get(i))) if (!nodes.contains(edge.getTarget())) nodes.add(edge.getTarget());
+		for (int i = 0; i < nodes.size(); i++) for (E edge : this.getEdgeEntry(nodes.get(i)))
+			if (!nodes.contains(edge.getTarget())) nodes.add(edge.getTarget());
 		
 		return new HashSet<>(nodes);
 	}
@@ -256,7 +282,9 @@ public class Network<N extends Node, E extends Edge<? extends N>>
 		
 		for (int i = 0; i < nodes.size(); i++)
 		{
-			for (N key : this.getNodes()) for (E edge : this.getEdgeEntry(key)) if (edge.getTarget().equals(nodes.get(i)) && !nodes.contains(edge.getSource())) nodes.add(edge.getSource());
+			for (N key : this.getNodes()) for (E edge : this.getEdgeEntry(key)) if (edge.getTarget()
+					.equals(nodes.get(i)) && !nodes.contains(edge.getSource()))
+				nodes.add(edge.getSource());
 		}
 		
 		return new HashSet<>(nodes);
