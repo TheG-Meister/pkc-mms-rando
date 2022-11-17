@@ -82,32 +82,68 @@ public class Network<N extends Node, E extends Edge<? extends N>>
 		return edges;
 	}
 	
+	/**
+	 * Throws exceptions for any node that may be considered by this network.
+	 * @param node the node being considered
+	 * @param name string identifier for the node to include in exception messages
+	 * @throws IllegalArgumentException if the node is null
+	 */
+	protected void validateNode(N node, String name) throws IllegalArgumentException
+	{
+		if (node == null) throw new IllegalArgumentException(name + " must not be null");
+	}
+
+	/**
+	 * Throws exceptions for any node that may be added to this network. Runs {@link Network#validateNode(Node, String) validateNode} first.
+	 * @param node the node being considered
+	 * @param name string identifier for the node to include in exception messages
+	 * @throws IllegalArgumentException if the node is already part of the network
+	 */
+	protected void validateNewNode(N node, String name) throws IllegalArgumentException
+	{
+		this.validateNode(node, name);
+		if (this.nodes.contains(node)) throw new IllegalArgumentException(name + " must not be part of the network");
+	}
+
+	/**
+	 * Throws exceptions for any node that should be part of this network. Runs {@link Network#validateNode(Node, String) validateNode} first.
+	 * @param node the node being considered
+	 * @param name string identifier for the node to include in exception messages
+	 * @throws IllegalArgumentException if the node is not part of the network
+	 */
+	protected void validateExistingNode(N node, String name) throws IllegalArgumentException
+	{
+		this.validateNode(node, name);
+		if (!this.nodes.contains(node)) throw new IllegalArgumentException(name + " must be part of the network");
+	}
+	
 	public void addNodes(Collection<? extends N> nodes)
 	{
 		if (nodes == null) throw new IllegalArgumentException("nodes must not be null");
-		if (nodes.contains(null)) throw new IllegalArgumentException("nodes must not contain null elements");
-		
-		for (N node : nodes) this.addNode(node);
-	}
-	
-	protected void validateNode(N node)
-	{
-		if (node == null) throw new IllegalArgumentException("node must not be null");
-		if (!this.nodes.contains(node)) throw new IllegalArgumentException("node must be part of the network");
+		for (N node : nodes) this.validateNewNode(node, "node");
+		for (N node : nodes) this.addKnownNode(node);
 	}
 	
 	public void addNode(N node)
 	{
-		if (node == null) throw new IllegalArgumentException("node must not be null");
-		
+		this.validateNewNode(node, "node");
+		this.addKnownNode(node);
+	}
+	
+	protected void addKnownNode(N node)
+	{
 		this.nodes.add(node);
 		this.edgeMap.put(node, new HashSet<>());
 	}
 	
 	public void removeNode(N node)
 	{
-		this.validateNode(node);
-		
+		this.validateExistingNode(node, "node");
+		this.removeKnownNode(node);
+	}
+	
+	protected void removeKnownNode(N node)
+	{
 		for (N source : this.edgeMap.keySet())
 		{
 			Set<E> edges = this.getEdges(source);
@@ -122,13 +158,22 @@ public class Network<N extends Node, E extends Edge<? extends N>>
 		this.nodes.remove(node);
 	}
 	
-	protected void validateEdge(E edge)
+	protected void validateEdge(E edge, String name)
 	{
-		if (edge == null) throw new IllegalArgumentException("edge must not be null");
-		
+		if (edge == null) throw new IllegalArgumentException(name + " must not be null");
 		if (edge.getSource() == null) throw new IllegalArgumentException("edge source must not be null");
 		if (edge.getTarget() == null) throw new IllegalArgumentException("edge target must not be null");
-		
+	}
+	
+	protected void validateNewEdge(E edge, String name)
+	{
+		this.validateEdge(edge, name);
+		if (this.getEdgeEntry(edge.getSource()).contains(edge)) throw new IllegalArgumentException(name + " must not be part of the network");
+	}
+	
+	protected void validateExistingEdge(E edge, String name)
+	{
+		this.validateEdge(edge, name);
 		if (!this.nodes.contains(edge.getSource()))
 			throw new IllegalArgumentException("edge source must be part of the network");
 		if (!this.nodes.contains(edge.getTarget()))
@@ -138,28 +183,32 @@ public class Network<N extends Node, E extends Edge<? extends N>>
 	public void addEdges(Collection<? extends E> edges)
 	{
 		if (edges == null) throw new IllegalArgumentException("edges must not be null");
-		
-		//Validate all edges
-		for (E edge : edges) this.validateEdge(edge);
-		
-		//Add all edges
-		for (E edge : edges) this.addEdge(edge);
+		for (E edge : edges) this.validateNewEdge(edge, "edge");
+		for (E edge : edges) this.addKnownEdge(edge);
 	}
 	
 	public void addEdge(E edge)
 	{
-		this.validateEdge(edge);
-		
+		this.validateNewEdge(edge, "edge");
+		this.addKnownEdge(edge);
+	}
+	
+	protected void addKnownEdge(E edge)
+	{
 		this.getEdgeEntry(edge.getSource())
-				.add(edge);
+		.add(edge);
 	}
 	
 	public void removeEdge(E edge)
 	{
-		this.validateEdge(edge);
-		
+		this.validateExistingEdge(edge, "edge");
+		this.removeKnownEdge(edge);
+	}
+	
+	protected void removeKnownEdge(E edge)
+	{
 		this.getEdgeEntry(edge.getSource())
-				.remove(edge);
+		.remove(edge);
 	}
 	
 	public void printEdgeTable()
@@ -171,8 +220,8 @@ public class Network<N extends Node, E extends Edge<? extends N>>
 	
 	public boolean hasPath(N source, N target)
 	{
-		this.validateNode(source);
-		this.validateNode(target);
+		this.validateExistingNode(source, "source");
+		this.validateExistingNode(target, "target");
 		
 		List<N> targets = new ArrayList<>();
 		targets.add(source);
@@ -195,8 +244,8 @@ public class Network<N extends Node, E extends Edge<? extends N>>
 	//This method is similar to hasPath
 	public boolean hasConnection(N source, N target)
 	{
-		this.validateNode(source);
-		this.validateNode(target);
+		this.validateExistingNode(source, "source");
+		this.validateExistingNode(target, "target");
 		
 		List<N> nodes = new ArrayList<>();
 		nodes.add(source);
@@ -262,7 +311,7 @@ public class Network<N extends Node, E extends Edge<? extends N>>
 	
 	public Set<N> getTargetsOf(N node)
 	{
-		this.validateNode(node);
+		this.validateExistingNode(node, "node");
 		
 		List<N> nodes = new ArrayList<>();
 		nodes.add(node);
@@ -275,7 +324,7 @@ public class Network<N extends Node, E extends Edge<? extends N>>
 	
 	public Set<N> getSourcesOf(N node)
 	{
-		this.validateNode(node);
+		this.validateExistingNode(node, "node");
 		
 		List<N> nodes = new ArrayList<>();
 		nodes.add(node);
