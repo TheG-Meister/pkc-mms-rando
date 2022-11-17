@@ -46,60 +46,102 @@ public class GroupedNetwork<N extends Node, E extends Edge<? extends N>>
 		this.edgeMap = new HashMap<>(other.edgeMap);
 	}
 	
+	@Override
+	protected void validateNode(NodeGroup<N> node, String name)
+	{
+		super.validateNode(node, name);
+		if (node.getNodes().contains(null)) throw new IllegalArgumentException(name + " must not contain null nodes");
+	}
+	
+	@Override
+	protected void addKnownNode(NodeGroup<N> node)
+	{
+		super.addKnownNode(node);
+		for (N subNode : node.getNodes()) this.nodeMap.put(subNode, node);
+	}
+	
+	@Override
+	protected void validateEdge(MimickedEdge<NodeGroup<N>, E> edge, String name)
+	{
+		super.validateEdge(edge, name);
+		if (edge.getOriginalEdge() == null) throw new IllegalArgumentException(name + " must not contain a null original edge");
+	}
+	
+	@Override
+	protected void addKnownEdge(MimickedEdge<NodeGroup<N>, E> edge)
+	{
+		super.addKnownEdge(edge);
+		this.edgeMap.put(edge.getOriginalEdge(), edge);
+	}
+	
+	@Override
+	protected void removeKnownNode(NodeGroup<N> node)
+	{
+		super.removeKnownNode(node);
+		for (N subNode : node.getNodes()) this.nodeMap.remove(subNode);
+	}
+	
+	@Override
+	protected void removeKnownEdge(MimickedEdge<NodeGroup<N>, E> edge)
+	{
+		super.removeKnownEdge(edge);
+		this.edgeMap.remove(edge.getOriginalEdge());
+	}
+	
+	private MimickedEdge<NodeGroup<N>, E> createEdge(E edge)
+	{
+		return new MimickedEdge<>(this.nodeMap.get(edge.getSource()), this.nodeMap.get(edge.getTarget()), edge);
+	}
+	
 	public void addOriginalNodes(Collection<? extends N> nodes)
 	{
-		//null check on nodes itself
-		if (nodes.contains(null)) throw new IllegalArgumentException("nodes must not contain null elements");
+		if (nodes == null) throw new IllegalArgumentException("nodes must not be null");
 		
-		for (N node : nodes) this.addOriginalNode(node);
+		Set<NodeGroup<N>> nodeGroups = new HashSet<>();
+		for (N node : nodes)
+		{
+			NodeGroup<N> nodeGroup = new NodeGroup<>(node);
+			this.validateNewNode(nodeGroup, "node");
+			nodeGroups.add(nodeGroup);
+		}
+		
+		for (NodeGroup<N> nodeGroup : nodeGroups) this.addKnownNode(nodeGroup);
 	}
 	
 	public void addOriginalNode(N node)
 	{
-		//null check
-		
-		this.addNode(new NodeGroup<>(node));
-	}
-	
-	@Override
-	public void addNode(NodeGroup<N> node)
-	{
-		//null check
-		
-		super.addNode(node);
-		for (N subNode : node.getNodes()) this.nodeMap.put(subNode, node);
-	}
-	
-	protected void validateOriginalEdge(E edge)
-	{
-		if (edge == null) throw new IllegalArgumentException("edge must not be null");
-		if (edge.getSource() == null) throw new IllegalArgumentException("edge source must not be null");
-		if (edge.getTarget() == null) throw new IllegalArgumentException("edge target must not be null");
-		if (!this.nodeMap.containsKey(edge.getSource()))
-			throw new IllegalArgumentException("edge source must be part of the network");
-		if (!this.nodeMap.containsKey(edge.getTarget()))
-			throw new IllegalArgumentException("edge target must be part of the network");
+		NodeGroup<N> nodeGroup = new NodeGroup<>(node);
+		this.validateNewNode(nodeGroup, "node");
+		this.addKnownNode(nodeGroup);
 	}
 	
 	public void addOriginalEdges(Collection<? extends E> edges)
 	{
-		for (E edge : edges) this.validateOriginalEdge(edge);
+		if (edges == null) throw new IllegalArgumentException("nodes must not be null");
 		
-		for (E edge : edges) this.addOriginalEdge(edge);
+		Set<MimickedEdge<NodeGroup<N>, E>> mimickedEdges = new HashSet<>();
+		for (E edge : edges)
+		{
+			MimickedEdge<NodeGroup<N>, E> mimickedEdge = this.createEdge(edge);
+			this.validateNewEdge(mimickedEdge, "edge");
+			mimickedEdges.add(mimickedEdge);
+		}
+		
+		for (MimickedEdge<NodeGroup<N>, E> mimickedEdge : mimickedEdges) this.addKnownEdge(mimickedEdge);
 	}
 	
 	public void addOriginalEdge(E edge)
 	{
-		this.validateOriginalEdge(edge);
-		
-		this.addEdge(new MimickedEdge<>(this.nodeMap.get(edge.getSource()), this.nodeMap.get(edge.getTarget()), edge));
+		MimickedEdge<NodeGroup<N>, E> mimickedEdge = this.createEdge(edge);
+		this.validateNewEdge(mimickedEdge, "edge");
+		this.addKnownEdge(mimickedEdge);
 	}
 	
 	public void merge(MimickedEdge<NodeGroup<N>, E> edge)
 	{
 		if (!this.getEdges()
 				.contains(edge))
-			this.validateEdge(edge);
+			this.validateExistingEdge(edge, "edge");
 		
 		Set<NodeGroup<N>> nodeGroups = new HashSet<>();
 		nodeGroups.add(edge.getSource());
@@ -111,7 +153,7 @@ public class GroupedNetwork<N extends Node, E extends Edge<? extends N>>
 	{
 		for (MimickedEdge<NodeGroup<N>, E> edge : edges) if (!this.getEdges()
 				.contains(edge))
-			this.validateEdge(edge);
+			this.validateExistingEdge(edge, "edge");
 		
 		List<Set<NodeGroup<N>>> sets = new ArrayList<>();
 		
@@ -151,7 +193,8 @@ public class GroupedNetwork<N extends Node, E extends Edge<? extends N>>
 	
 	public void merge(E edge)
 	{
-		if (!this.edgeMap.containsKey(edge)) this.validateOriginalEdge(edge);
+		MimickedEdge<NodeGroup<N>, E> mimickedEdge = this.createEdge(edge);
+		this.validateEdge(mimickedEdge, "edge");
 		
 		Set<NodeGroup<N>> nodeGroups = new HashSet<>();
 		nodeGroups.add(this.nodeMap.get(edge.getSource()));
@@ -194,7 +237,7 @@ public class GroupedNetwork<N extends Node, E extends Edge<? extends N>>
 			if (collection == null) throw new IllegalArgumentException("collections must not contain null elements");
 			if (new HashSet<>(collection).size() < 2) throw new IllegalArgumentException(
 					"collection must only contain elements that contain 2 or more unique elements");
-			for (NodeGroup<N> node : collection) this.validateNode(node);
+			for (NodeGroup<N> node : collection) this.validateExistingNode(node, "node");
 		}
 		
 		Set<MimickedEdge<NodeGroup<N>, E>> modifiedEdges = new HashSet<>();
@@ -237,20 +280,6 @@ public class GroupedNetwork<N extends Node, E extends Edge<? extends N>>
 	{
 		//null check
 		this.removeEdge(this.edgeMap.get(edge));
-	}
-	
-	@Override
-	public void removeNode(NodeGroup<N> node)
-	{
-		super.removeNode(node);
-		for (N subNode : node.getNodes()) this.nodeMap.remove(subNode);
-	}
-	
-	@Override
-	public void removeEdge(MimickedEdge<NodeGroup<N>, E> edge)
-	{
-		super.removeEdge(edge);
-		this.edgeMap.remove(edge.getOriginalEdge());
 	}
 	
 	public NodeGroup<N> getNode(N node)
