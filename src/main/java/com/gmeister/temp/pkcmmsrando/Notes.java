@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -30,11 +31,9 @@ import com.gmeister.temp.pkcmmsrando.map.data.MapConnection;
 import com.gmeister.temp.pkcmmsrando.map.data.MapExploration;
 import com.gmeister.temp.pkcmmsrando.map.data.MapExplorer;
 import com.gmeister.temp.pkcmmsrando.map.data.OverworldPosition;
-import com.gmeister.temp.pkcmmsrando.map.data.Player;
 import com.gmeister.temp.pkcmmsrando.map.data.SpriteMovementDataConstant;
 import com.gmeister.temp.pkcmmsrando.map.data.TileSet;
 import com.gmeister.temp.pkcmmsrando.map.data.Warp;
-import com.gmeister.temp.pkcmmsrando.map.data.WarpNetwork;
 import com.gmeister.temp.pkcmmsrando.network.Edge;
 import com.gmeister.temp.pkcmmsrando.network.FlaggedEdge;
 import com.gmeister.temp.pkcmmsrando.network.FlaggedWarpNetwork;
@@ -163,8 +162,187 @@ public class Notes
 		rando.shuffleWarpGroups(warpGroups, false, true);
 	}
 	
+	public static class MapNetworkCreator
+	{
+		private Collection<WarpNode> nodes;
+		private java.util.Map<WarpNode, List<Warp>> nodeMap;
+		private java.util.Map<Flag, List<Warp>> flagRequirements;
+		
+		private FlaggedWarpNetwork<WarpNode, FlaggedEdge<WarpNode>> network;
+		private java.util.Map<Flag, Set<WarpNode>> flagRequirementsNodes;
+		
+		public MapNetworkCreator(Collection<WarpNode> nodes, java.util.Map<WarpNode, List<Warp>> nodeMap,
+				java.util.Map<Flag, List<Warp>> flagRequirements)
+		{
+			super();
+			this.nodes = nodes;
+			this.nodeMap = nodeMap;
+			this.flagRequirements = flagRequirements;
+		}
+		
+		public void createNetwork()
+		{
+			List<Warp> flagWarps = flagRequirements.entrySet().stream().flatMap(e -> e.getValue().stream()).collect(Collectors.toList());
+			
+			java.util.Map<Warp, WarpNode> flagWarpToNodeMap = new HashMap<>();
+			for (Flag flag : this.flagRequirements.keySet()) for (Warp warp : this.flagRequirements.get(flag))
+			{
+				WarpNode node = this.nodes.stream().filter(n -> n.getWarps().contains(warp)).findAny().orElse(null);
+				if (node != null) flagWarpToNodeMap.put(warp, node);
+			}
+			
+			Set<FlaggedEdge<WarpNode>> edges = new HashSet<>();
+			
+			for (WarpNode node : this.nodes)
+			{
+				//Get the warp group from the node and select a representative warp
+				Set<Warp> warpGroup = node.getWarps();
+				Warp warp = nodeMap.get(node).get(0);
+				
+				//Create a map of maps to map explorers, and add an explorer for the starting map
+				java.util.Map<Map, MapExplorer> explorerMap = new HashMap<>();
+				MapExplorer startExplorer = new MapExplorer(warp.getMap());
+				startExplorer.exploreFrom(warp.getPosition(), new HashSet<>());
+				explorerMap.put(warp.getMap(), startExplorer);
+				
+				//Create a list of maps to test, and add the starting map
+				List<Map> mapsToTest = new ArrayList<>();
+				mapsToTest.add(warp.getMap());
+				
+				//Test all remaining maps
+				while (mapsToTest.size() > 0)
+				{
+					Map map = mapsToTest.remove(0);
+					
+					//Get the explorer for this map
+					MapExplorer explorer = explorerMap.get(map);
+					if (explorer == null) throw new IllegalStateException();
+					
+					//Explore the map
+					explorer.explore();
+					
+					//For every combination of flags neceessary for movements
+					for (Set<Flag> otherFlags : explorer.getMapExplorationTable().keySet())
+					{
+						//Get the map exploration
+						MapExploration exploration = explorer.getMapExplorationTable().get(otherFlags).getMapExploration();
+						
+						//Create a list of positions to continue movement through
+						List<OverworldPosition> newPositions = new ArrayList<>();
+						
+						//For all accessed warps which aren't part of the current group
+						for (Warp otherWarp : exploration.getWarpsAccessed()) if (!warpGroup.contains(otherWarp))
+						{
+							//Find the group this warp is part of
+							List<Warp> otherGroup = nodeMap.get(nodes.stream().filter(n -> n.getWarps().contains(otherWarp)).findAny().orElse(null));
+							
+							//If this warp isn't part of the network
+							if (otherGroup == null)
+							{
+								//continue movement through it's target
+								newPositions.add(otherWarp.getDestination().getPosition());
+								//if this warp is a flag warp and it doesn't have a node assigned, set the current source node as the warp's node
+								if (flagWarps.contains(otherWarp) && !flagWarpToNodeMap.keySet().contains(otherWarp)) flagWarpToNodeMap.put(otherWarp, node);
+							}
+							else
+							{
+								//This section might be unnecessary if we can scan everything altogether at the end
+								
+								//Find the node this warp is a part of
+								WarpNode otherNode = nodes.stream().filter(n -> n.getWarps().contains(otherGroup.get(0))).findAny().orElseThrow();
+								
+								//Find all existing branches with the same source and target node
+								List<FlaggedEdge<WarpNode>> currentBranches = edges.stream().filter(b -> b.getSource() == node && b.getTarget() == otherNode).collect(Collectors.toList());
+								
+								//Create the new branch and track whether it should be added
+								FlaggedEdge<WarpNode> newBranch = new FlaggedEdge<>(node, otherNode, new HashSet<>(otherFlags));
+								boolean addBranch = true;
+								
+								//For all existing branches
+								for (FlaggedEdge<WarpNode> branch : currentBranches)
+								{
+									//If this branch contains the same or less flags, don't add the new branch 
+									if (newBranch.getFlags().containsAll(branch.getFlags())) addBranch = false;
+									//Otherwise, if this branch contains more flags, remove it
+									//I don't think this ever runs
+									else if (branch.getFlags().containsAll(newBranch.getFlags())) edges.remove(branch);
+								}
+								
+								if (addBranch) edges.add(newBranch);
+							}
+						}
+						
+						//Continue movement through all map connections
+						for (MapConnection connection : exploration.getConnectionsAccessed().keySet()) newPositions.addAll(exploration.getConnectionsAccessed().get(connection));
+						
+						//Create a list of new unique maps to update the tracking of, and loop through it
+						List<Map> newMaps = newPositions.stream().map(p -> p.getMap()).distinct().collect(Collectors.toList());
+						for (Map otherMap : newMaps)
+						{
+							if (explorerMap.get(otherMap) == null) explorerMap.put(otherMap, new MapExplorer(otherMap));
+							
+							boolean changed = false;
+							for (OverworldPosition position : newPositions) if (position.getMap() == otherMap &&
+									!explorerMap.get(otherMap).getEntry(otherFlags).getMapExploration().getTilesAccessed()[position.getY()][position.getX()])
+							{
+								changed = true;
+								explorerMap.get(otherMap).exploreFrom(position, otherFlags);
+							}
+							
+							if (changed && !mapsToTest.contains(otherMap)) mapsToTest.add(otherMap);
+						}
+					}
+				}
+				
+				for (WarpNode otherNode : nodes) if (otherNode != node)
+					for (Warp otherWarp : otherNode.getWarps()) if (!warp.hasAccessibleDestination() && explorerMap.containsKey(otherWarp.getMap()))
+				{
+					//Get all flags that can access this warp
+					//If the branch does not exist, add it
+					List<Set<Flag>> flagSets = explorerMap.get(otherWarp.getMap()).getFlagsToAccess(otherWarp.getPosition());
+					List<FlaggedEdge<WarpNode>> existingBranches = edges.stream().filter(b -> b.getSource() == node && b.getTarget() == otherNode).collect(Collectors.toList());
+					
+					flagSets.stream().filter(s -> existingBranches.stream().noneMatch(b -> b.getFlags().equals(s))).forEach(s -> edges.add(new FlaggedEdge<>(node, otherNode, s)));
+				}
+			}
+			
+			//Create edges between warps that can access each other via elevators
+			//The remaining code in this method is a hack as the codebase cannot read or interpret elevator tables yet
+			List<String> goldenrodDeptStoreElevMaps = new ArrayList<>(Arrays.asList("GOLDENROD_DEPT_STORE_B1F", "GOLDENROD_DEPT_STORE_1F", "GOLDENROD_DEPT_STORE_2F", "GOLDENROD_DEPT_STORE_3F", "GOLDENROD_DEPT_STORE_4F", "GOLDENROD_DEPT_STORE_5F", "GOLDENROD_DEPT_STORE_6F"));
+			List<String> celadonDeptStoreElevMaps = new ArrayList<>(Arrays.asList("CELADON_DEPT_STORE_1F", "CELADON_DEPT_STORE_2F", "CELADON_DEPT_STORE_3F", "CELADON_DEPT_STORE_4F", "CELADON_DEPT_STORE_5F", "CELADON_DEPT_STORE_6F"));
+			List<List<String>> elevMapLists = new ArrayList<>(Arrays.asList(goldenrodDeptStoreElevMaps, celadonDeptStoreElevMaps));
+			
+			for (List<String> elevMapList : elevMapLists)
+			{
+				List<WarpNode> elevMapNodes = nodes.stream().filter(n -> elevMapList.contains(nodeMap.get(n).get(0).getMap().getConstName())).collect(Collectors.toList());
+				List<FlaggedEdge<WarpNode>> elevMapNodeEdges = edges.stream().filter(e -> elevMapNodes.contains(e.getSource()) && elevMapNodes.contains(e.getTarget())).collect(Collectors.toList());
+				
+				for (WarpNode source : elevMapNodes)
+					for (WarpNode target : elevMapNodes)
+						if (source != target && elevMapNodeEdges.stream().noneMatch(e -> e.getSource().equals(source) && e.getTarget().equals(target)))
+							edges.add(new FlaggedEdge<WarpNode>(source, target, new HashSet<>()));
+			}
+			
+			this.flagRequirementsNodes = new HashMap<>();
+			for (Flag flag : flagRequirements.keySet())
+			{
+				this.flagRequirementsNodes.put(flag, new HashSet<>());
+				for (Warp warp : flagRequirements.get(flag)) flagRequirementsNodes.get(flag).add(flagWarpToNodeMap.get(warp));
+			}
+			
+			this.network = new FlaggedWarpNetwork<>(nodes, edges);
+		}
+		
+		public FlaggedWarpNetwork<WarpNode, FlaggedEdge<WarpNode>> getNetwork()
+		{ return this.network; }
+		public java.util.Map<Flag, Set<WarpNode>> getFlagRequirementsNodes()
+		{ return this.flagRequirementsNodes; }
+		
+	}
+	
 	public static java.util.Map<Warp, Warp> buildWarpAreas(List<Map> maps, List<Flag> flags, EmpiricalDataReader empReader, Randomiser rando) throws FileNotFoundException, IOException, URISyntaxException
 	{
+		
 		List<List<Warp>> warpGroups = new ArrayList<>();
 		List<List<Map>> mapGroups = new ArrayList<>();
 		List<String[]> mapGroupNamess = empReader.readVanillaMapGroups();
@@ -181,107 +359,67 @@ public class Notes
 			if (!group.contains(warp)) group.add(warp);
 			if (!warpGroups.contains(group)) warpGroups.add(group);
 		}
-		
-		java.util.Map<List<Warp>, List<List<Warp>>> networkMap = new HashMap<>();
-		for (List<Warp> group : warpGroups) networkMap.put(group, new ArrayList<>());
-		
-		for (List<Map> mapGroup : mapGroups)
-		{
-			List<List<Warp>> mapGroupWarpGroups = new ArrayList<>();
-			
-			for (List<Warp> warpGroup : warpGroups) if (mapGroup.contains(warpGroup.get(0).getMap())) mapGroupWarpGroups.add(warpGroup);
-			
-			for (List<Warp> warpGroup : mapGroupWarpGroups)
-			{
-				Warp warp = warpGroup.get(0);
-				java.util.Map<Map, boolean[][]> accessibleCollision = new HashMap<>();
-				boolean[][] startCollision = new boolean[warp.getMap().getBlocks().getCollisionYCapacity()][warp.getMap().getBlocks().getCollisionXCapacity()];
-				startCollision[warp.getY()][warp.getX()] = true;
-				accessibleCollision.put(warp.getMap(), startCollision);
-				
-				List<Map> mapsToTest = new ArrayList<>(accessibleCollision.keySet());
-				
-				while (mapsToTest.size() > 0)
-				{
-					Map map = mapsToTest.remove(0);
-					
-					java.util.Map<Map, boolean[][]> accessibleCollisionFromMap = Player.getAccessibleCollision(map, accessibleCollision.get(map), new ArrayList<>());
-					
-					for (Map updatedMap : accessibleCollisionFromMap.keySet())
-					{
-						if (accessibleCollision.containsKey(updatedMap))
-						{
-							boolean[][] oldCollision = accessibleCollision.get(updatedMap);
-							boolean[][] newCollision = accessibleCollisionFromMap.get(updatedMap);
-							boolean changed = false;
-							for (int y = 0; y < oldCollision.length; y++) for (int x = 0; x < oldCollision[y].length; x++) if (!oldCollision[y][x] && newCollision[y][x])
-							{
-								changed = true;
-								oldCollision[y][x] = newCollision[y][x];
-							}
-							accessibleCollision.put(updatedMap, oldCollision);
-							if (mapGroup.contains(updatedMap) && changed && map != updatedMap && !mapsToTest.contains(updatedMap)) mapsToTest.add(updatedMap);
-						}
-						else
-						{
-							accessibleCollision.put(updatedMap, accessibleCollisionFromMap.get(updatedMap));
-							if (mapGroup.contains(updatedMap) && !mapsToTest.contains(updatedMap)) mapsToTest.add(updatedMap);
-						}
-					}
-				}
-				
-				for (List<Warp> otherGroup : mapGroupWarpGroups)
-				{
-					Warp otherWarp = otherGroup.get(0);
-					if (!warp.equals(otherWarp))
-					{
-						if ((accessibleCollision.keySet().contains(otherWarp.getMap()) &&
-								accessibleCollision.get(otherWarp.getMap())[otherWarp.getY()][otherWarp.getX()])
-								|| (accessibleCollision.keySet().contains(otherWarp.getDestination().getMap()) &&
-										accessibleCollision.get(otherWarp.getDestination().getMap())[otherWarp.getDestination().getY()][otherWarp.getDestination().getX()]))
-						{
-							networkMap.get(warpGroup).add(otherGroup);
-						}
-					}
-				}
-					
-			}
-		}
-		
 		//Manually add warps from and to the north cycling road gatehouse
 		Map route16 = maps.stream().filter(m -> m.getConstName().equals("ROUTE_16")).findFirst().orElseThrow();
 		List<Warp> route16ToGate = new ArrayList<>(route16.getWarps().stream()
 				.filter(w -> w.getPosition().getX() == 14 && (w.getPosition().getY() == 6 || w.getPosition().getY() == 7))
 				.collect(Collectors.toList()));
-		List<Warp> route7GateToSaffron = warpGroups.stream().filter(g -> g.stream().anyMatch(w -> w.getMap().getConstName().equals("ROUTE_7_SAFFRON_GATE"))).findFirst().orElseThrow();
 		
 		warpGroups.add(route16ToGate);
-		networkMap.get(route7GateToSaffron).add(route16ToGate);
-		networkMap.put(route16ToGate, new ArrayList<>(Arrays.asList(route7GateToSaffron)));
 		
 		Map route16Gate = maps.stream().filter(m -> m.getConstName().equals("ROUTE_16_GATE")).findFirst().orElseThrow();
 		List<Warp> route16GateToRoute = new ArrayList<>(route16Gate.getWarps().stream()
 				.filter(w -> w.getPosition().getX() == 9 && (w.getPosition().getY() == 4 || w.getPosition().getY() == 5))
 				.collect(Collectors.toList()));
-		List<Warp> route17GateToRoute = warpGroups.stream().filter(g -> g.stream().anyMatch(w -> w.getMap().getConstName().equals("ROUTE_17_ROUTE_18_GATE"))).findFirst().orElseThrow();
 		
 		warpGroups.add(route16GateToRoute);
-		networkMap.get(route17GateToRoute).add(route16GateToRoute);
-		networkMap.put(route16GateToRoute, new ArrayList<>(Arrays.asList(route17GateToRoute)));
 		
-		WarpNetwork network = new WarpNetwork(networkMap);
+		Set<WarpNode> nodes = new HashSet<>();
+		java.util.Map<WarpNode, List<Warp>> nodeMap = new HashMap<>();
+		java.util.Map<Warp, WarpNode> warpToNodeMap = new HashMap<>();
 		
-		List<List<Warp>> sourceNodes = new ArrayList<>();
-		List<List<Warp>> targetNodes = new ArrayList<>();
-		for (List<Warp> sourceNode : network.getNetwork().keySet())
+		//Add a node for every warp group
+		for (List<Warp> warps : warpGroups)
 		{
-			Warp target = sourceNode.stream().map(w -> w.getDestination()).filter(w -> w != null).findAny().orElseThrow();
-			List<Warp> targetNode = network.getNetwork().keySet().stream().filter(n -> n.contains(target)).findAny().orElseThrow();
-			sourceNodes.add(sourceNode);
-			targetNodes.add(targetNode);
+			WarpNode node = new WarpNode(warps);
+			nodes.add(node);
+			nodeMap.put(node, warps);
+			for (Warp warp : warps) warpToNodeMap.put(warp, node);
 		}
 		
-		return rando.buildWarpGroups(sourceNodes, targetNodes, network, false, false, false, false);
+		//Create a network from the provided nodes
+		java.util.Map<Flag, List<Warp>> flagRequirements = empReader.readFlagRequirementsAreas(flags, maps);
+		
+		MapNetworkCreator creator = new MapNetworkCreator(nodes, nodeMap, flagRequirements);
+		creator.createNetwork();
+		
+		FlaggedWarpNetwork<WarpNode, FlaggedEdge<WarpNode>> network = creator.getNetwork();
+		java.util.Map<Flag, Set<WarpNode>> flagRequirementsNodes = creator.getFlagRequirementsNodes();
+		
+		//network.printEdgeTable();
+		
+		Set<FlaggedEdge<WarpNode>> originalEdges = new HashSet<>();
+		for (WarpNode source : nodes)
+		{
+			//Errors for null destinations
+			WarpNode target = nodes.stream().filter(n -> n.getWarps().contains(nodeMap.get(source).get(0))).findAny().orElseThrow();
+			originalEdges.add(new FlaggedEdge<>(source, target, new HashSet<>()));
+		}
+		
+		//Find the start warp node
+		WarpNode start = nodes.stream().filter(n -> nodeMap.get(n).get(0).getMap().getConstName().equals("ROUTE_29")).findAny().orElseThrow();
+		
+		List<Edge<WarpNode>> randomisedWarps = rando.buildWarpGroups(originalEdges, network, flagRequirementsNodes, start, false, false, false, false);
+		
+		java.util.Map<Warp, Warp> output = new HashMap<>();
+		for (Edge<WarpNode> edge : randomisedWarps)
+		{
+			List<Warp> sourceList = nodeMap.get(edge.getSource());
+			List<Warp> targetList = nodeMap.get(edge.getTarget());
+			for (int i = 0; i < sourceList.size(); i++) output.put(sourceList.get(i), targetList.get(i % targetList.size()));
+		}
+		
+		return output;
 	}
 	
 	public static List<Map> getMapsByNames(List<Map> maps, String... constNames)
@@ -394,143 +532,26 @@ public class Notes
 		//Create lists of Nodes and Branches to form a ConditionalWarpNetwork
 		
 		Set<WarpNode> nodes = new HashSet<>();
-		Set<FlaggedEdge<WarpNode>> edges = new HashSet<>();
 		java.util.Map<WarpNode, List<Warp>> nodeMap = new HashMap<>();
+		java.util.Map<Warp, WarpNode> warpToNodeMap = new HashMap<>();
 		
 		//Add a node for every warp group
-		for (List<Warp> warp : warpGroups)
+		for (List<Warp> warps : warpGroups)
 		{
-			WarpNode node = new WarpNode(warp);
+			WarpNode node = new WarpNode(warps);
 			nodes.add(node);
-			nodeMap.put(node, warp);
+			nodeMap.put(node, warps);
+			for (Warp warp : warps) warpToNodeMap.put(warp, node);
 		}
 		
-		//Find all the nodes that each node can access, and create a branch for it 
-		for (WarpNode node : nodes)
-		{
-			//Get the warp group from the node and select a representative warp
-			Set<Warp> warpGroup = node.getWarps();
-			Warp warp = nodeMap.get(node).get(0);
-			
-			//Create a map of maps to map explorers, and add an explorer for the starting map
-			java.util.Map<Map, MapExplorer> explorerMap = new HashMap<>();
-			MapExplorer startExplorer = new MapExplorer(warp.getMap());
-			startExplorer.exploreFrom(warp.getPosition(), new HashSet<>());
-			explorerMap.put(warp.getMap(), startExplorer);
-			
-			//Create a list of maps to test, and add the starting map
-			List<Map> mapsToTest = new ArrayList<>();
-			mapsToTest.add(warp.getMap());
-			
-			//Test all remaining maps
-			while (mapsToTest.size() > 0)
-			{
-				Map map = mapsToTest.remove(0);
-				
-				//Get the explorer for this map
-				MapExplorer explorer = explorerMap.get(map);
-				if (explorer == null) throw new IllegalStateException();
-				
-				//Explore the map
-				explorer.explore();
-				
-				//For every combination of flags neceessary for movements
-				for (Set<Flag> otherFlags : explorer.getMapExplorationTable().keySet())
-				{
-					//Get the map exploration
-					MapExploration exploration = explorer.getMapExplorationTable().get(otherFlags).getMapExploration();
-					
-					//Create a list of positions to continue movement through
-					List<OverworldPosition> newPositions = new ArrayList<>();
-					
-					//For all accessed warps which aren't part of the current group
-					for (Warp otherWarp : exploration.getWarpsAccessed()) if (!warpGroup.contains(otherWarp))
-					{
-						//Find the group this warp is part of
-						List<Warp> otherGroup = warpGroups.stream().filter(g -> g.contains(otherWarp)).findAny().orElse(null);
-						
-						//If this warp isn't part of a group, continue movement through it's target
-						if (otherGroup == null) newPositions.add(otherWarp.getDestination().getPosition());
-						else
-						{
-							//This section might be unnecessary if we can scan everything altogether at the end
-							
-							//Find the node this warp is a part of
-							WarpNode otherNode = nodes.stream().filter(n -> n.getWarps().contains(otherGroup.get(0))).findAny().orElseThrow();
-							
-							//Find all existing branches with the same source and target node
-							List<FlaggedEdge<WarpNode>> currentBranches = edges.stream().filter(b -> b.getSource() == node && b.getTarget() == otherNode).collect(Collectors.toList());
-							
-							//Create the new branch and track whether it should be added
-							FlaggedEdge<WarpNode> newBranch = new FlaggedEdge<>(node, otherNode, new HashSet<>(otherFlags));
-							boolean addBranch = true;
-							
-							//For all existing branches
-							for (FlaggedEdge<WarpNode> branch : currentBranches)
-							{
-								//If this branch contains the same or less flags, don't add the new branch 
-								if (newBranch.getFlags().containsAll(branch.getFlags())) addBranch = false;
-								//Otherwise, if this branch contains more flags, remove it
-								//I don't think this ever runs
-								else if (branch.getFlags().containsAll(newBranch.getFlags())) edges.remove(branch);
-							}
-							
-							if (addBranch) edges.add(newBranch);
-						}
-					}
-					
-					//Continue movement through all map connections
-					for (MapConnection connection : exploration.getConnectionsAccessed().keySet()) newPositions.addAll(exploration.getConnectionsAccessed().get(connection));
-					
-					//Create a list of new unique maps to update the tracking of, and loop through it
-					List<Map> newMaps = newPositions.stream().map(p -> p.getMap()).distinct().collect(Collectors.toList());
-					for (Map otherMap : newMaps)
-					{
-						if (explorerMap.get(otherMap) == null) explorerMap.put(otherMap, new MapExplorer(otherMap));
-						
-						boolean changed = false;
-						for (OverworldPosition position : newPositions) if (position.getMap() == otherMap &&
-								!explorerMap.get(otherMap).getEntry(otherFlags).getMapExploration().getTilesAccessed()[position.getY()][position.getX()])
-						{
-							changed = true;
-							explorerMap.get(otherMap).exploreFrom(position, otherFlags);
-						}
-						
-						if (changed && !mapsToTest.contains(otherMap)) mapsToTest.add(otherMap);
-					}
-				}
-			}
-			
-			for (WarpNode otherNode : nodes) if (otherNode != node)
-				for (Warp otherWarp : otherNode.getWarps()) if (!warp.hasAccessibleDestination() && explorerMap.containsKey(otherWarp.getMap()))
-			{
-				//Get all flags that can access this warp
-				//If the branch does not exist, add it
-				List<Set<Flag>> flagSets = explorerMap.get(otherWarp.getMap()).getFlagsToAccess(otherWarp.getPosition());
-				List<FlaggedEdge<WarpNode>> existingBranches = edges.stream().filter(b -> b.getSource() == node && b.getTarget() == otherNode).collect(Collectors.toList());
-				
-				flagSets.stream().filter(s -> existingBranches.stream().noneMatch(b -> b.getFlags().equals(s))).forEach(s -> edges.add(new FlaggedEdge<>(node, otherNode, s)));
-			}
-		}
+		//Create a network from the provided nodes
+		java.util.Map<Flag, List<Warp>> flagRequirements = empReader.readFlagRequirements(flags, maps);
 		
-		//Create edges between warps that can access each other via elevators
-		List<String> goldenrodDeptStoreElevMaps = new ArrayList<>(Arrays.asList("GOLDENROD_DEPT_STORE_B1F", "GOLDENROD_DEPT_STORE_1F", "GOLDENROD_DEPT_STORE_2F", "GOLDENROD_DEPT_STORE_3F", "GOLDENROD_DEPT_STORE_4F", "GOLDENROD_DEPT_STORE_5F", "GOLDENROD_DEPT_STORE_6F"));
-		List<String> celadonDeptStoreElevMaps = new ArrayList<>(Arrays.asList("CELADON_DEPT_STORE_1F", "CELADON_DEPT_STORE_2F", "CELADON_DEPT_STORE_3F", "CELADON_DEPT_STORE_4F", "CELADON_DEPT_STORE_5F", "CELADON_DEPT_STORE_6F"));
-		List<List<String>> elevMapLists = new ArrayList<>(Arrays.asList(goldenrodDeptStoreElevMaps, celadonDeptStoreElevMaps));
+		MapNetworkCreator creator = new MapNetworkCreator(nodes, nodeMap, flagRequirements);
+		creator.createNetwork();
 		
-		for (List<String> elevMapList : elevMapLists)
-		{
-			List<WarpNode> elevMapNodes = nodes.stream().filter(n -> elevMapList.contains(nodeMap.get(n).get(0).getMap().getConstName())).collect(Collectors.toList());
-			List<FlaggedEdge<WarpNode>> elevMapNodeEdges = edges.stream().filter(e -> elevMapNodes.contains(e.getSource()) && elevMapNodes.contains(e.getTarget())).collect(Collectors.toList());
-			
-			for (WarpNode source : elevMapNodes)
-				for (WarpNode target : elevMapNodes)
-					if (source != target && elevMapNodeEdges.stream().noneMatch(e -> e.getSource().equals(source) && e.getTarget().equals(target)))
-						edges.add(new FlaggedEdge<WarpNode>(source, target, new HashSet<>()));
-		}
-		
-		FlaggedWarpNetwork<WarpNode, FlaggedEdge<WarpNode>> network = new FlaggedWarpNetwork<>(nodes, edges);
-		network.printEdgeTable();
+		FlaggedWarpNetwork<WarpNode, FlaggedEdge<WarpNode>> network = creator.getNetwork();
+		java.util.Map<Flag, Set<WarpNode>> flagRequirementsNodes = creator.getFlagRequirementsNodes();
 		
 		Set<FlaggedEdge<WarpNode>> originalEdges = new HashSet<>();
 		for (WarpNode source : nodes)
@@ -540,9 +561,10 @@ public class Notes
 			originalEdges.add(new FlaggedEdge<>(source, target, new HashSet<>()));
 		}
 		
-		java.util.Map<Flag, List<Warp>> flagRequirements = empReader.readFlagRequirements(flags, maps);
+		//Find the start warp node
+		WarpNode start = nodes.stream().filter(n -> nodeMap.get(n).get(0).getMap().getConstName().equals("ROUTE_29")).findAny().orElseThrow();
 		
-		List<Edge<WarpNode>> randomisedWarps = rando.buildWarpGroups(originalEdges, network, false, false, false, false);
+		List<Edge<WarpNode>> randomisedWarps = rando.buildWarpGroups(originalEdges, network, flagRequirementsNodes, start, false, false, false, false);
 		
 		java.util.Map<Warp, Warp> output = new HashMap<>();
 		for (Edge<WarpNode> edge : randomisedWarps)
@@ -642,7 +664,7 @@ public class Notes
 				{
 					//System.err.println("The --warp-areas randomiser is out of action until flag-based progression can be processed.");
 					warpAreas = true;
-					return;
+					break;
 				}
 				
 				case "--overworld-sprite-pointers":
