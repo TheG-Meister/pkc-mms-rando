@@ -24,6 +24,7 @@ import com.gmeister.temp.pkcmmsrando.network.FlaggedNetworkExplorer;
 import com.gmeister.temp.pkcmmsrando.network.FlaggedWarpNetwork;
 import com.gmeister.temp.pkcmmsrando.network.NodeGroup;
 import com.gmeister.temp.pkcmmsrando.network.UnreturnableNetwork;
+import com.gmeister.temp.pkcmmsrando.network.WarpNetwork;
 import com.gmeister.temp.pkcmmsrando.network.WarpNode;
 
 public class Randomiser
@@ -469,6 +470,277 @@ public class Randomiser
 		
 		if (flagRequirements.keySet().equals(flagsCollected)) return true;
 		else return false;
+	}
+	
+	private boolean canMissRequirements(FlaggedWarpNetwork<WarpNode, FlaggedEdge<WarpNode>> network, List<WarpNode> sources, List<WarpNode> targets, java.util.Map<Flag, Set<WarpNode>> flagRequirements, WarpNode start)
+	{
+		//Okay so we start from the start warp
+		//Collapse to no flags because we'll need to do that anyway
+		//Find bottom tiers
+		//For every bottom tier
+		//If there is a source, continue
+		//If there is no way to exit the tier with flags, exit bad
+		//If there is not all the requirements for the flagged exit, exit bad
+		//Re-collapse with only required flags
+		//Repeat
+		
+		//The only difference between the start warp and any other component is that we know the player begins at the start warp with no flags
+		//Doing the analysis for all components means we can find the permissions required not to softlock
+		//That permissions simply needs to be empty for the start warp
+		//We need some form of conditional branch detector so we know what we can limit things behind too
+		
+		//I think we try using a network exploration
+		//For now, find any source that can access another source? no
+		//Find any target that can access a source only using flags
+		//And also the source side of the flagged branch can access another source, or all of the required flags
+		
+		FlaggedNetworkExplorer<WarpNode, FlaggedEdge<WarpNode>> explorer = new FlaggedNetworkExplorer<>(network, e -> e.getFlags());
+		
+		List<Set<Flag>> flagSets = new ArrayList<>();
+		flagSets.add(new HashSet<>());
+		
+		WarpNetwork<WarpNode, FlaggedEdge<WarpNode>> collapsedNetwork = network.collapse(new ArrayList<>());
+		
+		//Find a target that can only access a source conditionally - flaggedNetworkExplorer
+		//Get a grouped network with only conditional branches and use it to find the limiting branches
+		//Get a collapsed network where the only branches left over are conditional, unreturnable, or conditionally returnable
+		//And use it to make sure there is a source above the limiting branches, or all the permissions required to progress
+		
+		
+		//let's take an unconditional tier. It has a target, so any warp could lead to it, no sources, so it can't be left, and it can be accessed returnably with surf
+		//It can also be left with surf
+		//This would be a completely separate component within a collapsed network at no flags.
+		//We do know that we can only get to a component via a target, or the start warp
+		//technically any bottom tier that can't ever be accessed isn't worth assessing
+		//From the start warp, we have no permissions and we're trying not to softlock
+		//From a target, we want to find the permissions required to get to a source
+		
+		Set<NodeGroup<WarpNode>> sourceTiers = collapsedNetwork.getUnreturnableNetwork().getSourceNodes();
+		Set<NodeGroup<WarpNode>> targetTiers = collapsedNetwork.getUnreturnableNetwork().getTargetNodes();
+		
+		Set<NodeGroup<WarpNode>> bottomTiers = new HashSet<>(collapsedNetwork.getUnreturnableNetwork().getNodes().stream().filter(n -> !sourceTiers.contains(n) && targetTiers.contains(n)).collect(Collectors.toList()));
+		Set<NodeGroup<WarpNode>> nonSourceTiers = new HashSet<>(collapsedNetwork.getUnreturnableNetwork().getNodes().stream().filter(n -> !sourceTiers.contains(n)).collect(Collectors.toList()));
+		
+		//This might actually be useful
+		
+		//Okay, we should be able to write a quick method that does an incomplete search for sources or targets
+		//Expand out only afterwards if we need to
+		
+		//A limitable flag set is a set of flags which we know we can force the player to obtain by making them pass through an edge that uses the flags
+		//This happens when there is no other way for the player to progress except through this edge
+		Set<Set<Flag>> limitableFlagSets = new HashSet<>();
+		
+		source:
+		for (WarpNode source : network.getNodes())
+		{
+			boolean sourceTested = false;
+			NodeGroup<WarpNode> collapsedSourceTier;
+			
+			target:
+			for (FlaggedEdge<WarpNode> edge : network.getEdges(source)) if (!edge.getFlags().isEmpty() && !limitableFlagSets.contains(edge.getFlags()))
+			{
+				if (!sourceTested)
+				{
+					collapsedSourceTier = collapsedNetwork.getUnreturnableNetwork().getNode(source);
+					if (collapsedSourceTier.getNodes().stream().noneMatch(n -> sources.contains(n))) continue source;
+					
+					sourceTested = true;
+				}
+				
+				NodeGroup<WarpNode> collapsedTargetTier = collapsedNetwork.getUnreturnableNetwork().getNode(edge.getTarget());
+				if (collapsedTargetTier.equals(collapsedSourceTier)) continue target;
+				if (collapsedTargetTier.getNodes().stream().noneMatch(n -> sources.contains(n))) continue source;
+			}
+		}
+		
+		for (NodeGroup<WarpNode> nonSourceTier : nonSourceTiers)
+		{
+			//If this tier has a source, it can be left, so skip it
+			if (nonSourceTier.getNodes().stream().anyMatch(n -> sources.contains(n))) continue;
+			
+			//What happens if there's no other way to leave?
+			//Skip again, because otherwise we're solving the other solftlock condition
+			Set<FlaggedEdge<WarpNode>> additionalEdges = new HashSet<>(network.getEdges().stream().filter(e -> nonSourceTier.getNodes().contains(e.getSource()) && !nonSourceTier.getNodes().contains(e.getTarget())).collect(Collectors.toList()));
+			
+			//If there are no additional edges, this method is not designed to exit in this case, so continue
+			if (additionalEdges.isEmpty()) continue;
+			
+			//If there are unflagged branches available for progression, network collapsing isn't working properly, so throw an exception
+			if (additionalEdges.stream().anyMatch(e -> e.getFlags().isEmpty())) throw new IllegalStateException("FlaggedWarpNetwork.collapse() is not working properly");
+			
+			//There's a way to be efficient with the next step(s)
+			//What ways do we have?
+			//flaggednetworkexplorer all targets of additional edges to sources
+			//get all targets of those edges and find sources in the result
+			//Search for collapsed tiers of new edges and whether they have a source in them, flagged network explorer from one to source otherwise
+			
+			//For every edge
+			//Find the collapsed tier it leads to
+			//If it has a source or can access a source, and this tier contains all the requirements for the flag for the branch to get there, continue?
+			
+			//This doesn't work if surf permissions are locked behind cut and we know the player has cut
+			
+			//We might be able to skip a lot of this if we know we have branches we can restrict progression behind too
+			//I think what that looks like is source and target, conditional branch, source
+			//Requirements for the requirements in this case? simply that they aren't behind that branch I guess
+			//Only need to look at the start warp then
+			
+			//Is there any scenario in which we won't be able to access permissions?
+			//Technically? might not be relevant yet, but if they can't be accessed then the completion method will exit I guess
+			//I definitely think it's relevant though
+			
+		}
+		
+		//Find all combinations of flags used in edges
+		Set<Set<Flag>> flagSets = new HashSet<>(network.getEdges().stream().map(e -> e.getFlags()).collect(Collectors.toList()));
+		flagSets.remove(new HashSet<>());
+		flagSets = Flags.simplify(flagSets);
+		Set<Flag> allFlags = new HashSet<>(flagSets.stream().flatMap(s -> s.stream()).collect(Collectors.toList()));
+		
+		for (Set<Flag> flags : flagSets)
+		{
+			Set<FlaggedEdge<WarpNode>> edges = new HashSet<>(network.getEdges()
+					.stream()
+					.filter(e -> e.getFlags()
+							.stream()
+							.anyMatch(f -> flags.contains(f)))
+					.collect(Collectors.toList()));
+			
+			Set<NodeGroup<WarpNode>> components = new HashSet<>(edges.stream()
+					.map(e -> network.getComponentNetwork()
+							.getNode(e.getSource()))
+					.collect(Collectors.toList()));
+			
+			Set<Flag> allFlagsExcept = new HashSet<>(allFlags);
+			allFlagsExcept.removeAll(flags);
+			WarpNetwork<WarpNode, FlaggedEdge<WarpNode>> collapsedNetwork = network.collapse(allFlagsExcept);
+			Set<NodeGroup<WarpNode>> collapsedSourceTiers = collapsedNetwork.getUnreturnableNetwork().getSourceNodes();
+			
+			component:
+			for (NodeGroup<WarpNode> component : components)
+			{
+				Set<WarpNode> componentTargets = new HashSet<>(targets.stream().filter(n -> component.getNodes().contains(n) && !targetTiers.contains(network.getUnreturnableNetwork().getNode(n))).collect(Collectors.toList()));
+				Set<WarpNode> componentSources = new HashSet<>(sources.stream().filter(n -> component.getNodes().contains(n) && !sourceTiers.contains(network.getUnreturnableNetwork().getNode(n))).collect(Collectors.toList()));
+				
+				//Problem is when any of these tiers does not contain none or all of the requirements
+				//Or if a component contains any requirements and has two or more softlockable tiers that can be accessed by the same target
+				
+				//I feel like this is a good idea?
+				if (componentTargets.isEmpty() || componentSources.isEmpty()) continue;
+				
+				//Could move a lot of this over to the network classes
+				Set<NodeGroup<WarpNode>> collapsedComponents = new HashSet<>();
+				for (WarpNode node : component.getNodes()) collapsedComponents.add(collapsedNetwork.getComponentNetwork().getNode(node));
+				
+				for (NodeGroup<WarpNode> collapsedComponent : collapsedComponents)
+				{
+					Set<NodeGroup<WarpNode>> collapsedTiers = new HashSet<>();
+					for (WarpNode node : collapsedComponent.getNodes()) collapsedTiers.add(collapsedNetwork.getUnreturnableNetwork().getNode(node));
+					
+					//We can find branches that split components here
+					//This is important right?
+					//It doesn't have to split a component, only prevent travel until you have a permission
+					//eg cherrygrove and the cut tree on route 30. one way down, but needs cut to get back up (or the egg key item and elms lab)
+					
+					for (NodeGroup<WarpNode> collapsedTier : collapsedTiers)
+						if (!collapsedSourceTiers.contains(collapsedTier) && collapsedTier.getNodes().stream().noneMatch(n -> sources.contains(n)))
+					{
+						//Houston we have a problem
+						//Okay only if we can't hide this tier behind a conditional branch and none of the flags are present
+						//Or all of the flags are present
+						
+						//If all the flags are here then this tier is okay
+						
+						
+						int a = 0;
+						
+						//We still need to be able to find branches that split a component in two
+					}
+					
+					//We still don't know if this component is only progressible with permissions yet
+					//If it is and there's only one tier, we can use this branch to hide other problematic tiers behind
+					//How do we know that we don't already have perms when we get here
+					//Only possible from start warp?
+					//Not true, if we have target, flags, branch we know the player must have the flags already
+					
+					//We don't need to do this analysis for every component if we have a single conditional branch and the flags all in once place?
+					//We might have to for the start warp
+					//I think we can definitely skip over doing this for every component if we have a couple conditions met
+				}
+				
+				//Could get the collapsed components, if there's more than one we have a problem
+				//Take each conditional branch and check if the source and target are in the same tier?
+				
+				Set<NodeGroup<WarpNode>> softlockableTiers = new HashSet<>();
+				
+				
+				
+				//If we reach this point, 
+			}
+			
+			//Fail if start warp can access a collapsed bottom tier with no sources that does not have all requirements in
+			//Fail if start warp can access two or more collapsed bottom tiers with no sources
+			//Doesn't this also mean we need to be able to have other perms available to make connections?
+			
+			//Find all components that contain a flag requirement
+			Set<NodeGroup<WarpNode>> requirementComponents = new HashSet<>();
+			
+			for (Flag flag : flags)
+				if (flagRequirements.containsKey(flag) && flagRequirements.get(flag).size() > 0)
+					for (WarpNode node : flagRequirements.get(flag))
+						requirementComponents.add(network.getComponentNetwork().getNode(node));
+			
+			//Find the tiers within these components that are blocked
+			Set<NodeGroup<WarpNode>> blockedTiers = new HashSet<>();
+			for (NodeGroup<WarpNode> component : requirementComponents)
+			{
+				Set<WarpNode> requirements = new HashSet<>();
+				for (Flag flag : flags)
+					if (flagRequirements.containsKey(flag) && flagRequirements.get(flag).size() > 0)
+						for (WarpNode node : flagRequirements.get(flag))
+							if (component.getNodes().contains(node))
+								requirements.add(node);
+				
+				Set<WarpNode> componentSources = new HashSet<>(sources.stream().filter(n -> component.getNodes().contains(n)).collect(Collectors.toList()));
+				
+				requirementLoop:
+				for (WarpNode requirement : requirements)
+				{
+					//We kinda need to know the exact flags
+					//If there's no way to get from requirement to source then we just skip this source
+					//If there's a way to get there without using any of the flags in flags then we skip this requirement
+					//Otherwise we find the bottom tier in the collapsed network, which should be blocked by the conditional branch
+					//Every bottom tier needs to obey the criterion?
+					
+					for (WarpNode source : componentSources)
+					{
+						List<Set<Flag>> pathFlags = explorer.getFlagsForPath(requirement, source);
+						
+						if (pathFlags.isEmpty()) continue;
+						else if (pathFlags.stream().anyMatch(s -> s.stream().noneMatch(f -> flags.contains(f)))) continue requirementLoop;
+						else
+						{
+							//Otherwise the only way to progress after the requirement is by using the requirement
+							//This isn't true is it?
+							//Does it actually have to be downstream from the requirement?
+							//As long as it exists anywhere it's a potential problem
+							//If the player can get there without the requirement then it's a problem
+							
+							//We can specifically find components which use the flagged edges in quwestion
+							//Filter the edges for the flags and find the corresponding components
+						}
+					}
+					
+					
+				}
+			}
+			
+			
+			
+			
+		}
+		
+		return false;
 	}
 	
 	private boolean canConnectAllComponents(Set<NodeGroup<WarpNode>> components, List<WarpNode> sources, List<WarpNode> targets)
