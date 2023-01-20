@@ -3,7 +3,7 @@ package com.gmeister.temp.pkcmmsrando.network;
 import java.util.ArrayList;
 import java.util.List;
 
-public class TreeExploration<N extends Node, E extends Edge<? extends N>> extends NetworkExploration<N, E>
+public class TreeExploration<N extends Node, E extends Edge<? extends N>> extends AbstractNetworkExploration<N, E>
 {
 
 	protected N startingNode;

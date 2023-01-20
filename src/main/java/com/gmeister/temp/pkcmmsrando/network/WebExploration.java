@@ -3,7 +3,7 @@ package com.gmeister.temp.pkcmmsrando.network;
 import java.util.ArrayList;
 import java.util.List;
 
-public class WebExploration<N extends Node, E extends Edge<? extends N>> extends NetworkExploration<N, E>
+public class WebExploration<N extends Node, E extends Edge<? extends N>> extends AbstractNetworkExploration<N, E>
 {
 	
 	public WebExploration()
@@ -18,7 +18,7 @@ public class WebExploration<N extends Node, E extends Edge<? extends N>> extends
 	public WebExploration(List<N> nodesToExplore, List<N> nodesAccessed, List<E> edgesAccessed)
 	{ super(nodesToExplore, nodesAccessed, edgesAccessed); }
 	
-	public WebExploration(NetworkExploration<? extends N, ? extends E> other)
+	public WebExploration(AbstractNetworkExploration<? extends N, ? extends E> other)
 	{ super(other); }
 	
 	public void exploreFrom(N node)
